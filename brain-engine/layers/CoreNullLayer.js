@@ -1,4 +1,8 @@
-﻿// brain-engine/layers/CoreNullLayer.js
+﻿// DB 스키마: id, standard_word, southern_word, hue_word, mekong_word, meaning_ko, meaning_en,
+// part_of_speech, category_main, category_sub, pronunciation_diff, conversion_rule,
+// frequency, formality_level, generation, region, example_northern, example_southern,
+// notes, created_at, entry_type, dialect, status, source, emotion_score, conflict_weight
+
 export class CoreNullLayer {
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
@@ -16,44 +20,26 @@ export class CoreNullLayer {
     }
   }
 
-  // 단어 조회: meaning_ko(한국어 뜻)로 검색
   async getWordData(ctx) {
     const { word, dialect = 'standard' } = ctx.payload;
     if (!word) {
       return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
     }
 
-    // meaning_ko 컬럼으로 검색 (실제 DB 컬럼명)
+    // 실제 컬럼만 SELECT
     const { data, error } = await ctx.supabase
       .from('tp_translations')
-      .select(`
-        standard_word,
-        southern_word,
-        hue_word,
-        mekong_word,
-        meaning_ko,
-        example_northern,
-        example_southern,
-        notes,
-        part_of_speech,
-        pronunciation_diff,
-        conversion_rule,
-        frequency,
-        formality_level,
-        emotion_score,
-        conflict_weight
-      `)
-      .eq('meaning_ko', word)   // 한국어 뜻으로 검색
+      .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
+      .eq('meaning_ko', word)   // meaning_ko로 검색 (한국어 뜻)
       .maybeSingle();
 
     if (error) {
       return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
     }
     if (!data) {
-      return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
+      return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found in meaning_ko` } };
     }
 
-    // 방언별 매핑
     const dialectMap = {
       standard: 'standard_word',
       southern: 'southern_word',
@@ -63,11 +49,12 @@ export class CoreNullLayer {
     const targetField = dialectMap[dialect] || 'standard_word';
     const translatedWord = data[targetField] || data.standard_word;
 
-    // 예문 처리 (northern / southern만 존재)
+    // 예문: northern/southern만 존재
     let example = null;
     if (dialect === 'standard' || dialect === 'northern') example = data.example_northern;
     else if (dialect === 'southern') example = data.example_southern;
-    else if (dialect === 'hue' || dialect === 'mekong') example = data.example_northern; // fallback
+    // hue, mekong은 example_northern fallback (없으면 null)
+    else if (dialect === 'hue' || dialect === 'mekong') example = data.example_northern;
 
     return {
       ...ctx,
@@ -76,7 +63,7 @@ export class CoreNullLayer {
         dialect,
         translation: translatedWord,
         example: example || null,
-        culturalNote: data.notes || null,      // notes 컬럼 사용
+        culturalNote: data.notes || null,   // notes 컬럼 사용
         partOfSpeech: data.part_of_speech,
         pronunciationDiff: data.pronunciation_diff,
         conversionRule: data.conversion_rule,
@@ -94,62 +81,28 @@ export class CoreNullLayer {
     };
   }
 
-  // 새 단어 저장 (실제 컬럼에 맞춤)
   async saveWord(ctx) {
+    // 실제 존재하는 컬럼만 삽입 (example_hue, cultural_note 등 없음)
     const {
-      standard_word,
-      southern_word,
-      hue_word,
-      mekong_word,
-      meaning_ko,
-      meaning_en,
-      part_of_speech,
-      category_main,
-      category_sub,
-      pronunciation_diff,
-      conversion_rule,
-      frequency,
-      formality_level,
-      generation,
-      region,
-      example_northern,
-      example_southern,
-      notes,
-      entry_type,
-      dialect,
-      status,
-      source,
-      emotion_score,
-      conflict_weight,
+      standard_word, southern_word, hue_word, mekong_word,
+      meaning_ko, meaning_en, part_of_speech,
+      category_main, category_sub, pronunciation_diff, conversion_rule,
+      frequency, formality_level, generation, region,
+      example_northern, example_southern, notes,
+      entry_type, dialect, status, source,
+      emotion_score, conflict_weight
     } = ctx.payload;
 
     const { data, error } = await ctx.supabase
       .from('tp_translations')
       .insert([{
-        standard_word,
-        southern_word,
-        hue_word,
-        mekong_word,
-        meaning_ko,
-        meaning_en,
-        part_of_speech,
-        category_main,
-        category_sub,
-        pronunciation_diff,
-        conversion_rule,
-        frequency,
-        formality_level,
-        generation,
-        region,
-        example_northern,
-        example_southern,
-        notes,
-        entry_type,
-        dialect,
-        status,
-        source,
-        emotion_score,
-        conflict_weight,
+        standard_word, southern_word, hue_word, mekong_word,
+        meaning_ko, meaning_en, part_of_speech,
+        category_main, category_sub, pronunciation_diff, conversion_rule,
+        frequency, formality_level, generation, region,
+        example_northern, example_southern, notes,
+        entry_type, dialect, status, source,
+        emotion_score, conflict_weight
       }])
       .select()
       .single();
@@ -176,7 +129,6 @@ export class CoreNullLayer {
       .update({ status: 'resolved', resolution_note, resolved_at: new Date() })
       .eq('id', conflict_id);
     if (updateError) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: updateError.message } };
-
     if (new_translation && original_word) {
       const { error: transError } = await ctx.supabase
         .from('tp_translations')
