@@ -1,5 +1,4 @@
-﻿// brain-engine/layers/CoreNullLayer.js
-export class CoreNullLayer {
+﻿export class CoreNullLayer {
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
     switch (action) {
@@ -22,11 +21,12 @@ export class CoreNullLayer {
       return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
     }
 
+    // example_hue 컬럼은 존재하지 않으므로 제거
     const { data, error } = await ctx.supabase
       .from('tp_translations')
-      .select('standard_word, southern_word, hue_word, mekong_word, example_northern, example_southern, example_hue, example_mekong, cultural_note')
+      .select('standard_word, southern_word, hue_word, mekong_word, example_northern, example_southern, example_mekong, cultural_note')
       .eq('standard_word', word)
-      .maybeSingle(); // .single() 대신 maybeSingle() 사용 -> 없으면 null
+      .maybeSingle();
 
     if (error) {
       return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
@@ -43,8 +43,13 @@ export class CoreNullLayer {
     };
     const targetField = dialectMap[dialect] || 'standard_word';
     const translatedWord = data[targetField] || data.standard_word;
-    const exampleField = `example_${dialect}`;
-    const example = data[exampleField] || data.example_northern;
+
+    // example 필드: hue 방언은 example_northern fallback
+    let example = null;
+    if (dialect === 'standard') example = data.example_northern;
+    else if (dialect === 'southern') example = data.example_southern;
+    else if (dialect === 'mekong') example = data.example_mekong;
+    else if (dialect === 'hue') example = data.example_northern || data.example_southern; // fallback
 
     return {
       ...ctx,
@@ -65,6 +70,7 @@ export class CoreNullLayer {
   }
 
   async saveWord(ctx) {
+    // 저장 시에도 example_hue는 저장하지 않음 (필요하다면 DB 마이그레이션 필요)
     const {
       standard_word,
       southern_word,
@@ -72,14 +78,22 @@ export class CoreNullLayer {
       mekong_word,
       example_northern,
       example_southern,
-      example_hue,
       example_mekong,
       cultural_note,
     } = ctx.payload;
 
     const { data, error } = await ctx.supabase
       .from('tp_translations')
-      .insert([{ standard_word, southern_word, hue_word, mekong_word, example_northern, example_southern, example_hue, example_mekong, cultural_note }])
+      .insert([{
+        standard_word,
+        southern_word,
+        hue_word,
+        mekong_word,
+        example_northern,
+        example_southern,
+        example_mekong,
+        cultural_note
+      }])
       .select()
       .single();
 
