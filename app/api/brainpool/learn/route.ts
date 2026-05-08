@@ -2,10 +2,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// 환경 변수 값을 미리 검사합니다.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// 클라이언트를 바로 생성하지 않고 필요할 때만 생성하는 함수입니다.
+let _supabase: any = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  return _supabase;
+}
 
 const normalize = (s: string): string => {
   return s
@@ -74,6 +82,13 @@ const validate = (ctx: any) => {
 const upsertPersonal = async (ctx: any) => {
   if (ctx._error) return ctx;
 
+  // 환경 변수 검증 강화
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    ctx._error = 'SUPABASE_CONFIG_MISSING';
+    return ctx;
+  }
+
+  const supabase = getSupabase();
   const p = ctx.payload;
   const normalizedText = normalize(p.original);
 
