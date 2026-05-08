@@ -1,6 +1,8 @@
 ﻿// app/api/search/route.ts
-// (ctx) => ctx 패턴, throw 금지
-export async function GET(req: Request) {
+import { getSupabase } from '@/lib/supabase';
+import { NextRequest } from 'next/server';
+
+export async function GET(req: NextRequest) {
   const traceId = crypto.randomUUID();
   const url = new URL(req.url);
   const query = url.searchParams.get('q') || '';
@@ -14,15 +16,19 @@ export async function GET(req: Request) {
     );
   }
 
-  const { createClient } = await import('@supabase/supabase-js');
   const supabase = getSupabase();
-if (!supabase) { return new Response(JSON.stringify({ error: 'Database connection is not available' }), { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
+  if (!supabase) {
+    return Response.json(
+      { payload: null, _error: 'Database connection is not available', traceId },
+      { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
 
-  // PGroonga &@~ 연산자는 LIKE와 달리 대소문자 구분 없이 어떤 텍스트라도 포함 검색 가능
   let messageQuery = supabase
     .from('chat_messages')
-    .select('id, message, translated_ko, translated_vi, room_id, created_at');
-  
+    .select('id, message, translated_ko, translated_vi, room_id, created_at')
+    .limit(limit);
+
   if (lang === 'ko') {
     messageQuery = messageQuery.or(`message.ilike.%${query}%,translated_ko.ilike.%${query}%`);
   } else if (lang === 'vi') {
@@ -33,7 +39,7 @@ if (!supabase) { return new Response(JSON.stringify({ error: 'Database connectio
     );
   }
 
-  const { data: messages, error: msgError } = await messageQuery.limit(limit);
+  const { data: messages, error: msgError } = await messageQuery;
 
   if (msgError) {
     return Response.json(
@@ -42,7 +48,6 @@ if (!supabase) { return new Response(JSON.stringify({ error: 'Database connectio
     );
   }
 
-  // 번역 로그에서도 검색
   const { data: transLogs, error: logError } = await supabase
     .from('tb_trans_logs')
     .select('id, source_text, standard_vi, meaning_ko')
