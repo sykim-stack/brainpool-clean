@@ -11,14 +11,14 @@ async function saveHajunaiLog(extracted: {
   status?: string
   tags?: string[]
 }) {
-  await supabase.from('hajunai_logs').insert({
-    project: extracted.project,
-    last_task: extracted.lastTask,
-    problems: extracted.problems,
-    solution: extracted.solution,
-    status: extracted.status || '🟡 진행중',
-    tags: extracted.tags || []
-  })
+ await (supabase as any).from('hajunai_logs').insert({
+  project: extracted.project,
+  last_task: extracted.lastTask,
+  problems: extracted.problems,
+  solution: extracted.solution,
+  status: extracted.status,
+  tags: extracted.tags,
+});
 }
 
 // 예: 응답 생성 후 자동 추출하여 저장
