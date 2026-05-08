@@ -4,23 +4,20 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  // 1. body 읽기 (raw text)
   let rawBody: string;
   try {
     rawBody = await req.text();
-  } catch (e) {
+  } catch {
     return NextResponse.json({ _error: 'Failed to read request body' }, { status: 400 });
   }
 
-  // 2. JSON 파싱
   let body: any;
   try {
     body = JSON.parse(rawBody);
-  } catch (e) {
+  } catch {
     return NextResponse.json({ _error: 'Invalid JSON', rawBody }, { status: 400 });
   }
 
-  // 3. 필수 필드 검증 (자세한 메시지)
   const { roomId, userId, message, targetLang = 'vi' } = body;
   const missing: string[] = [];
   if (!roomId) missing.push('roomId');
@@ -33,7 +30,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 4. CoreRing URL 동적 생성 (Vercel 환경 + fallback)
   let baseUrl: string;
   if (process.env.VERCEL_URL) {
     baseUrl = `https://${process.env.VERCEL_URL}`;
@@ -47,7 +43,6 @@ export async function POST(req: Request) {
   let translated = '';
   let translationError: string | null = null;
 
-  // 5. CoreRing 호출
   try {
     const translateRes = await fetch(coreRingUrl, {
       method: 'POST',
@@ -57,7 +52,7 @@ export async function POST(req: Request) {
 
     if (!translateRes.ok) {
       const errorText = await translateRes.text();
-      throw new Error(`CoreRing responded ${translateRes.status}: ${errorText.slice(0, 100)}`);
+      throw new Error(`CoreRing ${translateRes.status}: ${errorText.slice(0, 100)}`);
     }
 
     const translateData = await translateRes.json();
@@ -65,10 +60,9 @@ export async function POST(req: Request) {
     if (!translated) throw new Error('No translation field in CoreRing response');
   } catch (err: any) {
     translationError = err.message;
-    translated = message; // fallback
+    translated = message;
   }
 
-  // 6. Supabase 저장
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,18 +97,21 @@ export async function POST(req: Request) {
     );
   }
 
-  // 7. 실패 로그 기록 (선택)
+  // 로그 기록 (try/catch로 감싸서 에러 무시)
   if (translationError) {
-    await supabase.from('tb_trans_logs').insert({
-      original_text: message,
-      failed_translation: translated,
-      error_reason: translationError,
-      target_lang: targetLang,
-      timestamp: new Date().toISOString()
-    }).catch(console.error);
+    try {
+      await supabase.from('tb_trans_logs').insert({
+        original_text: message,
+        failed_translation: translated,
+        error_reason: translationError,
+        target_lang: targetLang,
+        timestamp: new Date().toISOString()
+      });
+    } catch (logErr) {
+      console.error('Failed to log translation error:', logErr);
+    }
   }
 
-  // 8. 성공 응답
   return NextResponse.json({
     success: true,
     message: messageData,
