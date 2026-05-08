@@ -1,4 +1,3 @@
-// app/api/chat/send/route.ts
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -18,11 +17,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ _error: 'Invalid JSON', rawBody }, { status: 400 });
   }
 
-  const { roomId, userId, message, targetLang = 'vi' } = body;
+  // ★★★ 중요: 프론트엔드가 'original'을 보내면 'message'로 매핑
+  const message = body.message || body.original;
+  const { roomId, userId, targetLang = 'vi' } = body;
+
   const missing: string[] = [];
   if (!roomId) missing.push('roomId');
   if (!userId) missing.push('userId');
-  if (!message) missing.push('message');
+  if (!message) missing.push('message or original');
   if (missing.length) {
     return NextResponse.json(
       { _error: `Missing required fields: ${missing.join(', ')}`, received: body },
@@ -30,6 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // CoreRing URL 동적 생성
   let baseUrl: string;
   if (process.env.VERCEL_URL) {
     baseUrl = `https://${process.env.VERCEL_URL}`;
@@ -49,12 +52,10 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: message, from: 'ko', to: targetLang })
     });
-
     if (!translateRes.ok) {
       const errorText = await translateRes.text();
       throw new Error(`CoreRing ${translateRes.status}: ${errorText.slice(0, 100)}`);
     }
-
     const translateData = await translateRes.json();
     translated = translateData.translated || translateData.result || '';
     if (!translated) throw new Error('No translation field in CoreRing response');
@@ -70,8 +71,8 @@ export async function POST(req: Request) {
     {
       cookies: {
         get(name: string) { return cookieStore.get(name)?.value; },
-        set(name: string, value: string, options: any) { cookieStore.set({ name, value, ...options }); },
-        remove(name: string, options: any) { cookieStore.set({ name, value: '', ...options }); },
+        set: () => {},
+        remove: () => {},
       },
     }
   );
@@ -91,13 +92,9 @@ export async function POST(req: Request) {
     .single();
 
   if (insertError) {
-    return NextResponse.json(
-      { _error: `DB insert failed: ${insertError.message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ _error: `DB insert failed: ${insertError.message}` }, { status: 500 });
   }
 
-  // 로그 기록 (try/catch로 감싸서 에러 무시)
   if (translationError) {
     try {
       await supabase.from('tb_trans_logs').insert({
