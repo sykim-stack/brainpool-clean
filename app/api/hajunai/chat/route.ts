@@ -1,9 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!  // 서비스 롤 권한
-)
+// 라우트 핸들러 내부에서 필요할 때마다 호출하여 사용
+const supabase = getSupabase();
 
 async function saveHajunaiLog(extracted: {
   project: string
