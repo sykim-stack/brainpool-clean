@@ -1,0 +1,202 @@
+/**
+ * POST /api/corechat
+ * ─────────────────────────────────────────────────────────────────
+ * CoreChat 통합 라우트.
+ * 채팅방 생성·입장·메시지 전송·수신·로그를 단일 라우트로 처리.
+ *
+ * ■ 통폐합 대상
+ *   /api/corechat?action=create-room    ← 방 생성
+ *   /api/corechat?action=join-room      ← 방 입장
+ *   /api/corechat?action=send-message   ← 메시지 전송 (→ messages 테이블)
+ *   /api/corechat?action=get-messages   ← 메시지 폴링 (→ messages 테이블)
+ *   /api/corechat?action=log            ← 채팅 로그 저장
+ *
+ * ■ Phase B 완료 후:
+ *   send-message → /api/messages (action=create, type=chat) 로 이관
+ *   get-messages → /api/messages (action=list,  type=chat) 로 이관
+ *   이관 완료 시 이 라우트에서 해당 케이스 제거.
+ *
+ * ─── 계약 (Master v1.0 §4) ───────────────────────────────────────
+ * - req.text() + JSON.parse()
+ * - throw 금지 → _error 반환
+ * - invite_code 정확히 6자 (영문 대문자)
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+import { createClient } from '@supabase/supabase-js';
+
+const sb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+const ALLOWED = new Set([
+  'create-room', 'join-room', 'send-message', 'get-messages', 'log',
+]);
+
+// invite_code: 6자 영문 대문자
+function _genCode() {
+  return Array.from({ length: 6 }, () =>
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]
+  ).join('');
+}
+
+export async function POST(req) {
+  const traceId = crypto.randomUUID();
+
+  let body;
+  try {
+    body = JSON.parse(await req.text());
+  } catch {
+    return _res({ _error: { code: 'PARSE_FAIL', message: '요청 파싱 실패', retryable: false } }, traceId, 400);
+  }
+
+  const { action, payload = {}, traceId: cTid } = body;
+  const tid = cTid || traceId;
+
+  if (!ALLOWED.has(action)) {
+    return _res({ _error: { code: 'UNKNOWN_ACTION', message: `알 수 없는 action: ${action}`, retryable: false } }, tid);
+  }
+
+  try {
+    let result;
+
+    switch (action) {
+
+      // ── 방 생성 ──────────────────────────────────────────────────
+      case 'create-room': {
+        const { device_id, nickname } = payload;
+        if (!device_id) return _res({ _error: { code: 'MISSING_PARAMS', message: 'device_id 필수', retryable: false } }, tid);
+
+        const invite_code = _genCode();
+        const { data, error } = await sb.from('chat_rooms').insert({
+          invite_code,
+          created_by: device_id,
+          created_at: new Date().toISOString(),
+        }).select().single();
+
+        if (error) return _res({ _error: { code: 'DB_FAIL', message: error.message, retryable: true } }, tid);
+
+        // 생성자 참여자로 등록
+        await sb.from('chat_participants').insert({
+          room_id:   data.id,
+          device_id,
+          nickname:  nickname ?? '익명',
+          joined_at: new Date().toISOString(),
+        });
+
+        result = { payload: { room: data } };
+        break;
+      }
+
+      // ── 방 입장 ──────────────────────────────────────────────────
+      case 'join-room': {
+        const { invite_code, device_id, nickname } = payload;
+        if (!invite_code || !device_id) {
+          return _res({ _error: { code: 'MISSING_PARAMS', message: 'invite_code, device_id 필수', retryable: false } }, tid);
+        }
+        if (!/^[A-Z]{6}$/.test(invite_code)) {
+          return _res({ _error: { code: 'INVALID_CODE', message: 'invite_code는 6자 영문 대문자', retryable: false } }, tid);
+        }
+
+        const { data: room, error: rErr } = await sb
+          .from('chat_rooms').select('*').eq('invite_code', invite_code).single();
+        if (rErr || !room) {
+          return _res({ _error: { code: 'ROOM_NOT_FOUND', message: '방을 찾을 수 없습니다', retryable: false } }, tid);
+        }
+
+        // 중복 참여 방지
+        const { data: existing } = await sb.from('chat_participants')
+          .select('id').eq('room_id', room.id).eq('device_id', device_id).single();
+
+        if (!existing) {
+          await sb.from('chat_participants').insert({
+            room_id:   room.id,
+            device_id,
+            nickname:  nickname ?? '익명',
+            joined_at: new Date().toISOString(),
+          });
+        }
+
+        result = { payload: { room } };
+        break;
+      }
+
+      // ── 메시지 전송 (→ Phase B 이후 /api/messages 로 이관 예정) ──
+      case 'send-message': {
+        const { room_id, message, device_id, translated_ko, translated_vi, detected_lang } = payload;
+        if (!room_id || !message || !device_id) {
+          return _res({ _error: { code: 'MISSING_PARAMS', message: 'room_id, message, device_id 필수', retryable: false } }, tid);
+        }
+
+        // ⚠️ Phase B 완료 후 아래를 /api/messages (action=create, type=chat) 호출로 교체
+        const { data, error } = await sb.from('messages').insert({
+          type:    'chat',
+          content: message,
+          meta: {
+            room_id,
+            translated_ko: translated_ko ?? null,
+            translated_vi: translated_vi ?? null,
+            source_lang:   detected_lang ?? null,
+          },
+          relations:  {},
+          device_id,
+          created_at: new Date().toISOString(),
+        }).select().single();
+
+        if (error) return _res({ _error: { code: 'DB_FAIL', message: error.message, retryable: true } }, tid);
+        result = { payload: { message: data } };
+        break;
+      }
+
+      // ── 메시지 폴링 (→ Phase B 이후 /api/messages 로 이관 예정) ──
+      case 'get-messages': {
+        const { room_id, cursor, limit = 50 } = payload;
+        if (!room_id) return _res({ _error: { code: 'MISSING_PARAMS', message: 'room_id 필수', retryable: false } }, tid);
+
+        // ⚠️ Phase B 완료 후 /api/messages (action=list, type=chat, room_id=...) 로 교체
+        let q = sb.from('messages')
+          .select('*')
+          .eq('type', 'chat')
+          .eq('meta->>room_id', room_id)
+          .order('created_at', { ascending: true })
+          .limit(limit);
+
+        if (cursor) q = q.gt('created_at', cursor);
+
+        const { data, error } = await q;
+        if (error) return _res({ _error: { code: 'DB_FAIL', message: error.message, retryable: true } }, tid);
+        result = { payload: { messages: data ?? [] } };
+        break;
+      }
+
+      // ── 채팅 로그 ────────────────────────────────────────────────
+      case 'log': {
+        const { room_id, device_id, event, meta: logMeta } = payload;
+        const { error } = await sb.from('tb_trans_logs').insert({
+          session_id: room_id,
+          trace_id:   tid,
+          input_text: event ?? 'chat_event',
+          direction:  'CHAT',
+          created_at: new Date().toISOString(),
+          ...logMeta,
+        });
+        if (error) return _res({ _error: { code: 'DB_FAIL', message: error.message, retryable: true } }, tid);
+        result = { payload: { logged: true } };
+        break;
+      }
+    }
+
+    return _res({ ...result, traceId: tid, _error: null }, tid);
+
+  } catch (e) {
+    return _res({ _error: { code: 'LAYER_FAIL', message: e.message, retryable: true } }, tid, 500);
+  }
+}
+
+function _res(data, traceId, status = 200) {
+  return new Response(
+    JSON.stringify({ ...data, traceId }),
+    { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+  );
+}

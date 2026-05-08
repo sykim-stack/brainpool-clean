@@ -1,0 +1,152 @@
+/* WordModal.module.css — 토큰 완전 적용 */
+
+/* ── 오버레이 ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  background: var(--color-bg);
+}
+
+/* ── 모달 본체 ── */
+.content {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-5);
+  max-width: 420px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* ── 헤더 ── */
+.title {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-warn);
+  margin-bottom: var(--space-1);
+}
+
+.subtitle {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Section ── */
+.section {
+  margin-bottom: var(--space-4);
+}
+
+.sectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  letter-spacing: 1px;
+  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+}
+
+/* ── Row ── */
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-sm);
+}
+
+.rowLabel {
+  color: var(--color-text-muted);
+}
+
+.rowValue {
+  color: var(--color-text-sub);
+}
+
+/* ── 위험 분석 ── */
+.riskRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.riskTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.riskBar {
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.riskValue {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
+}
+
+/* riskBar / riskValue 색상 */
+.riskNone  { color: var(--color-text-muted); background: var(--color-text-muted); }
+.riskHigh  { color: var(--color-warn);       background: var(--color-warn); }
+.riskMid   { color: var(--color-accent);     background: var(--color-accent); }
+.riskLow   { color: var(--color-success);    background: var(--color-success); }
+
+/* ── 문화 메모 ── */
+.culturalNote {
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+  line-height: var(--line-height);
+}
+
+/* ── 감정 태그 ── */
+.emotionTag {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+}
+
+/* ── 관련 표현 ── */
+.relatedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.relatedTag {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-xs);
+  color: var(--color-text-sub);
+  border: 1px solid var(--color-border);
+}
+
+/* ── 닫기 버튼 ── */
+.closeBtn {
+  width: 100%;
+  margin-top: var(--space-5);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-sub);
+  font-size: var(--font-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: var(--touch-min-height);
+}
+
+.closeBtn:hover {
+  background: var(--color-border);
+}

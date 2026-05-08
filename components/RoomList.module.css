@@ -1,0 +1,37 @@
+/* RoomList.module.css — 토큰 완전 적용 */
+
+.inner {
+  padding: var(--space-5);
+}
+
+.createBtn {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  margin-bottom: var(--space-4);
+  min-height: var(--touch-min-height);
+  transition: var(--transition-fast);
+}
+
+.createBtn:hover {
+  background: var(--color-border);
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-top: var(--space-6);
+}
+
+.roomItem {
+  cursor: pointer;
+}
+
+.inviteCode {
+  margin-top: var(--space-1);
+}

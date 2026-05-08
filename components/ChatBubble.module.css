@@ -1,0 +1,97 @@
+/* ChatBubble.module.css — 말풍선 정렬 최종 확정, 토큰 완전 적용 */
+
+/* ── 정렬: 첫 번째 언어 → 왼쪽 ── */
+.wrapperMine {
+  align-self: flex-start;
+  margin-right: var(--bubble-offset);
+  margin-left: 0;
+}
+
+/* ── 정렬: 두 번째 언어 → 오른쪽 ── */
+.wrapperOther {
+  align-self: flex-end;
+  margin-left: var(--bubble-offset);
+  margin-right: 0;
+}
+
+/* ── 공통 버블 ── */
+.bubble {
+  max-width: var(--bubble-max-width);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  background: var(--color-bubble-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* ── 상단 메타 행 (언어 라벨 + 복사 알림) ── */
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+/* ── 언어 라벨 ── */
+.langLabel {
+  font-size: var(--font-xs);
+  letter-spacing: var(--letter-spacing-sm);
+  font-family: monospace;
+  color: var(--color-text-muted);
+}
+
+.langKo {
+  color: var(--color-lang-ko);
+}
+
+.langVi {
+  color: var(--color-lang-vi);
+}
+
+/* ── 복사 알림 ── */
+.copied {
+  font-size: var(--font-xs);
+  color: var(--color-success);
+}
+
+/* ── 번역 결과 (주인공) ── */
+.translated {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+  line-height: var(--line-height);
+}
+
+/* ── 원문 (조연) ── */
+.original {
+  font-size: var(--font-md);
+  font-weight: var(--weight-normal);
+  color: var(--color-text-sub);
+  line-height: var(--line-height);
+}
+
+/* ── 하단 메타 행 (감정·위험도·시간) ── */
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── 편집 입력창 ── */
+.editInput {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  width: 100%;
+  outline: none;
+  color: var(--color-text);
+  font-size: var(--font-md);
+  font-family: inherit;
+  line-height: var(--line-height);
+}
