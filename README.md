@@ -184,4 +184,4 @@ ISC
 - [모듈 명세](docs/MODULE_SPEC.md)
 - [레이어 개발 가이드](docs/LAYER_GUIDE.md)
 - [디버깅 가이드](docs/DEBUGGING.md)
-- [로드맵](docs/ROADMAP.md)
+- [로드맵](docs/ROADMAP.md)"# corechat" 
