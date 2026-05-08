@@ -1,12 +1,9 @@
 // app/api/chat/send/route.ts
-// 채팅 메시지 전송 + CoreRing 번역 연동
-
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';  // ✅ 변경
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  // ⚠️ req.json() 사용 금지 규칙 준수 → req.text() + JSON.parse()
   const rawBody = await req.text();
   let body: any;
   try {
@@ -24,7 +21,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // 1. CoreRing 번역 API 호출 (동적 URL)
+  // 동적 URL for CoreRing
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000';
@@ -53,14 +50,29 @@ export async function POST(req: Request) {
     if (!translated) throw new Error('No translation in response');
   } catch (err: any) {
     translationError = err.message;
-    // fallback: 원문 그대로 저장 (나중에 재번역 트리거)
-    translated = message;
+    translated = message;  // fallback
   }
 
-  // 2. Supabase 클라이언트 초기화
-  const supabase = createRouteHandlerClient({ cookies });
+  // ✅ Supabase 클라이언트 생성 방식 변경
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
-  // 3. 메시지 저장 (번역 결과 포함)
   const { data: messageData, error: insertError } = await supabase
     .from('chat_messages')
     .insert({
@@ -82,7 +94,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 4. 번역 실패 시 tb_trans_logs에 기록 (AI fallback 추적)
   if (translationError) {
     await supabase.from('tb_trans_logs').insert({
       original_text: message,
@@ -93,7 +104,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // 5. 응답 반환
   return NextResponse.json({
     success: true,
     message: messageData,

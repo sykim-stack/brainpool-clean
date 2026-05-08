@@ -10,6 +10,7 @@
     "validate": "node scripts/validate-all.js"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.1",
     "axios": "^1.15.2",
     "cloudinary": "^2.10.0",
