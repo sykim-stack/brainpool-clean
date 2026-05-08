@@ -1,25 +1,35 @@
 ﻿import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 
-const supabase = getSupabase();
-if (!supabase) { return new Response(JSON.stringify({ error: 'Database connection is not available' }), { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
-
 export async function GET() {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return new Response(
+      JSON.stringify({ error: 'Database connection is not available' }),
+      { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
   try {
-    // 오늘의 단어: tp_translations 테이블에서 랜덤 또는 날짜 기반
     const { data, error } = await supabase
       .from('tp_translations')
       .select('standard_vi, meaning_ko')
       .limit(1)
-      .order('usage_count', { ascending: false }); // 인기순 예시
+      .order('usage_count', { ascending: false });
 
     if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      data: { word: data[0]?.standard_vi || 'chép bài', meaning: data[0]?.meaning_ko || '필기하다' }
+      data: {
+        word: data[0]?.standard_vi || 'chép bài',
+        meaning: data[0]?.meaning_ko || '필기하다'
+      }
     });
   } catch (err) {
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: String(err) },
+      { status: 500 }
+    );
   }
 }
