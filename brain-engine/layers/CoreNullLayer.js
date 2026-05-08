@@ -1,8 +1,27 @@
 ﻿// brain-engine/layers/CoreNullLayer.js
-// CoreNull: 방언 사전 및 문화 충돌 관리 레이어 (클래스 기반)
+// CoreNull: 방언 사전 및 문화 충돌 관리 레이어 (클래스 + handle 라우터)
 
 export class CoreNullLayer {
-  // 모든 메서드는 (ctx) => ctx 형태, throw 금지, _error 필드 사용
+  // 라우터: action에 따라 적절한 메서드 호출
+  async handle(ctx) {
+    const action = ctx.payload?.action || ctx.action;
+
+    switch (action) {
+      case 'getWordData':
+        return await this.getWordData(ctx);
+      case 'saveWord':
+        return await this.saveWord(ctx);
+      case 'reportConflict':
+        return await this.reportConflict(ctx);
+      case 'resolveConflict':
+        return await this.resolveConflict(ctx);
+      default:
+        return {
+          ...ctx,
+          _error: { code: 'UNKNOWN_ACTION', message: `Action '${action}' not supported` }
+        };
+    }
+  }
 
   async getWordData(ctx) {
     const { word, dialect = 'standard' } = ctx.payload;
@@ -119,7 +138,6 @@ export class CoreNullLayer {
   async resolveConflict(ctx) {
     const { conflict_id, resolution_note, new_translation, original_word } = ctx.payload;
 
-    // 1. 충돌 상태 업데이트
     const { error: updateError } = await ctx.supabase
       .from('tp_conflicts')
       .update({ status: 'resolved', resolution_note, resolved_at: new Date() })
@@ -129,7 +147,6 @@ export class CoreNullLayer {
       return { ...ctx, _error: { message: updateError.message, code: 500 } };
     }
 
-    // 2. 새 번역이 제공되면 tp_translations 업데이트
     if (new_translation && original_word) {
       const { error: transError } = await ctx.supabase
         .from('tp_translations')
@@ -145,5 +162,4 @@ export class CoreNullLayer {
   }
 }
 
-// 기본 내보내기 (필요시)
 export default CoreNullLayer;
