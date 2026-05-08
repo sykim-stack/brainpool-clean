@@ -56,27 +56,21 @@ export class CoreNullLayer {
     // hue, mekong은 example_northern fallback (없으면 null)
     else if (dialect === 'hue' || dialect === 'mekong') example = data.example_northern;
 
+    // WordModal.tsx가 기대하는 구조로 평탄화하여 반환
     return {
       ...ctx,
       result: {
         word,
-        dialect,
-        translation: translatedWord,
-        example: example || null,
-        culturalNote: data.notes || null,   // notes 컬럼 사용
+        standard: data.standard_word,
+        southern: data.southern_word,
+        hue: data.hue_word,
+        mekong: data.mekong_word,
+        meaning: data.meaning_ko,
+        examples: data.example_northern ? [data.example_northern] : [],
+        culturalNote: data.notes || null,
+        riskScore: data.conflict_weight || 0, // riskScore로 매핑
+        emotion: data.emotion_score > 0.5 ? '긍정' : '중립',
         partOfSpeech: data.part_of_speech,
-        pronunciationDiff: data.pronunciation_diff,
-        conversionRule: data.conversion_rule,
-        frequency: data.frequency,
-        formality: data.formality_level,
-        emotionScore: data.emotion_score,
-        conflictWeight: data.conflict_weight,
-        variants: {
-          standard: data.standard_word,
-          southern: data.southern_word,
-          hue: data.hue_word,
-          mekong: data.mekong_word,
-        },
       },
     };
   }

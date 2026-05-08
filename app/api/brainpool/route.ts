@@ -26,16 +26,30 @@ export async function POST(request: NextRequest) {
     const { contextFilter } = await import('@/brain-engine/modules/contextFilter');  // ← default 제거
 
     const ctx = await runPipeline(
-      { payload: { text, author: body.author || 'anonymous' }, traceId, _error: null },
+      { 
+        payload: { 
+          text, 
+          author: body.author || 'anonymous',
+          sourceLang: body.from || 'ko',
+          targetLang: body.to || 'vi'
+        }, 
+        traceId, 
+        _error: null 
+      },
       [detectLanguage, translate, emotionFilter, contextFilter]
     );
 
-    const message = ctx.payload?.message || ctx.payload;
+    if (ctx._error) {
+      return Response.json(
+        { _error: ctx._error, traceId },
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
 
-    console.log(`✅ [CoreRing] 처리 완료:`, JSON.stringify(message).substring(0, 200));
+    const result = ctx.payload?.message || ctx.payload;
 
     return Response.json(
-      { message },
+      { success: true, translated: result.translated || result, result, traceId },
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (e: any) {

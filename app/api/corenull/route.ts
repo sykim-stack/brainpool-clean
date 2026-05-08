@@ -68,8 +68,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // WordModal.tsx는 { success: true, payload: ... } 구조를 기대함
     return new Response(
-      JSON.stringify({ result: result.result, traceId }),
+      JSON.stringify({ success: true, payload: result.result, traceId }),
       { status: 200, headers: responseHeaders }
     );
   } catch (err: any) {

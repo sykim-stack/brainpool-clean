@@ -14,21 +14,37 @@ export class CoreRingLayer {
     this.output = new OutputLayer();
   }
 
-  // 🔥 수정: options 파라미터 추가
+  // 모든 함수는 (ctx) => ctx 형태를 지향하지만, 외부 호출용 process는 결과값 반환
   async process(text, traceId = crypto.randomUUID(), author = 'anonymous', options = {}) {
     let ctx = {
       payload: {
         text,
         author,
-        ...options,      // 🔥 targetLang 등 모든 옵션을 payload에 합침
+        ...options,
       },
       traceId,
+      _error: null,
     };
-    ctx = await this.language.process(ctx);
-    ctx = await this.translation.process(ctx);
-    ctx = await this.meaning.process(ctx);
-    ctx = await this.culture.process(ctx);
-    ctx = await this.output.process(ctx);
-    return ctx.payload.message;
+
+    try {
+      ctx = await this.language.process(ctx);
+      if (ctx._error) return { _error: ctx._error, traceId };
+
+      ctx = await this.translation.process(ctx);
+      if (ctx._error) return { _error: ctx._error, traceId };
+
+      ctx = await this.meaning.process(ctx);
+      if (ctx._error) return { _error: ctx._error, traceId };
+
+      ctx = await this.culture.process(ctx);
+      if (ctx._error) return { _error: ctx._error, traceId };
+
+      ctx = await this.output.process(ctx);
+      if (ctx._error) return { _error: ctx._error, traceId };
+
+      return ctx.payload.message || ctx.payload;
+    } catch (err) {
+      return { _error: err instanceof Error ? err.message : String(err), traceId };
+    }
   }
 }

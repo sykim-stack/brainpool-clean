@@ -27,10 +27,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // CoreRing 호출
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // CoreRing 호출 (Vercel 배포 시 VERCEL_URL 사용)
+  // VERCEL_URL은 프로토콜을 포함하지 않으므로 https:// 추가
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+  
   const coreRingUrl = `${baseUrl}/api/brainpool`;
 
   let translated = '';
@@ -39,16 +41,18 @@ export async function POST(req: Request) {
   try {
     const translateRes = await fetch(coreRingUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ text: message, from: 'ko', to: targetLang })
     });
-    if (!translateRes.ok) {
-      const errorText = await translateRes.text();
-      throw new Error(`CoreRing ${translateRes.status}: ${errorText.slice(0, 100)}`);
-    }
+    
     const translateData = await translateRes.json();
-    translated = translateData.translated || translateData.result || '';
-    if (!translated) throw new Error('No translation field');
+    // CoreRing 응답 구조: { success: true, translated: "...", result: { ... }, traceId: "..." }
+    translated = translateData.translated || translateData.result?.translated || translateData.message || '';
+    
+    if (!translated) {
+      translationError = 'Translation result empty';
+      translated = message;
+    }
   } catch (err: any) {
     translationError = err.message;
     translated = message;
@@ -67,32 +71,25 @@ export async function POST(req: Request) {
     }
   );
 
-  // 실제 chat_messages 테이블 컬럼: id, room_id, user_id, message, created_at, updated_at
-  // translated, target_lang, translation_error 컬럼이 없음 -> 저장 불가
-  // ✅ 해결책: 필요한 컬럼이 없다면 DB에 먼저 추가해야 함
+  // 실제 chat_messages 테이블 컬럼 (chat-message-layer.js 참조):
+  // room_id, sender_id, sender_role, message, translated_ko, translated_vi, nickname, device_id
   const { data: messageData, error: insertError } = await supabase
     .from('chat_messages')
     .insert({
       room_id: roomId,
-      user_id: userId,
-      message: message,   // 원본 저장
-      // translated, target_lang, translation_error 는 현재 테이블에 없음
-      // → 저장 안 됨 (에러 발생)
+      sender_id: userId,
+      sender_role: 'user',
+      message: message,
+      translated_ko: targetLang === 'ko' ? translated : message,
+      translated_vi: targetLang === 'vi' ? translated : message,
+      device_id: userId,
       created_at: new Date().toISOString()
     })
     .select()
     .single();
 
   if (insertError) {
-    // 컬럼이 없으면 에러 메시지와 함께 필요한 SQL을 응답으로 알려줌
-    if (insertError.message.includes('column') && insertError.message.includes('does not exist')) {
-      return NextResponse.json({
-        _error: 'DB schema mismatch',
-        required_sql: `ALTER TABLE chat_messages ADD COLUMN translated TEXT, ADD COLUMN target_lang TEXT DEFAULT 'vi', ADD COLUMN translation_error TEXT;`,
-        original_error: insertError.message
-      }, { status: 500 });
-    }
-    return NextResponse.json({ _error: `DB insert failed: ${insertError.message}` }, { status: 500 });
+    return NextResponse.json({ _error: `DB insert failed: ${insertError.message}`, debug: { roomId, userId, message } }, { status: 500 });
   }
 
   // 번역 결과는 응답으로만 전달 (DB 저장은 나중에)
