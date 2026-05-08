@@ -56,66 +56,68 @@ export class CoreNullLayer {
     }
   }
 
-  // ── 신규: getWordData ──
-  async getWordData(ctx) {
-    const { word, lang = 'vi' } = ctx.payload || {};
+ // CoreNullLayer.js - getWordData 메서드 (수정)
+async getWordData(ctx) {
+  const { word, lang = 'vi' } = ctx.payload || {};
 
-    if (!word) {
-      return this._error(ctx, 'MISSING_PARAMS', 'word 필수', false);
-    }
-
-    // 1. 방언 사전(tp_translations)에서 표준어/방언 조회
-    const { data: dialect, error: dialectErr } = await supabase
-      .from('tp_translations')
-      .select('*')
-      .eq('standard_vi', word)
-      .single();
-
-    if (dialectErr && dialectErr.code !== 'PGRST116') {
-      return this._error(ctx, 'DB_FAIL', `방언 조회 실패: ${dialectErr.message}`, true);
-    }
-
-    // 2. 번역 로그(tb_trans_logs)에서 감정/위험/의도 조회
-    const { data: log, error: logErr } = await supabase
-      .from('tb_trans_logs')
-      .select('emotion_score, risk_score, intent, standard_vi')
-      .eq('standard_vi', word)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (logErr && logErr.code !== 'PGRST116') {
-      return this._error(ctx, 'DB_FAIL', `로그 조회 실패: ${logErr.message}`, true);
-    }
-
-    // 3. 문화 충돌(tp_conflicts)에서 위험 단어 조회
-    const { data: conflicts } = await supabase
-      .from('tp_conflicts')
-      .select('*')
-      .eq('word', word);
-
-    // 4. 응답 조립
-    ctx.payload = {
-      word,
-      standard: dialect?.standard_vi || word,
-      southern: dialect?.southern_vi || null,
-      hue: dialect?.hue_vi || null,
-      mekong: dialect?.mekong_vi || null,
-      meaning: dialect?.meaning_ko || null,
-      usage: log?.intent || null,
-      examples: dialect?.examples || [],
-      riskScore: log?.risk_score || 0,
-      culturalNote: conflicts?.length > 0
-        ? conflicts.map(c => c.description).join('; ')
-        : '문화적 맥락을 분석 중입니다.',
-      emotion: log?.emotion_score !== undefined
-        ? (log.emotion_score > 0.3 ? 'positive' : 'neutral')
-        : 'neutral',
-      relatedWords: dialect?.related_words || [word],
-    };
-
-    return ctx;
+  if (!word) {
+    return this._error(ctx, 'MISSING_PARAMS', 'word 필수', false);
   }
+
+  // 1. 방언 사전(tp_translations)에서 표준어/방언 조회
+  const { data: dialect, error: dialectErr } = await supabase
+    .from('tp_translations')
+    .select('*')
+    .eq('standard_word', word)  // ✅ standard_vi → standard_word
+    .single();
+
+  if (dialectErr && dialectErr.code !== 'PGRST116') {
+    return this._error(ctx, 'DB_FAIL', `방언 조회 실패: ${dialectErr.message}`, true);
+  }
+
+  // 2. 번역 로그(tb_trans_logs)에서 감정/위험/의도 조회
+  const { data: log, error: logErr } = await supabase
+    .from('tb_trans_logs')
+    .select('emotion_score, risk_score, intent, standard_vi')
+    .eq('standard_vi', word)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (logErr && logErr.code !== 'PGRST116') {
+    return this._error(ctx, 'DB_FAIL', `로그 조회 실패: ${logErr.message}`, true);
+  }
+
+  // 3. 문화 충돌(tp_conflicts)에서 위험 단어 조회
+  const { data: conflicts } = await supabase
+    .from('tp_conflicts')
+    .select('*')
+    .eq('word', word);
+
+  // 4. 응답 조립
+  ctx.payload = {
+    word,
+    standard: dialect?.standard_word || word,        // ✅ standard_word
+    southern: dialect?.southern_word || null,        // ✅ southern_word
+    hue: dialect?.hue_word || null,                  // ✅ hue_word
+    mekong: dialect?.mekong_word || null,            // ✅ mekong_word
+    meaning: dialect?.meaning_ko || null,
+    usage: log?.intent || null,
+    examples: dialect?.example_northern
+      ? [dialect.example_northern, dialect.example_southern].filter(Boolean)
+      : [],
+    riskScore: log?.risk_score || 0,
+    culturalNote: conflicts?.length > 0
+      ? conflicts.map(c => c.description).join('; ')
+      : '문화적 맥락을 분석 중입니다.',
+    emotion: log?.emotion_score !== undefined
+      ? (log.emotion_score > 0.3 ? 'positive' : 'neutral')
+      : 'neutral',
+    relatedWords: dialect?.standard_word ? [dialect.standard_word] : [word],
+  };
+
+  return ctx;
+}
 
   async getHouse(ctx) {
     const { slug, owner_key } = ctx.payload;
