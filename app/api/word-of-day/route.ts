@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+﻿import { NextResponse } from 'next/server';
+import { getSupabase } from '@/lib/supabase';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getSupabase();
+if (!supabase) { return new Response(JSON.stringify({ error: 'Database connection is not available' }), { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
 
 export async function GET() {
   try {

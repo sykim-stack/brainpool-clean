@@ -1,4 +1,4 @@
-// app/api/search/route.ts
+﻿// app/api/search/route.ts
 // (ctx) => ctx 패턴, throw 금지
 export async function GET(req: Request) {
   const traceId = crypto.randomUUID();
@@ -15,10 +15,8 @@ export async function GET(req: Request) {
   }
 
   const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = getSupabase();
+if (!supabase) { return new Response(JSON.stringify({ error: 'Database connection is not available' }), { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
 
   // PGroonga &@~ 연산자는 LIKE와 달리 대소문자 구분 없이 어떤 텍스트라도 포함 검색 가능
   let messageQuery = supabase
