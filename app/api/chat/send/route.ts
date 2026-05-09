@@ -1,103 +1,75 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+// app/api/chat/send/route.ts
+// ─────────────────────────────────────────────────────────────
+// Chat Send API — 얇은 어댑터
+//
+// 전: CoreChatLayer → fetch('/api/brainpool') 내부 HTTP 호출
+// 후: Hajun → TranslationEngine 직접 (HTTP 없음)
+//
+// req.text() + JSON.parse() 필수
+// ─────────────────────────────────────────────────────────────
 
-export async function POST(req: Request) {
-  let rawBody: string;
-  try {
-    rawBody = await req.text();
-  } catch {
-    return NextResponse.json({ _error: 'Failed to read request body' }, { status: 400 });
-  }
+import { NextRequest } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const traceId = crypto.randomUUID();
 
   let body: any;
   try {
-    body = JSON.parse(rawBody);
+    const raw = await request.text();
+    body = JSON.parse(raw);
   } catch {
-    return NextResponse.json({ _error: 'Invalid JSON', rawBody }, { status: 400 });
-  }
-
-  const message = body.message || body.original;
-  const { roomId, userId, targetLang = 'vi' } = body;
-
-  if (!roomId || !userId || !message) {
-    return NextResponse.json(
-      { _error: `Missing fields. Required: roomId, userId, and message/original. Received: ${Object.keys(body)}` },
-      { status: 400 }
+    return Response.json(
+      { _error: 'PARSE_FAIL', traceId },
+      { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 
-  // CoreRing 호출 (Vercel 배포 시 VERCEL_URL 사용)
-  // VERCEL_URL은 프로토콜을 포함하지 않으므로 https:// 추가
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
-    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
-  
-  const coreRingUrl = `${baseUrl}/api/brainpool`;
-
-  let translated = '';
-  let translationError: string | null = null;
-
-  try {
-    const translateRes = await fetch(coreRingUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ text: message, from: 'ko', to: targetLang })
-    });
-    
-    const translateData = await translateRes.json();
-    // CoreRing 응답 구조: { success: true, translated: "...", result: { ... }, traceId: "..." }
-    translated = translateData.translated || translateData.result?.translated || translateData.message || '';
-    
-    if (!translated) {
-      translationError = 'Translation result empty';
-      translated = message;
-    }
-  } catch (err: any) {
-    translationError = err.message;
-    translated = message;
+  const { roomId, userId, original, analyze = true } = body;
+  if (!roomId || !userId || !original) {
+    return Response.json(
+      { _error: 'roomId, userId, original 필수', traceId },
+      { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
   }
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value; },
-        set: () => {},
-        remove: () => {},
-      },
-    }
-  );
+  const { route } = await import('@/brain-engine/hajun/router');
+  const ChatMessageLayer = (await import('@/brain-engine/engines/chat/message')).default;
+  const ChatRoomLayer    = (await import('@/brain-engine/layers/sub/chat-room-layer')).default;
 
-  // 실제 chat_messages 테이블 컬럼 (chat-message-layer.js 참조):
-  // room_id, sender_id, sender_role, message, translated_ko, translated_vi, nickname, device_id
-  const { data: messageData, error: insertError } = await supabase
-    .from('chat_messages')
-    .insert({
-      room_id: roomId,
-      sender_id: userId,
-      sender_role: 'user',
-      message: message,
-      translated_ko: targetLang === 'ko' ? translated : message,
-      translated_vi: targetLang === 'vi' ? translated : message,
-      device_id: userId,
-      created_at: new Date().toISOString()
-    })
-    .select()
-    .single();
+  let ctx: any = { payload: { text: original, roomId, userId }, traceId };
 
-  if (insertError) {
-    return NextResponse.json({ _error: `DB insert failed: ${insertError.message}`, debug: { roomId, userId, message } }, { status: 500 });
+  // 1. 번역 + 감정 (analyze 옵션)
+  if (analyze) {
+    ctx = await route('translate', ctx);
+    if (!ctx._error) ctx = await route('emotion', ctx);
   }
 
-  // 번역 결과는 응답으로만 전달 (DB 저장은 나중에)
-  return NextResponse.json({
-    success: true,
-    message: messageData,
-    translated,
-    warning: translationError ? `Translation fallback: ${translationError}` : null,
-    note: '번역 결과는 DB에 저장되지 않았습니다. chat_messages 테이블에 translated, target_lang, translation_error 컬럼을 추가해주세요.'
+  // 2. 메시지 저장
+  ctx = await ChatMessageLayer({
+    ...ctx,
+    type: 'SEND_MESSAGE',
+    payload: {
+      ...ctx.payload,
+      original,
+      meta: {
+        translations: {
+          [ctx.payload.sourceLang === 'ko' ? 'vi' : 'ko']: ctx.payload.translatedText,
+        },
+        detectedLanguage: ctx.payload.sourceLang,
+        emotion: { primary: ctx.payload.emotion || 'neutral', intensity: ctx.payload.emotionScore || 0.5 },
+      }
+    }
   });
+
+  if (ctx._error) {
+    return Response.json(
+      { _error: ctx._error, traceId },
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  return Response.json(
+    { payload: { message: ctx.message }, _error: null, traceId },
+    { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+  );
 }
