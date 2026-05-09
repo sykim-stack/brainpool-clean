@@ -1,7 +1,2 @@
-import { room } from './room.js';
-import { message } from './message.js';
-
-export const ChatEngine = {
-  room,
-  message
-};
+export { default as room } from './room';
+export { default as message } from './message';

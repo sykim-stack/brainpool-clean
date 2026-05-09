@@ -1,21 +1,20 @@
-// brain-engine/hajun/router.js 수정
+// 기존 import * as EmotionEngine 방식을 named import로 변경합니다.
 import * as TranslationEngine from '../engines/translation/index.js';
-import * as EmotionEngine from '../engines/emotion/index.js';
-import { detect } from '../engines/language/index.js';
+import { analyze } from '../engines/emotion/index.js';      // 변경
+import { detect } from '../engines/language/index.js';      // 변경
 
-console.log('EmotionEngine exports:', Object.keys(EmotionEngine)); // 디버깅용
-
+// ROUTES도 이에 맞춰 수정합니다.
 const ROUTES = {
-  translate: TranslationEngine.run,
-  emotion: EmotionEngine.analyze, // EmotionEngine 객체에 analyze 함수가 있어야 함
+  translate: TranslationEngine.run,  // 이쪽은 그대로
+  emotion: analyze,                   // EmotionEngine.analyze → analyze
   detect: detect
 };
 
+// 아래 route 함수는 그대로 유지
 export async function route(engine, ctx) {
   const handler = ROUTES[engine];
   if (!handler) {
     return { ...ctx, _error: `Hajun: Unknown engine "${engine}"` };
   }
-  console.log(`[Hajun] route → ${engine} [${ctx.traceId || 'no-trace'}]`);
   return await handler(ctx);
 }
