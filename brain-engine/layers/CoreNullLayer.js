@@ -25,21 +25,37 @@ export class CoreNullLayer {
     if (!word) {
       return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
     }
-
-    // 실제 컬럼만 SELECT
-    const { data, error } = await ctx.supabase
-      .from('tp_translations')
-      .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
-      .eq('meaning_ko', word)   // meaning_ko로 검색 (한국어 뜻)
-      .maybeSingle();
-
+  
+    // 언어 감지 — 한글 포함 여부로 판단
+    const isKorean = /[\uAC00-\uD7A3]/.test(word);
+  
+    let data, error;
+  
+    if (isKorean) {
+      // 한국어 입력 → meaning_ko 완전 일치 우선, 없으면 첫 번째
+      ({ data, error } = await ctx.supabase
+        .from('tp_translations')
+        .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
+        .eq('meaning_ko', word)
+        .limit(1)
+        .maybeSingle());
+    } else {
+      // 베트남어 입력 → standard_word 완전 일치
+      ({ data, error } = await ctx.supabase
+        .from('tp_translations')
+        .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
+        .eq('standard_word', word)
+        .limit(1)
+        .maybeSingle());
+    }
+  
     if (error) {
       return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
     }
     if (!data) {
-      return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found in meaning_ko` } };
+      return { ...ctx, _error: { code: 'NOT_FOUND', message: `"${word}" not found` } };
     }
-
+  
     const dialectMap = {
       standard: 'standard_word',
       southern: 'southern_word',
@@ -48,15 +64,12 @@ export class CoreNullLayer {
     };
     const targetField = dialectMap[dialect] || 'standard_word';
     const translatedWord = data[targetField] || data.standard_word;
-
-    // 예문: northern/southern만 존재
+  
     let example = null;
     if (dialect === 'standard' || dialect === 'northern') example = data.example_northern;
     else if (dialect === 'southern') example = data.example_southern;
-    // hue, mekong은 example_northern fallback (없으면 null)
-    else if (dialect === 'hue' || dialect === 'mekong') example = data.example_northern;
-
-    // WordModal.tsx가 기대하는 구조로 평탄화하여 반환
+    else example = data.example_northern;
+  
     return {
       ...ctx,
       result: {
@@ -66,9 +79,9 @@ export class CoreNullLayer {
         hue: data.hue_word,
         mekong: data.mekong_word,
         meaning: data.meaning_ko,
-        examples: data.example_northern ? [data.example_northern] : [],
+        examples: example ? [example] : [],
         culturalNote: data.notes || null,
-        riskScore: data.conflict_weight || 0, // riskScore로 매핑
+        riskScore: data.conflict_weight || 0,
         emotion: data.emotion_score > 0.5 ? '긍정' : '중립',
         partOfSpeech: data.part_of_speech,
       },
