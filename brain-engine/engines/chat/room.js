@@ -1,10 +1,14 @@
-// 이 함수는 반드시 async (ctx) => ctx 형태여야 합니다.
-const room = async (ctx: any) => {
+const room = async (ctx) => {
   const { type, payload, traceId } = ctx;
   if (type === 'LIST_ROOMS') {
-    // 여기에 DB 조회 로직 추가 (Storage connector 통해)
+    // TODO: storage.js를 통해 방 목록 조회
     return { ...ctx, payload: { rooms: [] }, success: true };
   }
-  return { ...ctx, _error: 'Unknown room action' };
+  if (type === 'CREATE_ROOM') {
+    // TODO: storage.js를 통해 방 생성
+    return { ...ctx, payload: { room: { id: 'temp-id', ...payload } }, success: true };
+  }
+  return { ...ctx, _error: `Unknown room action: ${type}` };
 };
-export default room; // default export 추가
+
+export default room;

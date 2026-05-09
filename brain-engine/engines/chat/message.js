@@ -1,9 +1,10 @@
-const message = async (ctx: any) => {
+const message = async (ctx) => {
   const { payload, traceId } = ctx;
-  if (payload.text) {
-    // 여기에 메시지 저장 로직 추가
+  if (payload && payload.text) {
+    // TODO: storage.js를 통해 메시지 저장
     return { ...ctx, payload: { received: true }, success: true };
   }
   return { ...ctx, _error: 'Invalid message payload' };
 };
-export default message; // default export 추가
+
+export default message;
