@@ -1,14 +1,10 @@
-const room = async (ctx) => {
-  const { type, payload, traceId } = ctx;
-  if (type === 'LIST_ROOMS') {
-    // TODO: storage.js를 통해 방 목록 조회
-    return { ...ctx, payload: { rooms: [] }, success: true };
-  }
-  if (type === 'CREATE_ROOM') {
-    // TODO: storage.js를 통해 방 생성
-    return { ...ctx, payload: { room: { id: 'temp-id', ...payload } }, success: true };
-  }
-  return { ...ctx, _error: `Unknown room action: ${type}` };
-};
+// brain-engine/engines/chat/room.js
+// ─────────────────────────────────────────────────────────────
+// ChatRoomEngine — 방 CRUD
+// chat-room-layer를 엔진으로 승격
+// (ctx) => ctx 형태 준수, throw 금지
+// ─────────────────────────────────────────────────────────────
 
-export default room;
+const ChatRoomLayer = require('../../layers/sub/chat-room-layer');
+
+module.exports = ChatRoomLayer;

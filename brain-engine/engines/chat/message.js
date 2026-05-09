@@ -1,10 +1,10 @@
-const message = async (ctx) => {
-  const { payload, traceId } = ctx;
-  if (payload && payload.text) {
-    // TODO: storage.js를 통해 메시지 저장
-    return { ...ctx, payload: { received: true }, success: true };
-  }
-  return { ...ctx, _error: 'Invalid message payload' };
-};
+// brain-engine/engines/chat/message.js
+// ─────────────────────────────────────────────────────────────
+// ChatMessageEngine — 메시지 저장/조회
+// chat-message-layer를 엔진으로 승격
+// (ctx) => ctx 형태 준수, throw 금지
+// ─────────────────────────────────────────────────────────────
 
-export default message;
+const ChatMessageLayer = require('../../layers/sub/chat-message-layer');
+
+module.exports = ChatMessageLayer;

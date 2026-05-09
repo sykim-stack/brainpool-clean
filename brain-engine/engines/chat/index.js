@@ -1,10 +1,6 @@
-import room from './room.js';
-import message from './message.js';
+// brain-engine/engines/chat/index.js
 
-export const ChatEngine = {
-  room,
-  message
-};
+const message = require('./message');
+const room    = require('./room');
 
-// 필요하면 개별 export도 유지
-export { room, message };
+module.exports = { message, room };
