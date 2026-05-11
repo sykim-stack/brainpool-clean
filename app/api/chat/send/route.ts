@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import { run as messageEngine } from '@/brain-engine/chat-message.js';
-import { route } from 'C:/brainpool-os/hajun/router.js';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -14,7 +12,6 @@ export async function POST(request: NextRequest) {
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-
   const { roomId, userId, original, analyze = true } = body;
   if (!roomId || !userId || !original) {
     return Response.json(
@@ -23,7 +20,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let ctx: any = { payload: { text: original, roomId, userId }, traceId, _error: null };
+  const { route } = await import('@/brain-engine/hajun/router');
+  const messageEngine = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
+
+  const targetLang = /[가-힣]/.test(original) ? 'vi' : 'ko';
+  const sourceLang = targetLang === 'vi' ? 'ko' : 'vi';
+
+  let ctx: any = { payload: { sourceText: original, targetLang }, traceId, _error: null };
 
   if (analyze) {
     ctx = await route('translate', ctx);
@@ -34,13 +37,14 @@ export async function POST(request: NextRequest) {
     ...ctx,
     type: 'SEND_MESSAGE',
     payload: {
-      ...ctx.payload,
+      roomId,
+      userId,
       original,
       meta: {
         translations: {
-          [ctx.payload.sourceLang === 'ko' ? 'vi' : 'ko']: ctx.payload.translatedText,
+          [targetLang]: ctx.payload.translated,
         },
-        detectedLanguage: ctx.payload.sourceLang,
+        detectedLanguage: sourceLang,
         emotion: { primary: ctx.payload.emotion || 'neutral', intensity: ctx.payload.emotionScore || 0.5 },
       },
     },
@@ -52,9 +56,8 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-
   return Response.json(
-    { payload: { message: ctx.payload.message }, _error: null, traceId },
+    { payload: { message: ctx.message }, _error: null, traceId },
     { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
   );
 }
