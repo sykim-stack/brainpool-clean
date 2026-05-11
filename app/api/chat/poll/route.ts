@@ -1,36 +1,31 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { run as pollEngine } from '@/brain-engine/chat-poll.js';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   const traceId = crypto.randomUUID();
-  const url = new URL(request.url);
-  const roomId = url.searchParams.get('roomId') || '';
-  const limit = url.searchParams.get('limit') || '50';
-
-  try {
-    const ChatMessageLayer = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
-
-    const result: any = await ChatMessageLayer({
-      type: 'FETCH_MESSAGES',
-      payload: { roomId, limit: parseInt(limit) },
-      traceId,
-      _error: null,
-    });
-
-    if (result._error) {
-      return Response.json(
-        { payload: null, _error: result._error, traceId },
-        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-      );
-    }
-
-    return Response.json(
-      { payload: { messages: result.messages || [] }, _error: null, traceId },
-      { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+  const { searchParams } = new URL(req.url);
+  const roomId = searchParams.get('roomId');
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+  if (!roomId) {
+    return NextResponse.json(
+      { _error: { code: 'MISSING_ROOM', message: 'roomId required' }, traceId, payload: { messages: [] } },
+      { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
-  } catch (err) {
-    return Response.json(
-      { payload: null, _error: (err as Error).message, traceId },
+  }
+  const ctx = await pollEngine({
+    type: 'GET_MESSAGES',
+    payload: { roomId, limit },
+    traceId,
+    _error: null,
+  });
+  if (ctx._error) {
+    return NextResponse.json(
+      { _error: ctx._error, traceId, payload: { messages: [] } },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
+  return NextResponse.json(
+    { payload: { messages: ctx.payload.messages }, _error: null, traceId },
+    { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+  );
 }

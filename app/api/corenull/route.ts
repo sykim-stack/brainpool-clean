@@ -4,7 +4,6 @@ import { CoreNullLayer } from '@/brain-engine/layers/CoreNullLayer';
 
 const layer = new CoreNullLayer();
 
-// 하이픈 액션을 카멜로 매핑
 function normalizeAction(action: string): string {
   if (action === 'get-word-data') return 'getWordData';
   if (action === 'save-word') return 'saveWord';
@@ -15,7 +14,7 @@ function normalizeAction(action: string): string {
 
 export async function POST(req: Request) {
   const traceId = crypto.randomUUID();
-  const responseHeaders = { 'Content-Type': 'application/json' };
+  const responseHeaders = { 'Content-Type': 'application/json; charset=utf-8' };
 
   try {
     const rawBody = await req.text();
@@ -29,7 +28,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 액션 정규화 (하이픈 → 카멜)
     const rawAction = payload.action || payload.type;
     if (!rawAction) {
       return new Response(
@@ -37,8 +35,9 @@ export async function POST(req: Request) {
         { status: 400, headers: responseHeaders }
       );
     }
+
     const action = normalizeAction(rawAction);
-    payload.action = action; // 원본 payload 수정
+    payload.action = action;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -68,7 +67,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // WordModal.tsx는 { success: true, payload: ... } 구조를 기대함
     return new Response(
       JSON.stringify({ success: true, payload: result.result, traceId }),
       { status: 200, headers: responseHeaders }

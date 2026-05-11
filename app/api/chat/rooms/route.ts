@@ -1,69 +1,65 @@
-// app/api/chat/rooms/route.ts 수정
 import { NextRequest, NextResponse } from 'next/server';
-import { ChatEngine } from '@/brain-engine/engines/chat/index.js';
+import { run as roomEngine } from '@/brain-engine/chat-room.js';
 
 export async function POST(request: NextRequest) {
-  const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const traceId = crypto.randomUUID();
   try {
-    const rawBody = await request.text();
-    const body = JSON.parse(rawBody);
+    const raw = await request.text();
+    const body = JSON.parse(raw);
     const { title, createdBy, tags, maxParticipants } = body;
-    
     if (!title) {
-      return NextResponse.json({
-        success: false,
-        traceId,
-        error: 'Room title is required',
-        timestamp: new Date().toISOString(),
-      }, { status: 400 });
+      return NextResponse.json(
+        { _error: { code: 'MISSING_TITLE', message: 'title required' }, traceId },
+        { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
     }
-    
-    const ctx = {
+    const ctx = await roomEngine({
       type: 'CREATE_ROOM',
       payload: { title, createdBy: createdBy || 'anonymous', tags: tags || [], maxParticipants: maxParticipants || 100 },
       traceId,
-    };
-    
-    const response = await ChatEngine.room(ctx);
-    return NextResponse.json(response, {
-      status: response.success ? 201 : 500,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      _error: null,
     });
+    if (ctx._error) {
+      return NextResponse.json(
+        { _error: ctx._error, traceId },
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+    return NextResponse.json(
+      { payload: { room: ctx.payload.room }, _error: null, traceId },
+      { status: 201, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
   } catch (err: any) {
-    console.error('❌ [API:chat/rooms POST] 오류:', err.message);
-    return NextResponse.json({
-      success: false,
-      traceId,
-      error: err.message || 'Internal server error',
-      timestamp: new Date().toISOString(),
-    }, { status: 500 });
+    return NextResponse.json(
+      { _error: { code: 'UNHANDLED', message: err.message }, traceId },
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
-  const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const traceId = crypto.randomUUID();
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || undefined;
-    
-    const ctx = {
+    const ctx = await roomEngine({
       type: 'LIST_ROOMS',
-      payload: { status },
+      payload: {},
       traceId,
-    };
-    
-    const response = await ChatEngine.room(ctx);
-    return NextResponse.json(response, {
-      status: response.success ? 200 : 500,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      _error: null,
     });
+    if (ctx._error) {
+      return NextResponse.json(
+        { _error: ctx._error, traceId },
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+    return NextResponse.json(
+      { payload: { rooms: ctx.payload.rooms }, _error: null, traceId },
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
   } catch (err: any) {
-    console.error('❌ [API:chat/rooms GET] 오류:', err.message);
-    return NextResponse.json({
-      success: false,
-      traceId,
-      error: err.message || 'Internal server error',
-      timestamp: new Date().toISOString(),
-    }, { status: 500 });
+    return NextResponse.json(
+      { _error: { code: 'UNHANDLED', message: err.message }, traceId },
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
   }
 }

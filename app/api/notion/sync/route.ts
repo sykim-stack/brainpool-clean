@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 
 /**
- * 🦈 BRAINPOOL OS - Notion Sync Layer
- * [규칙 준수] ctx => ctx 패턴, throw 금지, UTF-8 처리 강제
+ * ?�� BRAINPOOL OS - Notion Sync Layer
+ * [규칙 준?? ctx => ctx ?�턴, throw 금�?, UTF-8 처리 강제
  */
 
-// 1. 초기 컨텍스트 생성
+// 1. 초기 컨텍?�트 ?�성
 const initCtx = async (req: Request) => {
   const traceId = req.headers.get('x-trace-id') || `trace-${Math.random().toString(36).slice(2, 11)}`;
   return {
@@ -18,7 +18,7 @@ const initCtx = async (req: Request) => {
   };
 };
 
-// 2. 요청 바디 파싱 (UTF8-ALL 준수)
+// 2. ?�청 바디 ?�싱 (UTF8-ALL 준??
 const parseBody = async (ctx: any) => {
   if (ctx._error) return ctx;
   try {
@@ -30,7 +30,7 @@ const parseBody = async (ctx: any) => {
   return ctx;
 };
 
-// 3. 설정 검증
+// 3. ?�정 검�?
 const validateConfig = (ctx: any) => {
   if (ctx._error) return ctx;
   const { apiKey, dbId } = ctx.payload;
@@ -40,7 +40,7 @@ const validateConfig = (ctx: any) => {
   return ctx;
 };
 
-// 4. Notion API 호출
+// 4. Notion API ?�출
 const callNotionApi = async (ctx: any) => {
   if (ctx._error) return ctx;
 
@@ -52,14 +52,14 @@ const callNotionApi = async (ctx: any) => {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Notion-Version': '2022-06-28',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify({
         parent: { database_id: dbId },
         properties: {
           'Project': { title: [{ text: { content: project || 'BRAINPOOL' } }] },
           'Last Task': { rich_text: [{ text: { content: lastTask || 'N/A' } }] },
-          'Problems': { rich_text: [{ text: { content: problems || '순항 중' } }] },
+          'Problems': { rich_text: [{ text: { content: problems || '?�항 �? } }] },
           'Updated At': { date: { start: new Date().toISOString() } },
         },
       }),
@@ -71,7 +71,7 @@ const callNotionApi = async (ctx: any) => {
       return ctx;
     }
 
-    // UTF8-ALL 준수: res.json() 대신 text() 후 parse
+    // UTF8-ALL 준?? res.json() ?�??text() ??parse
     const resText = await res.text();
     ctx.result = JSON.parse(resText);
   } catch (e: any) {
@@ -80,7 +80,7 @@ const callNotionApi = async (ctx: any) => {
   return ctx;
 };
 
-// 5. 최종 응답 생성
+// 5. 최종 ?�답 ?�성
 const finalizeResponse = (ctx: any) => {
   const responseBody = {
     success: !ctx._error,
@@ -89,20 +89,20 @@ const finalizeResponse = (ctx: any) => {
     error: ctx._error
   };
 
-  // 계약서: 200(에러 포함) 또는 500(치명적 오류)만 사용
+  // 계약?? 200(?�러 ?�함) ?�는 500(치명???�류)�??�용
   const status = ctx._error && ctx._error.startsWith('FETCH_ERROR') ? 500 : 200;
   
   return NextResponse.json(responseBody, { 
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8' } // UTF8 응답 헤더 강제
+    headers: { 'Content-Type': 'application/json; charset=utf-8' } // UTF8 ?�답 ?�더 강제
   });
 };
 
-// 메인 핸들러
+// 메인 ?�들??
 export async function POST(request: Request) {
   let ctx = await initCtx(request);
   
-  // 파이프라인 실행
+  // ?�이?�라???�행
   ctx = await parseBody(ctx);
   ctx = await validateConfig(ctx);
   ctx = await callNotionApi(ctx);

@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // 🧠 BRAINPOOL OS – CoreChatLayer / Sub: Message Layer (Supabase)
 // ============================================================
 // 위치: brain-engine/layers/sub/chat-message-layer.js
@@ -230,3 +230,4 @@ async function ChatMessageLayer(ctx) {
 }
 
 module.exports = ChatMessageLayer;
+

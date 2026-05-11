@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // 🧠 BRAINPOOL OS – CoreChatLayer / Sub: Room Layer (Supabase)
 // ============================================================
 // 위치: brain-engine/layers/sub/chat-room-layer.js
@@ -7,18 +7,9 @@
 //   - roomId를 UUID로 반환 (chat_rooms.id)
 // ============================================================
 
-let supabaseAdmin = null;
+const { getStorage } = require('../../connectors/storage');
 async function getSupabase() {
-  if (!supabaseAdmin) {
-    const { createClient } = await import('@supabase/supabase-js');
-    supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-    console.log('🗄️ [RoomLayer] Supabase 연결 완료');
-  }
-  return supabaseAdmin;
+  return await getStorage();
 }
 
 // --------------------------------------------------
@@ -286,3 +277,4 @@ async function ChatRoomLayer(ctx) {
 ChatRoomLayer._syncMessageCount = syncMessageCount;
 
 module.exports = ChatRoomLayer;
+

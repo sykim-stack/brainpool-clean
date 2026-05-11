@@ -1,38 +1,46 @@
-// brain-engine/engines/translation/index.js
-// ─────────────────────────────────────────────────────────────
-// TranslationEngine 진입점
-//
-// 흐름: 캐시 확인 → 번역 → 저장 → 반환
-// 끝.
-//
-// (ctx) => ctx 형태 준수, throw 금지
-// ─────────────────────────────────────────────────────────────
-
-import { detect }              from '../language/detect.js';
+import { detect } from '../language/detect.js';
 import { findCache, saveCache } from './cache.js';
-import { translate }           from './translate.js';
+import { translate as deepLTranslate } from './translate.js';
 
-export async function run(ctx) {
-  if (!ctx?.payload?.text) {
-    return { ...ctx, _error: 'TranslationEngine: text 필드가 필요합니다' };
-  }
+export const TranslationEngine = {
+  run: async (ctx) => {
+    const { sourceText, targetLang = 'ko' } = ctx.payload;
+    const traceId = ctx.traceId || 'unknown';
 
-  let c = ctx;
+    console.log(`[TranslationEngine] run 시작: "${sourceText}" -> ${targetLang}, traceId=${traceId}`);
 
-  // 1. 언어 감지
-  c = await detect(c);
-  if (c._error) return c;
+    // 1. 언어 감지 (선택, DeepL이 자체 감지하므로 생략 가능)
+    let sourceLang = ctx.payload.sourceLang;
+    if (!sourceLang) {
+      const detectCtx = await detect({ payload: { text: sourceText }, traceId });
+      sourceLang = detectCtx.payload?.language || 'auto';
+      console.log(`[TranslationEngine] 감지된 언어: ${sourceLang}`);
+    }
 
-  // 2. 캐시 확인
-  c = await findCache(c);
-  if (c._error) return c;
+    // 2. 캐시 확인
+    const cacheCtx = await findCache({ payload: { sourceText, targetLang }, traceId });
+    if (cacheCtx.payload?.translated) {
+      console.log(`[TranslationEngine] 캐시 히트`);
+      return { ...ctx, payload: { translated: cacheCtx.payload.translated, fromCache: true } };
+    }
 
-  // 3. 번역 (캐시 히트면 통과)
-  c = await translate(c);
-  if (c._error) return c;
+    // 3. DeepL 번역
+    console.log(`[TranslationEngine] 캐시 미스, DeepL 호출`);
+    const translateCtx = await deepLTranslate({
+      payload: { sourceText, targetLang, sourceLang },
+      traceId,
+    });
 
-  // 4. 결과 저장
-  c = await saveCache(c);
+    if (translateCtx._error) {
+      console.error(`[TranslationEngine] DeepL 오류: ${translateCtx._error}`);
+      return { ...ctx, _error: translateCtx._error };
+    }
 
-  return c;
-}
+    const translated = translateCtx.payload.translated;
+
+    // 4. 캐시 저장
+    await saveCache({ payload: { sourceText, targetLang, translated }, traceId });
+
+    return { ...ctx, payload: { translated, fromCache: false } };
+  },
+};

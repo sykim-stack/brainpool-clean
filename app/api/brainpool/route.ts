@@ -1,14 +1,6 @@
-// app/api/brainpool/route.ts
-// ─────────────────────────────────────────────────────────────
-// CoreRing API — 얇은 어댑터
-//
-// 전: CoreRingLayer → sub 레이어들 직접 new → DB 직접
-// 후: route(ctx) → Hajun → TranslationEngine → Storage
-//
-// req.text() + JSON.parse() 필수 (req.json() 금지)
-// ─────────────────────────────────────────────────────────────
-
 import { NextRequest } from 'next/server';
+import { route } from 'C:/brainpool-os/hajun/router.js';
+import { createCtx } from 'C:/brainpool-os/contracts/ctx.js';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -17,25 +9,25 @@ export async function POST(request: NextRequest) {
   try {
     const raw = await request.text();
     body = JSON.parse(raw);
-  } catch (e) {
+  } catch {
     return Response.json(
-      { _error: 'PARSE_FAIL', traceId },
+      { _error: { code: 'PARSE_FAIL', message: '파싱 실패' }, traceId },
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 
   const text = body.text || body.payload?.text || '';
+ 
   if (!text) {
     return Response.json(
-      { _error: 'text 필드가 필요합니다', traceId },
+      { _error: { code: 'MISSING_TEXT', message: 'text 필드 필요' }, traceId },
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 
-  const { route } = await import('@/brain-engine/hajun/router');
+  let ctx: any = createCtx({ text, author: body.author || 'anonymous' }, traceId);
+  console.log('[DEBUG] ctx:', JSON.stringify(ctx));
 
-  // 1. 번역
-  let ctx: any = { payload: { text, author: body.author || 'anonymous' }, traceId };
   ctx = await route('translate', ctx);
   if (ctx._error) {
     return Response.json(
@@ -43,11 +35,8 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-
-  // 2. 감정 분석
   ctx = await route('emotion', ctx);
 
-  // 응답
   return Response.json(
     {
       message: {
