@@ -260,22 +260,24 @@ export default function Home() {
 
       <RoomList
         rooms={rooms}
-        onSelectRoom={(id) => setCurrentRoomId(id)}
+        onSelectRoom={(id) => {
+          const room = rooms.find(r => r.roomId === id);
+          setCurrentRoomId(id);
+          setCurrentRoomCode(room?.inviteCode || '------');
+        }}
         onJoinByCode={handleJoinByCode}
-        onCreateRoom={async () => {
-          const title = prompt('방 제목:');
-          if (!title) return;
+        onCreateRoom={async (title: string, isPublic: boolean) => {
           const res = await fetch('/api/chat/rooms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            body: JSON.stringify({ title }),
+            body: JSON.stringify({ title, isPublic }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
-          // API 응답: { payload: { room: {...} } }
           if (data?.payload?.room) {
             loadRooms();
             setCurrentRoomId(data.payload.room.roomId);
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
+            setIsRoomMode(false);
           }
         }}
         visible={isRoomMode && !currentRoomId}
