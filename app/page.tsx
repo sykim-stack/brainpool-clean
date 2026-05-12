@@ -118,7 +118,8 @@ export default function Home() {
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (!data) return;
-    if (data?.payload?.rooms) setRooms(data.payload.rooms);
+    if (data?.success && data.data?.rooms) setRooms(data.data.rooms);
+    else if (data?.data?.rooms) setRooms(data.data.rooms);
   }, []);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
@@ -229,9 +230,9 @@ export default function Home() {
     }).catch(() => null);
 
     const data = res ? await res.json().catch(() => null) : null;
-    if (data?.payload?.room) {
-      setCurrentRoomId(data.payload.room.roomId);
-      setCurrentRoomCode(data.payload.room.inviteCode || '------');
+    if (data?.success && data.data?.room) {
+      const newRoomId = data.data.room.roomId;
+      setCurrentRoomCode(data.data.room.inviteCode || '------');
       setIsRoomMode(false);
     } else {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
@@ -268,10 +269,10 @@ export default function Home() {
             body: JSON.stringify({ title }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
-          if (data?.payload?.room) {
+          if (data?.success && data.data?.room) {
             loadRooms();
-            setCurrentRoomId(data.payload.room.roomId);
-            setCurrentRoomCode(data.payload.room.inviteCode || '------');
+            setCurrentRoomId(data.data.room.roomId);
+            setCurrentRoomCode(data.data.room.inviteCode || '------');
           }
         }}
         visible={isRoomMode && !currentRoomId}
