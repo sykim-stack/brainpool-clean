@@ -8,24 +8,57 @@ function generateInviteCode() {
 }
 
 async function createRoom(ctx) {
-  const { title, createdBy = 'anonymous', tags = [], maxParticipants = 100 } = ctx.payload;
+  const { title, createdBy = 'anonymous', tags = [], maxParticipants = 100, isPublic = true } = ctx.payload;
   if (!title) return { ...ctx, _error: { code: 'MISSING_TITLE', message: 'title is required', retryable: false } };
   const db = await getStorage();
   if (!db) return { ...ctx, _error: { code: 'DB_UNAVAILABLE', message: 'DB connection failed', retryable: true } };
-  const { data, error } = await db.from('chat_rooms').insert({ room_name: title, invite_code: generateInviteCode(), room_type: 'chat', created_by: null, owner_device_id: createdBy, is_permanent: false, metadata: { tags, maxParticipants, createdBy } }).select().single();
+  const { data, error } = await db.from('chat_rooms').insert({
+    room_name: title, invite_code: generateInviteCode(), room_type: 'chat',
+    created_by: null, owner_device_id: createdBy, is_permanent: false,
+    is_public: isPublic,
+    metadata: { tags, maxParticipants, createdBy },
+  }).select().single();
   if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message, retryable: false } };
-  return { ...ctx, payload: { ...ctx.payload, room: { roomId: data.id, inviteCode: data.invite_code, title: data.room_name, createdBy, createdAt: data.created_at, tags, maxParticipants } } };
+  return { ...ctx, payload: { ...ctx.payload, room: {
+    roomId: data.id, inviteCode: data.invite_code, title: data.room_name,
+    createdBy, createdAt: data.created_at, tags, maxParticipants,
+    isPublic: data.is_public,
+  }}};
 }
 
 async function listRooms(ctx) {
   const db = await getStorage();
   if (!db) return { ...ctx, _error: { code: 'DB_UNAVAILABLE', message: 'DB connection failed', retryable: true } };
-  const { data, error } = await db.from('chat_rooms').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('chat_rooms').select('*')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false });
   if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message, retryable: false } };
-  return { ...ctx, payload: { ...ctx.payload, rooms: (data || []).map(r => ({ roomId: r.id, inviteCode: r.invite_code, title: r.room_name, createdBy: r.metadata?.createdBy || 'anonymous', createdAt: r.created_at, tags: r.metadata?.tags || [], maxParticipants: r.metadata?.maxParticipants || 100 })) } };
+  return { ...ctx, payload: { ...ctx.payload, rooms: (data || []).map(r => ({
+    roomId: r.id, inviteCode: r.invite_code, title: r.room_name,
+    createdBy: r.metadata?.createdBy || 'anonymous', createdAt: r.created_at,
+    tags: r.metadata?.tags || [], maxParticipants: r.metadata?.maxParticipants || 100,
+    isPublic: r.is_public,
+  }))}};
 }
 
-const actionMap = { CREATE_ROOM: createRoom, LIST_ROOMS: listRooms };
+async function findByCode(ctx) {
+  const { inviteCode } = ctx.payload;
+  if (!inviteCode) return { ...ctx, _error: { code: 'MISSING_CODE', message: 'inviteCode is required', retryable: false } };
+  const db = await getStorage();
+  if (!db) return { ...ctx, _error: { code: 'DB_UNAVAILABLE', message: 'DB connection failed', retryable: true } };
+  const { data, error } = await db.from('chat_rooms').select('*')
+    .eq('invite_code', inviteCode.toUpperCase())
+    .single();
+  if (error || !data) return { ...ctx, _error: { code: 'NOT_FOUND', message: 'room not found', retryable: false } };
+  return { ...ctx, payload: { ...ctx.payload, room: {
+    roomId: data.id, inviteCode: data.invite_code, title: data.room_name,
+    createdBy: data.metadata?.createdBy || 'anonymous', createdAt: data.created_at,
+    tags: data.metadata?.tags || [], maxParticipants: data.metadata?.maxParticipants || 100,
+    isPublic: data.is_public,
+  }}};
+}
+
+const actionMap = { CREATE_ROOM: createRoom, LIST_ROOMS: listRooms, FIND_BY_CODE: findByCode };
 
 export async function run(ctx) {
   if (!ctx || ctx._error) return ctx;

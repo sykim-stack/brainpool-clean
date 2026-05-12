@@ -28,6 +28,7 @@ interface Room {
   title: string;
   inviteCode?: string;
   messageCount?: number;
+  isPublic?: boolean;
 }
 
 interface DailyWord {
@@ -61,7 +62,7 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
 
   const json = JSON.parse(text) as {
     success?: boolean;
-    payload?: { word?: string; standard?: string; meaning?: string; culturalNote?: string; usage?: string };
+    payload?: { word?: string; meaning?: string; usage?: string; culturalNote?: string };
   };
   if (!json.success || !json.payload?.word) return { word: '', _error: 'no_payload' };
 
@@ -94,14 +95,12 @@ export default function Home() {
   });
   const [showDaily, setShowDaily] = useState(true);
 
-  // 자동 스크롤
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // 오늘의 단어 조회
   useEffect(() => {
     fetchDailyWord().then((result) => {
       if (!result._error && result.word) {
@@ -110,25 +109,20 @@ export default function Home() {
     });
   }, []);
 
-  // 메시지 도착 시 오늘의 단어 숨김
   useEffect(() => {
     if (messages.length > 0) setShowDaily(false);
   }, [messages.length]);
 
-  // 방 목록 불러오기
   const loadRooms = useCallback(async () => {
     const res = await fetch('/api/chat/rooms').catch(() => null);
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (!data) return;
-    // ✅ 응답 구조: { success, data: { rooms } }
-    if (data.success && data.data?.rooms) setRooms(data.data.rooms);
-    else if (Array.isArray(data.data)) setRooms(data.data);
+    if (data?.payload?.rooms) setRooms(data.payload.rooms);
   }, []);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
 
-  // 폴링
   useEffect(() => {
     if (!currentRoomId) return;
 
@@ -139,8 +133,7 @@ export default function Home() {
       const data = await res.json().catch(() => null);
       if (!data) return;
 
-      // ✅ poll 응답 구조 유연하게 처리
-      const rawMsgs = data.data?.messages || data.payload?.messages || [];
+      const rawMsgs = data.payload?.messages || [];
       if (!rawMsgs.length) return;
 
       const msgs = [...rawMsgs].reverse();
@@ -154,7 +147,7 @@ export default function Home() {
           translated = m.translations[tgtLang] || m.translations[srcLang] || '';
         }
         if (!translated || translated === m.original) {
-          translated = m.extra?.translated || m.original;
+          translated = m.original;
         }
 
         return {
@@ -164,7 +157,7 @@ export default function Home() {
           sourceLang: srcLang,
           targetLang: tgtLang,
           emotion: typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
-          riskScore: m.extra?.riskScore || 0,
+          riskScore: 0,
           timestamp: m.timestamp || m.createdAt,
           userId: m.userId || '',
         };
@@ -178,7 +171,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [currentRoomId]);
 
-  // 첫 번째 언어 감지
   useEffect(() => {
     if (messages.length > 0 && messages[0].sourceLang && !firstLanguage) {
       setFirstLanguage(messages[0].sourceLang);
@@ -196,7 +188,6 @@ export default function Home() {
   const handleSend = useCallback(async (text: string) => {
     setIsLoading(true);
     if (!currentRoomId) {
-      // 방 없으면 자동 생성
       const res = await fetch('/api/chat/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -204,11 +195,10 @@ export default function Home() {
       }).catch(() => null);
 
       const data = res ? await res.json().catch(() => null) : null;
-      // ✅ 응답 구조: { success, data: { room } }
-      if (data?.success && data.data?.room) {
-        const newRoomId = data.data.room.roomId;
+      if (data?.payload?.room) {
+        const newRoomId = data.payload.room.roomId;
         setCurrentRoomId(newRoomId);
-        setCurrentRoomCode(data.data.room.inviteCode || '------');
+        setCurrentRoomCode(data.payload.room.inviteCode || '------');
         loadRooms();
         await sendMessageToRoom(newRoomId, text);
       }
@@ -231,6 +221,23 @@ export default function Home() {
     setShowDaily(true);
   }, []);
 
+  const handleJoinByCode = useCallback(async (inviteCode: string) => {
+    const res = await fetch('/api/chat/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ inviteCode }),
+    }).catch(() => null);
+
+    const data = res ? await res.json().catch(() => null) : null;
+    if (data?.payload?.room) {
+      setCurrentRoomId(data.payload.room.roomId);
+      setCurrentRoomCode(data.payload.room.inviteCode || '------');
+      setIsRoomMode(false);
+    } else {
+      alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
+    }
+  }, []);
+
   return (
     <div className="app-shell">
       <BrainHeader
@@ -251,6 +258,7 @@ export default function Home() {
       <RoomList
         rooms={rooms}
         onSelectRoom={(id) => setCurrentRoomId(id)}
+        onJoinByCode={handleJoinByCode}
         onCreateRoom={async () => {
           const title = prompt('방 제목:');
           if (!title) return;
@@ -260,18 +268,16 @@ export default function Home() {
             body: JSON.stringify({ title }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
-          // ✅ 응답 구조: { success, data: { room } }
-          if (data?.success && data.data?.room) {
+          if (data?.payload?.room) {
             loadRooms();
-            setCurrentRoomId(data.data.room.roomId);
-            setCurrentRoomCode(data.data.room.inviteCode || '------');
+            setCurrentRoomId(data.payload.room.roomId);
+            setCurrentRoomCode(data.payload.room.inviteCode || '------');
           }
         }}
         visible={isRoomMode && !currentRoomId}
       />
 
       <div className="chat-container" ref={chatRef}>
-        {/* 오늘의 단어 — 메시지 없을 때만 표시 */}
         {showDaily && messages.length === 0 && !isLoading && (
           <div className={styles.dailyCard}>
             <p className={styles.dailyLabel}>오늘의 단어</p>
@@ -288,7 +294,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* 빈 상태 */}
         {messages.length === 0 && !isLoading && !dailyWord.word && (
           <div className={styles.emptyState}>
             <p>심장을 분석합니다...</p>
