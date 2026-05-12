@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import BrainHeader from '@/components/BrainHeader';
@@ -67,7 +67,6 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sourceLang, setSourceLang] = useState("ko");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [currentRoomCode, setCurrentRoomCode] = useState('------');
@@ -80,11 +79,11 @@ export default function Home() {
   const chatRef = useRef<HTMLDivElement>(null);
   const [firstLanguage, setFirstLanguage] = useState<string | null>(null);
   const [dailyWord, setDailyWord] = useState<DailyWord>({
-  word: 'xin chào',
-  meaning: '안녕하세요',
-  usage: '처음 만나는 사람에게 쓰는 베트남어 인사',
-  culturalNote: '남부에서는 "chào" 만으로도 자연스럽습니다',
-});
+    word: 'xin chào',
+    meaning: '안녕하세요',
+    usage: '처음 만나는 사람에게 쓰는 베트남어 인사',
+    culturalNote: '남부에서는 "chào" 만으로도 자연스럽습니다',
+  });
   const [showDaily, setShowDaily] = useState(true);
 
   // 자동 스크롤
@@ -96,13 +95,12 @@ export default function Home() {
 
   // 오늘의 단어 조회
   useEffect(() => {
-  fetchDailyWord().then((result) => {
-    if (!result._error && result.word) {
-      setDailyWord(result);
-    }
-    // 실패 시 초기값(폴백) 그대로 유지
-  });
-}, []);
+    fetchDailyWord().then((result) => {
+      if (!result._error && result.word) {
+        setDailyWord(result);
+      }
+    });
+  }, []);
 
   // 메시지 도착 시 오늘의 단어 숨김
   useEffect(() => {
@@ -115,8 +113,8 @@ export default function Home() {
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (!data) return;
+    // ✅ 응답 구조: { success, data: { rooms } }
     if (data.success && data.data?.rooms) setRooms(data.data.rooms);
-    else if (data.data?.rooms) setRooms(data.data.rooms);
     else if (Array.isArray(data.data)) setRooms(data.data);
   }, []);
 
@@ -131,31 +129,32 @@ export default function Home() {
       if (!res || !res.ok) return;
 
       const data = await res.json().catch(() => null);
-      if (!data?.success || !data.data?.messages) return;
+      if (!data) return;
 
-      const msgs = data.data.messages.reverse();
+      // ✅ poll 응답 구조 유연하게 처리
+      const rawMsgs = data.data?.messages || data.payload?.messages || [];
+      if (!rawMsgs.length) return;
+
+      const msgs = [...rawMsgs].reverse();
       const enriched = msgs.map((m: any) => {
-        const hasKorean = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(m.original || '');
-        const sourceLang = hasKorean ? 'ko' : 'vi';
-        const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
+        const hasKorean = /[가-힣]/.test(m.original || '');
+        const srcLang = hasKorean ? 'ko' : 'vi';
+        const tgtLang = srcLang === 'ko' ? 'vi' : 'ko';
 
         let translated = '';
         if (m.translations) {
-          translated = m.translations[targetLang] || m.translations[sourceLang] || '';
+          translated = m.translations[tgtLang] || m.translations[srcLang] || '';
         }
         if (!translated || translated === m.original) {
-          if (sourceLang === 'ko' && m.translations?.vi) translated = m.translations.vi;
-          else if (sourceLang === 'vi' && m.translations?.ko) translated = m.translations.ko;
-          else if (m.extra?.translated) translated = m.extra.translated;
+          translated = m.extra?.translated || m.original;
         }
-        if (!translated || translated === m.original) translated = m.original;
 
         return {
           messageId: m.messageId || m.id,
           original: m.original || '',
           translated,
-          sourceLang,
-          targetLang,
+          sourceLang: srcLang,
+          targetLang: tgtLang,
           emotion: typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
           riskScore: m.extra?.riskScore || 0,
           timestamp: m.timestamp || m.createdAt,
@@ -171,7 +170,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [currentRoomId]);
 
-  // 첫 번째 언어 감지 — 방 재입장 엣지케이스 포함
+  // 첫 번째 언어 감지
   useEffect(() => {
     if (messages.length > 0 && messages[0].sourceLang && !firstLanguage) {
       setFirstLanguage(messages[0].sourceLang);
@@ -189,6 +188,7 @@ export default function Home() {
   const handleSend = useCallback(async (text: string) => {
     setIsLoading(true);
     if (!currentRoomId) {
+      // 방 없으면 자동 생성
       const res = await fetch('/api/chat/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -196,6 +196,7 @@ export default function Home() {
       }).catch(() => null);
 
       const data = res ? await res.json().catch(() => null) : null;
+      // ✅ 응답 구조: { success, data: { room } }
       if (data?.success && data.data?.room) {
         const newRoomId = data.data.room.roomId;
         setCurrentRoomId(newRoomId);
@@ -219,7 +220,7 @@ export default function Home() {
     setMessages([]);
     setIsRoomMode(false);
     setFirstLanguage(null);
-    setShowDaily(true); // 방 퇴장 시 오늘의 단어 복원
+    setShowDaily(true);
   }, []);
 
   return (
@@ -251,6 +252,7 @@ export default function Home() {
             body: JSON.stringify({ title }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
+          // ✅ 응답 구조: { success, data: { room } }
           if (data?.success && data.data?.room) {
             loadRooms();
             setCurrentRoomId(data.data.room.roomId);
@@ -261,7 +263,6 @@ export default function Home() {
       />
 
       <div className="chat-container" ref={chatRef}>
-
         {/* 오늘의 단어 — 메시지 없을 때만 표시 */}
         {showDaily && messages.length === 0 && !isLoading && (
           <div className={styles.dailyCard}>
@@ -279,8 +280,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* 빈 상태 (오늘의 단어 없을 때) */}
-        {messages.length === 0 && !isLoading && !dailyWord && (
+        {/* 빈 상태 */}
+        {messages.length === 0 && !isLoading && !dailyWord.word && (
           <div className={styles.emptyState}>
             <p>심장을 분석합니다...</p>
             <p className={styles.emptyStateSub}>한국어 ↔ 베트남어 방언까지</p>

@@ -1,9 +1,8 @@
-﻿// app/api/chat/rooms/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { run as roomEngine } from '@/brain-engine/chat-room.js';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
-
   try {
     const raw = await request.text();
     const body = JSON.parse(raw);
@@ -11,14 +10,12 @@ export async function POST(request: NextRequest) {
 
     if (!title) {
       return NextResponse.json(
-        { success: false, traceId, error: 'title required' },
+        { success: false, _error: { code: 'MISSING_TITLE', message: 'title required' }, traceId },
         { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
 
-    const ChatRoomLayer = (await import('@/brain-engine/layers/sub/chat-room-layer')).default;
-
-    const ctx: any = await ChatRoomLayer({
+    const ctx = await roomEngine({
       type: 'CREATE_ROOM',
       payload: {
         title,
@@ -32,18 +29,19 @@ export async function POST(request: NextRequest) {
 
     if (ctx._error) {
       return NextResponse.json(
-        { success: false, traceId, error: ctx._error },
+        { success: false, _error: ctx._error, traceId },
         { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
 
+    // ✅ page.tsx가 data.data.room 으로 읽으므로 data 키로 감쌈
     return NextResponse.json(
-      { success: true, traceId, data: { room: ctx.room ?? null } },
+      { success: true, data: { room: ctx.payload.room }, _error: null, traceId },
       { status: 201, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, traceId, error: err.message },
+      { success: false, _error: { code: 'UNHANDLED', message: err.message }, traceId },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
@@ -51,11 +49,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
-
   try {
-    const ChatRoomLayer = (await import('@/brain-engine/layers/sub/chat-room-layer')).default;
-
-    const ctx: any = await ChatRoomLayer({
+    const ctx = await roomEngine({
       type: 'LIST_ROOMS',
       payload: {},
       traceId,
@@ -64,18 +59,19 @@ export async function GET(request: NextRequest) {
 
     if (ctx._error) {
       return NextResponse.json(
-        { success: false, traceId, error: ctx._error },
+        { success: false, _error: ctx._error, traceId },
         { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
 
+    // ✅ page.tsx가 data.data.rooms 로 읽으므로 data 키로 감쌈
     return NextResponse.json(
-      { success: true, traceId, data: { rooms: ctx.rooms ?? [] } },
+      { success: true, data: { rooms: ctx.payload.rooms }, _error: null, traceId },
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, traceId, error: err.message },
+      { success: false, _error: { code: 'UNHANDLED', message: err.message }, traceId },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
