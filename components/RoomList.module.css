@@ -1,7 +1,7 @@
 ﻿/* RoomList.module.css */
 
 .inner {
-  padding: var(--space-5);
+  padding: calc(var(--space-5) + 68px) var(--space-5) var(--space-5);
 }
 
 .joinSection {
