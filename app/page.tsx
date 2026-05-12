@@ -118,8 +118,8 @@ export default function Home() {
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (!data) return;
-    if (data?.success && data.data?.rooms) setRooms(data.data.rooms);
-    else if (data?.data?.rooms) setRooms(data.data.rooms);
+    // API 응답: { payload: { rooms: [...] } }
+    if (data?.payload?.rooms) setRooms(data.payload.rooms);
   }, []);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
@@ -196,6 +196,7 @@ export default function Home() {
       }).catch(() => null);
 
       const data = res ? await res.json().catch(() => null) : null;
+      // API 응답: { payload: { room: {...} } }
       if (data?.payload?.room) {
         const newRoomId = data.payload.room.roomId;
         setCurrentRoomId(newRoomId);
@@ -230,9 +231,10 @@ export default function Home() {
     }).catch(() => null);
 
     const data = res ? await res.json().catch(() => null) : null;
-    if (data?.success && data.data?.room) {
-      const newRoomId = data.data.room.roomId;
-      setCurrentRoomCode(data.data.room.inviteCode || '------');
+    // API 응답: { payload: { room: {...} } }
+    if (data?.payload?.room) {
+      setCurrentRoomId(data.payload.room.roomId);
+      setCurrentRoomCode(data.payload.room.inviteCode || '------');
       setIsRoomMode(false);
     } else {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
@@ -269,10 +271,11 @@ export default function Home() {
             body: JSON.stringify({ title }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
-          if (data?.success && data.data?.room) {
+          // API 응답: { payload: { room: {...} } }
+          if (data?.payload?.room) {
             loadRooms();
-            setCurrentRoomId(data.data.room.roomId);
-            setCurrentRoomCode(data.data.room.inviteCode || '------');
+            setCurrentRoomId(data.payload.room.roomId);
+            setCurrentRoomCode(data.payload.room.inviteCode || '------');
           }
         }}
         visible={isRoomMode && !currentRoomId}
