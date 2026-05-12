@@ -9,6 +9,7 @@ function normalizeAction(action: string): string {
   if (action === 'save-word') return 'saveWord';
   if (action === 'report-conflict') return 'reportConflict';
   if (action === 'resolve-conflict') return 'resolveConflict';
+  if (action === 'get-random-word') return 'getRandomWord';
   return action;
 }
 
@@ -79,3 +80,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

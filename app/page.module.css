@@ -1,4 +1,4 @@
-/* page.module.css — 토큰 완전 적용 */
+/* page.module.css — 다크 골드 테마 */
 
 /* ── 빈 상태 ── */
 .emptyState {
@@ -11,7 +11,7 @@
 .emptyStateSub {
   font-size: var(--font-xs);
   margin-top: var(--space-2);
-  color: var(--color-border);
+  color: var(--color-text-muted);
 }
 
 /* ── 로딩 상태 ── */
@@ -19,6 +19,7 @@
   text-align: center;
   color: var(--color-text-muted);
   margin-top: var(--space-5);
+  font-size: var(--font-sm);
 }
 
 /* ── 오늘의 단어 카드 ── */
@@ -26,48 +27,100 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-4);
-  margin: var(--space-4) auto;
+  padding: var(--space-6) var(--space-5);
+  margin: var(--space-6) auto var(--space-4);
+  width: min(320px, 90%);
   background: var(--color-surface);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: var(--radius-lg);
   text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: cardFadeIn 0.6s ease forwards;
+}
+
+/* 골드 상단 라인 */
+.dailyCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  border-radius: 2px;
+}
+
+/* 은은한 글로우 */
+.dailyCard::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 80px;
+  background: radial-gradient(ellipse, rgba(212, 175, 55, 0.08) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .dailyLabel {
-  font-size: var(--font-sm);
-  color: var(--color-text-sub);
+  font-size: var(--font-xs);
+  color: var(--color-gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: var(--space-2);
 }
 
 .dailyWord {
-  font-size: var(--font-lg);
+  font-size: 28px;
   font-weight: var(--weight-bold);
   color: var(--color-text);
-  margin-top: var(--space-1);
+  margin: var(--space-2) 0;
+  letter-spacing: var(--letter-spacing-tight);
+  text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
 }
 
-.dailyMeaning,
-.dailyUsage,
-.dailyNote {
+.dailyMeaning {
   font-size: var(--font-md);
-  color: var(--color-text-sub);
+  color: var(--color-gold);
+  opacity: 0.9;
   margin-top: var(--space-1);
+  font-weight: var(--weight-bold);
 }
 
-.emptyState {
-  text-align: center;
-  color: var(--color-text-muted);
-  margin-top: 40%;
+.dailyUsage {
   font-size: var(--font-sm);
-}
-
-.emptyStateSub {
-  font-size: var(--font-xs);
+  color: var(--color-text-sub);
   margin-top: var(--space-2);
-  color: var(--color-text-muted);
+  line-height: 1.6;
+  padding: 0 var(--space-2);
 }
 
-.loadingState {
-  text-align: center;
+.dailyNote {
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
-  margin-top: var(--space-5);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(212, 175, 55, 0.06);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid rgba(212, 175, 55, 0.3);
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+/* ── 등장 애니메이션 ── */
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -51,7 +51,7 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   const res = await fetch('/api/corenull', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ action: 'get-word-data', word: '오늘', lang: 'vi' }),
+    body: JSON.stringify({ action: 'get-random-word' }),
   }).catch(() => null);
 
   if (!res || !res.ok) return { word: '', _error: 'fetch_failed' };
@@ -59,10 +59,18 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   const text = await res.text().catch(() => null);
   if (!text) return { word: '', _error: 'empty' };
 
-  const json = JSON.parse(text) as { success?: boolean; payload?: DailyWord };
+  const json = JSON.parse(text) as {
+    success?: boolean;
+    payload?: { word?: string; standard?: string; meaning?: string; culturalNote?: string; usage?: string };
+  };
   if (!json.success || !json.payload?.word) return { word: '', _error: 'no_payload' };
 
-  return json.payload;
+  return {
+    word: json.payload.word,
+    meaning: json.payload.meaning,
+    usage: json.payload.usage,
+    culturalNote: json.payload.culturalNote,
+  };
 };
 
 export default function Home() {
@@ -226,7 +234,7 @@ export default function Home() {
   return (
     <div className="app-shell">
       <BrainHeader
-        project={currentRoomId ? 'chat' : 'ring'}
+        project={isRoomMode ? 'chat' : 'ring'}
         isRoomMode={isRoomMode}
         onRoomToggle={() => {
           if (currentRoomId) handleExitRoom();

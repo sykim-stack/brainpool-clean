@@ -13,6 +13,8 @@ export class CoreNullLayer {
         return await this.saveWord(ctx);
       case 'reportConflict':
         return await this.reportConflict(ctx);
+      case 'getRandomWord':
+        return await this.getRandomWord(ctx);
       case 'resolveConflict':
         return await this.resolveConflict(ctx);
       default:
@@ -129,6 +131,25 @@ export class CoreNullLayer {
     return { ...ctx, result: data };
   }
 
+  async getRandomWord(ctx) {
+    const { data, error } = await ctx.supabase
+      .from('tp_translations')
+      .select('standard_word, southern_word, meaning_ko, example_northern, notes, emotion_score')
+      .not('standard_word', 'is', null)
+      .not('meaning_ko', 'is', null)
+      .limit(50);
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    if (!data || data.length === 0) return { ...ctx, _error: { code: 'NOT_FOUND', message: 'no words' } };
+    const row = data[Math.floor(Math.random() * data.length)];
+    return { ...ctx, result: {
+      word: row.standard_word,
+      standard: row.standard_word,
+      southern: row.southern_word,
+      meaning: row.meaning_ko,
+      usage: row.example_northern || null,
+      culturalNote: row.notes || null,
+    }};
+  }
   async resolveConflict(ctx) {
     const { conflict_id, resolution_note, new_translation, original_word } = ctx.payload;
     const { error: updateError } = await ctx.supabase
@@ -148,3 +169,4 @@ export class CoreNullLayer {
 }
 
 export default CoreNullLayer;
+
