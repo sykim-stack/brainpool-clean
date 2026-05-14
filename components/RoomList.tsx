@@ -86,19 +86,14 @@ export default function RoomList({ rooms, onSelectRoom, onCreateRoom, onJoinByCo
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               autoFocus
             />
-            <div className={styles.toggleRow}>
-              <span className={styles.toggleLabel}>공개방</span>
-              <label className={`toggle-switch ${isPublic ? 'active' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={isPublic}
-                  onChange={(e) => setIsPublic(e.target.checked)}
-                />
-                <div className="toggle-track" />
-                <div className="toggle-thumb" />
-              </label>
-              <span className={styles.toggleLabel}>{isPublic ? '공개' : '비공개'}</span>
-            </div>
+            <label className={styles.privateCheck}>
+              <input
+                type="checkbox"
+                checked={!isPublic}
+                onChange={(e) => setIsPublic(!e.target.checked)}
+              />
+               비공개방으로 만들기
+            </label>
             <div className={styles.createActions}>
               <button className={styles.cancelBtn} onClick={() => { setShowCreateForm(false); setNewTitle(''); }}>취소</button>
               <button className={styles.confirmBtn} onClick={handleCreate} disabled={!newTitle.trim()}>만들기</button>
@@ -117,7 +112,7 @@ export default function RoomList({ rooms, onSelectRoom, onCreateRoom, onJoinByCo
             onClick={() => onSelectRoom(room.roomId)}
           >
             <div>
-              <div className="room-name">{room.title}</div>
+            {!room.isPublic && '🔒 '}{room.title}
               {room.inviteCode && (
                 <div className={`room-meta ${styles.inviteCode}`}>
                   코드: {room.inviteCode}

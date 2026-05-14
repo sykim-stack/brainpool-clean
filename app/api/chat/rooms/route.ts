@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { run as roomEngine } from '@/brain-engine/chat-room.js';
 
 export async function POST(request: NextRequest) {
@@ -39,10 +39,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
+  const deviceId = request.headers.get('x-device-id') || '';
   try {
     const ctx = await roomEngine({
       type: 'LIST_ROOMS',
-      payload: {},
+      payload: { deviceId },
       traceId,
       _error: null,
     });

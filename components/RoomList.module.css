@@ -145,3 +145,37 @@
 .inviteCode {
   margin-top: var(--space-1);
 }
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-2);
+  font-size: var(--font-sm);
+  min-width: var(--touch-min-height);
+  min-height: var(--touch-min-height);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-warn);
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-2);
+  font-size: var(--font-sm);
+  min-width: var(--touch-min-height);
+  min-height: var(--touch-min-height);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-warn);
+}

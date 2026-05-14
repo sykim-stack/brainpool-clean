@@ -114,13 +114,14 @@ export default function Home() {
   }, [messages.length]);
 
   const loadRooms = useCallback(async () => {
-    const res = await fetch('/api/chat/rooms').catch(() => null);
+    const res = await fetch('/api/chat/rooms', {
+      headers: { 'x-device-id': deviceId },
+    }).catch(() => null);
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (!data) return;
-    // API 응답: { payload: { rooms: [...] } }
     if (data?.payload?.rooms) setRooms(data.payload.rooms);
-  }, []);
+  }, [deviceId]);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
 
@@ -240,7 +241,15 @@ export default function Home() {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
     }
   }, []);
-
+  const handleDeleteRoom = useCallback(async (roomId: string) => {
+    const res = await fetch(`/api/chat/rooms/${roomId}`, {
+      method: 'DELETE',
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => null) : null;
+    if (data?.payload?.deleted) {
+      loadRooms();
+    }
+  }, [loadRooms]);
   return (
     <div className="app-shell">
       <BrainHeader
@@ -280,6 +289,7 @@ export default function Home() {
             setIsRoomMode(false);
           }
         }}
+        onDeleteRoom={handleDeleteRoom}  // ← 여기 추가
         visible={isRoomMode && !currentRoomId}
       />
 

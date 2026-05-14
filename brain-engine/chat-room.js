@@ -1,4 +1,4 @@
-import { getStorage } from './connectors/storage.js';
+﻿import { getStorage } from './connectors/storage.js';
 
 function generateInviteCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -27,10 +27,11 @@ async function createRoom(ctx) {
 }
 
 async function listRooms(ctx) {
+  const { deviceId = '' } = ctx.payload || {};
   const db = await getStorage();
   if (!db) return { ...ctx, _error: { code: 'DB_UNAVAILABLE', message: 'DB connection failed', retryable: true } };
   const { data, error } = await db.from('chat_rooms').select('*')
-    .eq('is_public', true)
+    .or("is_public.eq.true,owner_device_id.eq.${deviceId}")
     .order('created_at', { ascending: false });
   if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message, retryable: false } };
   return { ...ctx, payload: { ...ctx.payload, rooms: (data || []).map(r => ({
