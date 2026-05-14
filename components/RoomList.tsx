@@ -15,10 +15,11 @@ interface RoomListProps {
   onSelectRoom: (roomId: string) => void;
   onCreateRoom: (title: string, isPublic: boolean) => void;
   onJoinByCode: (inviteCode: string) => void;
+  onDeleteRoom: (roomId: string) => void;
   visible: boolean;
 }
 
-export default function RoomList({ rooms, onSelectRoom, onCreateRoom, onJoinByCode, visible }: RoomListProps) {
+export default function RoomList({ rooms, onSelectRoom, onCreateRoom, onJoinByCode, onDeleteRoom, visible }: RoomListProps) {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
