@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import styles from './WordModal.module.css';
@@ -22,7 +22,7 @@ interface WordModalProps {
   onClose: () => void;
 }
 
-// ── API 조회 결과 타입 ──
+// ?? API 議고쉶 寃곌낵 ?????
 interface WordData {
   standard?: string;
   southern?: string;
@@ -33,7 +33,7 @@ interface WordData {
   riskScore?: number;
 }
 
-// ── API 조회 함수 (throw 금지 → _error 필드) ──
+// ?? API 議고쉶 ?⑥닔 (throw 湲덉? ??_error ?꾨뱶) ??
 const fetchWordData = async (word: string): Promise<WordData & { _error?: string }> => {
   const res = await fetch('/api/corenull', {
     method: 'POST',
@@ -56,7 +56,7 @@ export default function WordModal({ word, onClose }: WordModalProps) {
   const [wordData, setWordData] = useState<WordData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ── 모달 열릴 때 데이터 조회 ──
+  // ?? 紐⑤떖 ?대┫ ???곗씠??議고쉶 ??
   useEffect(() => {
     if (!word) {
       setWordData(null);
@@ -76,7 +76,7 @@ export default function WordModal({ word, onClose }: WordModalProps) {
 
   if (!word) return null;
 
-  // ── props와 API 결과 병합 (API 우선) ──
+  // ?? props? API 寃곌낵 蹂묓빀 (API ?곗꽑) ??
   const merged: WordDetail = {
     ...word,
     standard:     wordData?.standard     ?? word.standard,
@@ -95,8 +95,8 @@ export default function WordModal({ word, onClose }: WordModalProps) {
     return styles.riskLow;
   };
 
-  const LOADING_TEXT = '정보를 가져오는 중...';
-  const EMPTY_TEXT   = '아직 데이터가 없습니다';
+  const LOADING_TEXT = '?뺣낫瑜?媛?몄삤??以?..';
+  const EMPTY_TEXT   = '?꾩쭅 ?곗씠?곌? ?놁뒿?덈떎';
 
   const val = (v?: string) => {
     if (isLoading) return LOADING_TEXT;
@@ -107,26 +107,26 @@ export default function WordModal({ word, onClose }: WordModalProps) {
     <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
-        <h2 className={styles.title}>📖 {word.word}</h2>
-        <p className={styles.subtitle}>단어 학습 카드</p>
+        <h2 className={styles.title}>?뱰 {word.word}</h2>
+        <p className={styles.subtitle}>?⑥뼱 ?숈뒿 移대뱶</p>
 
-        {/* 방언 변형 */}
-        <Section title="🗣️ 방언 변형">
-          <Row label="표준어" value={val(merged.standard)} />
-          <Row label="남부"   value={val(merged.southern)} />
-          <Row label="메콩"   value={val(merged.mekong)}   />
-          <Row label="후에"   value={val(merged.hue)}      />
+        {/* 諛⑹뼵 蹂??*/}
+        <Section title="?뿣截?諛⑹뼵 蹂??>
+          <Row label="?쒖??? value={val(merged.standard)} />
+          <Row label="?⑤?"   value={val(merged.southern)} />
+          <Row label="硫붿쉘"   value={val(merged.mekong)}   />
+          <Row label="?꾩뿉"   value={val(merged.hue)}      />
         </Section>
 
-        {/* 뜻과 쓰임새 */}
-        <Section title="💡 뜻과 쓰임새">
-          <Row label="뜻"     value={val(merged.meaning)} />
-          <Row label="쓰임새" value={val(merged.usage)}   />
+        {/* ?산낵 ?곗엫??*/}
+        <Section title="?뮕 ?산낵 ?곗엫??>
+          <Row label="??     value={val(merged.meaning)} />
+          <Row label="?곗엫?? value={val(merged.usage)}   />
         </Section>
 
-        {/* 위험 점수 */}
-        {merged.riskScore !== undefined && (
-          <Section title="⚠️ 위험 분석">
+        {/* ?꾪뿕 ?먯닔 */}
+        {merged.riskScore !== undefined && merged.riskScore > 0 && (
+          <Section title="?좑툘 ?꾪뿕 遺꾩꽍">
             <div className={styles.riskRow}>
               <div className={styles.riskTrack}>
                 <div
@@ -141,22 +141,22 @@ export default function WordModal({ word, onClose }: WordModalProps) {
           </Section>
         )}
 
-        {/* 문화 메모 */}
-        <Section title="🔍 문화 메모">
+        {/* 臾명솕 硫붾え */}
+        <Section title="?뵇 臾명솕 硫붾え">
           <p className={styles.culturalNote}>
             {isLoading ? LOADING_TEXT : (merged.culturalNote || EMPTY_TEXT)}
           </p>
         </Section>
 
-        {/* 감정 */}
+        {/* 媛먯젙 */}
         {merged.emotion && (
-          <Section title="🎭 감정">
+          <Section title="?렚 媛먯젙">
             <span className={styles.emotionTag}>{merged.emotion}</span>
           </Section>
         )}
 
-        {/* 관련 표현 / 예문 */}
-        <Section title="📚 관련 표현">
+        {/* 愿???쒗쁽 / ?덈Ц */}
+        <Section title="?뱴 愿???쒗쁽">
           {isLoading ? (
             <p className={styles.culturalNote}>{LOADING_TEXT}</p>
           ) : merged.relatedWords && merged.relatedWords.length > 0 ? (
@@ -170,8 +170,8 @@ export default function WordModal({ word, onClose }: WordModalProps) {
           )}
         </Section>
 
-        {/* 닫기 */}
-        <button onClick={onClose} className={styles.closeBtn}>확인</button>
+        {/* ?リ린 */}
+        <button onClick={onClose} className={styles.closeBtn}>?뺤씤</button>
       </div>
     </div>
   );
