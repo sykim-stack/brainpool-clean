@@ -1,21 +1,14 @@
-import { getStorage } from './connectors/storage.js';
+import { getStorage } from '../connectors/storage.js';
 
 async function generateDialects(standardWord, meaningKo) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
 
-  const prompt = 베트남어 단어/문장: 
-한국어 뜻: 
-
+  const prompt = `베트남어 단어/문장: ${standardWord}
+한국어 뜻: ${meaningKo}
 이 베트남어의 방언 변형을 JSON으로 반환해주세요:
-{
-  southern: 남부 방언 (호치민),
-  mekong: 메콩 델타 방언,
-  hue: 후에 방언,
-  example_northern: 북부 예문,
-  example_southern: 남부 예문
-}
-JSON만 반환하고 다른 텍스트는 없이.;
+{"southern":"남부 방언(호치민)","mekong":"메콩 델타 방언","hue":"후에 방언","example_northern":"북부 예문","example_southern":"남부 예문"}
+JSON만 반환하고 다른 텍스트 없이.`;
 
   try {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key, {
@@ -25,7 +18,7 @@ JSON만 반환하고 다른 텍스트는 없이.;
     });
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = text.replace(/\\\json|\\\/g, '').trim();
+    const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean);
   } catch {
     return null;
@@ -41,7 +34,6 @@ export async function run(ctx) {
 
   if (!viWord || !koWord) return ctx;
 
-  // 중복 체크
   const db = await getStorage();
   if (!db) return ctx;
 
@@ -51,12 +43,10 @@ export async function run(ctx) {
     .eq('standard_word', viWord)
     .maybeSingle();
 
-  if (existing) return ctx; // 이미 있으면 스킵
+  if (existing) return ctx;
 
-  // Gemini로 방언 생성
   const dialects = await generateDialects(viWord, koWord);
 
-  // DB 저장
   await db.from('tp_translations').insert({
     standard_word: viWord,
     southern_word: dialects?.southern || null,
