@@ -1,12 +1,11 @@
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
-$dialect = "import { getStorage } from './connectors/storage.js';
+import { getStorage } from './connectors/storage.js';
 
 async function generateDialects(standardWord, meaningKo) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
 
-  const prompt = `베트남어 단어/문장: ${standardWord}
-한국어 뜻: ${meaningKo}
+  const prompt = 베트남어 단어/문장: 
+한국어 뜻: 
 
 이 베트남어의 방언 변형을 JSON으로 반환해주세요:
 {
@@ -16,7 +15,7 @@ async function generateDialects(standardWord, meaningKo) {
   example_northern: 북부 예문,
   example_southern: 남부 예문
 }
-JSON만 반환하고 다른 텍스트는 없이.`;
+JSON만 반환하고 다른 텍스트는 없이.;
 
   try {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key, {
@@ -26,7 +25,7 @@ JSON만 반환하고 다른 텍스트는 없이.`;
     });
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+    const clean = text.replace(/\\\json|\\\/g, '').trim();
     return JSON.parse(clean);
   } catch {
     return null;
@@ -73,5 +72,4 @@ export async function run(ctx) {
 
   console.log('[dialect] 저장 완료:', viWord, '->', koWord);
   return ctx;
-}"
-[System.IO.File]::WriteAllText("$PWD\brain-engine\engines\dialect.js", $dialect, $utf8NoBom)
+}
