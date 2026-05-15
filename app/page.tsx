@@ -95,7 +95,7 @@ export default function Home() {
   });
   const [showDaily, setShowDaily] = useState(true);
 
-  // 여기 추가
+// 불러오기
 const [myRooms, setMyRooms] = useState<Room[]>(() => {
   if (typeof window === 'undefined') return [];
   return JSON.parse(localStorage.getItem('myRooms') || '[]');
@@ -287,8 +287,8 @@ const saveMyRoom = (room: Room) => {
 
       <RoomList
         rooms={rooms}
+        myRooms={myRooms} 
         onSelectRoom={(id) => {
-          myRooms={myRooms}
           const room = rooms.find(r => r.roomId === id);
           setCurrentRoomId(id);
           setCurrentRoomCode(room?.inviteCode || '------');
@@ -308,6 +308,7 @@ const saveMyRoom = (room: Room) => {
             saveMyRoom(data.payload.room); // ← 추가
             setIsRoomMode(false);
           }
+
         }}
         onDeleteRoom={handleDeleteRoom}  // ← 여기 추가
         visible={isRoomMode && !currentRoomId}
