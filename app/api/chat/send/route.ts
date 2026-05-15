@@ -31,6 +31,10 @@ export async function POST(request: NextRequest) {
   if (analyze) {
     ctx = await route('translate', ctx);
     if (!ctx._error) ctx = await route('emotion', ctx);
+    // 방언 자동 저장 (비동기 - 응답 속도 영향 없음)
+    import('@/brain-engine/engines/dialect.js')
+      .then(({ run }) => run(ctx))
+      .catch(() => {});
   }
 
   ctx = await messageEngine({
