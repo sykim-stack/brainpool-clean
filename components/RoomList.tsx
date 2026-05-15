@@ -70,6 +70,34 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
           {codeError && <p className={styles.joinError}>{codeError}</p>}
         </div>
 
+        {/* 내가 참여한 방 */}
+        {myRooms.length > 0 && (
+          <>
+            <div className={styles.divider}>내가 참여한 방</div>
+            {myRooms.map((room) => (
+              <div
+                key={room.roomId}
+                className={`room-item ${styles.roomItem}`}
+              >
+                <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
+                  {!room.isPublic && '🔒 '}{room.title}
+                  {room.inviteCode && (
+                    <div className={`room-meta ${styles.inviteCode}`}>
+                      코드: {room.inviteCode}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className={styles.deleteBtn}
+                  onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+          </>
+        )}
+
         <div className={styles.divider}>공개 방 목록</div>
 
         {/* 방 생성 폼 */}
@@ -94,7 +122,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 checked={!isPublic}
                 onChange={(e) => setIsPublic(!e.target.checked)}
               />
-               비공개방으로 만들기
+              비공개방으로 만들기
             </label>
             <div className={styles.createActions}>
               <button className={styles.cancelBtn} onClick={() => { setShowCreateForm(false); setNewTitle(''); }}>취소</button>
@@ -103,25 +131,29 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
           </div>
         )}
 
-        {/* 방 목록 */}
+        {/* 공개 방 목록 */}
         {rooms.length === 0 && (
-          <p className={styles.empty}>아직 방이 없습니다</p>
+          <p className={styles.empty}>공개 방이 없습니다</p>
         )}
         {rooms.map((room) => (
           <div
             key={room.roomId}
             className={`room-item ${styles.roomItem}`}
-            onClick={() => onSelectRoom(room.roomId)}
           >
-            <div>
-            {!room.isPublic && '🔒 '}{room.title}
+            <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
+              {room.title}
               {room.inviteCode && (
                 <div className={`room-meta ${styles.inviteCode}`}>
                   코드: {room.inviteCode}
                 </div>
               )}
             </div>
-            <div className="room-meta">{room.messageCount || 0} 메시지</div>
+            <button
+              className={styles.deleteBtn}
+              onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+            >
+              삭제
+            </button>
           </div>
         ))}
 

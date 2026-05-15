@@ -1,4 +1,4 @@
-﻿/* RoomList.module.css */
+/* RoomList.module.css */
 
 .inner {
   padding: calc(var(--space-5) + 68px) var(--space-5) var(--space-5);
@@ -178,4 +178,71 @@
 
 .deleteBtn:hover {
   color: var(--color-warn);
+}
+.deleteBtn {
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+  color: var(--color-warn);
+  font-size: var(--font-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.deleteBtn:hover {
+  background: var(--color-warn);
+  color: #000;
+}
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.createInput {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  outline: none;
+}
+.createInput:focus {
+  border-color: var(--color-gold);
+}
+.privateCheck {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+  cursor: pointer;
+}
+.createActions {
+  display: flex;
+  gap: var(--space-2);
+}
+.cancelBtn {
+  flex: 1;
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.confirmBtn {
+  flex: 1;
+  padding: var(--space-2);
+  background: var(--color-gold);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #000;
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+.confirmBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
