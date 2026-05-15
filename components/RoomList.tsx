@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import styles from './RoomList.module.css';
 
@@ -12,6 +12,7 @@ interface Room {
 
 interface RoomListProps {
   rooms: Room[];
+  myRooms?: Room[];
   onSelectRoom: (roomId: string) => void;
   onCreateRoom: (title: string, isPublic: boolean) => void;
   onJoinByCode: (inviteCode: string) => void;
@@ -19,7 +20,7 @@ interface RoomListProps {
   visible: boolean;
 }
 
-export default function RoomList({ rooms, onSelectRoom, onCreateRoom, onJoinByCode, onDeleteRoom, visible }: RoomListProps) {
+export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRoom, onJoinByCode, onDeleteRoom, visible }: RoomListProps) {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
