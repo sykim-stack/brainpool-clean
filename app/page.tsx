@@ -95,6 +95,22 @@ export default function Home() {
   });
   const [showDaily, setShowDaily] = useState(true);
 
+  // 여기 추가
+const [myRooms, setMyRooms] = useState<Room[]>(() => {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem('myRooms') || '[]');
+});
+
+const saveMyRoom = (room: Room) => {
+  setMyRooms(prev => {
+    const exists = prev.find(r => r.roomId === room.roomId);
+    if (exists) return prev;
+    const updated = [room, ...prev].slice(0, 10);
+    localStorage.setItem('myRooms', JSON.stringify(updated));
+    return updated;
+  });
+};
+
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -202,6 +218,7 @@ export default function Home() {
         const newRoomId = data.payload.room.roomId;
         setCurrentRoomId(newRoomId);
         setCurrentRoomCode(data.payload.room.inviteCode || '------');
+        saveMyRoom(data.payload.room); // ← 추가
         loadRooms();
         await sendMessageToRoom(newRoomId, text);
       }
@@ -236,6 +253,7 @@ export default function Home() {
     if (data?.payload?.room) {
       setCurrentRoomId(data.payload.room.roomId);
       setCurrentRoomCode(data.payload.room.inviteCode || '------');
+      saveMyRoom(data.payload.room); // ← 추가
       setIsRoomMode(false);
     } else {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
@@ -270,6 +288,7 @@ export default function Home() {
       <RoomList
         rooms={rooms}
         onSelectRoom={(id) => {
+          myRooms={myRooms}
           const room = rooms.find(r => r.roomId === id);
           setCurrentRoomId(id);
           setCurrentRoomCode(room?.inviteCode || '------');
@@ -286,6 +305,7 @@ export default function Home() {
             loadRooms();
             setCurrentRoomId(data.payload.room.roomId);
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
+            saveMyRoom(data.payload.room); // ← 추가
             setIsRoomMode(false);
           }
         }}
