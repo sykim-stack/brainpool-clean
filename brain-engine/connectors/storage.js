@@ -94,10 +94,29 @@ export async function saveTranslationAsset(ctx) {
 }
 
 // 추천 사용 함수
-export async function saveTranslation(ctx) {
-  ctx = await setCurrentDeviceId(ctx);
-  if (ctx._error) return ctx;
+export async function setCurrentDeviceId(ctx) {
+  ctx = ctx || {};
+  const client = await getStorage();
+  if (!client) {
+    ctx._error = "Storage client not available";
+    return ctx;
+  }
 
-  ctx = await saveTranslationAsset(ctx);
+  const deviceId = ctx.device_id || ctx.payload?.device_id || ctx.payload?.user_id;
+  if (!deviceId) {
+    ctx._error = "device_id is required for RLS";
+    return ctx;
+  }
+
+  ctx.device_id = deviceId;
+
+  // rpc 호출은 실패해도 무시 (아직 rpc 함수가 없을 가능성 높음)
+  try {
+    await client.rpc('set_app_current_device_id', { device_id: deviceId });
+  } catch (e) {
+    // rpc가 없으면 무시
+    console.warn('[setCurrentDeviceId] rpc skipped (아직 생성 안함)');
+  }
+
   return ctx;
 }
