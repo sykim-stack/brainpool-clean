@@ -87,12 +87,15 @@ export const TranslationEngine = {
 // 학습 자산 저장 헬퍼
 async function saveAsLearningAsset(ctx) {
   try {
-    ctx = await saveTranslation(ctx);   // storage.js의 메인 함수
-    if (ctx._error) {
-      console.warn('[saveAsLearningAsset] 저장 실패:', ctx._error);
+    const savedCtx = await saveTranslation(ctx);
+    // 저장 실패해도 번역 결과는 유지
+    if (savedCtx._error) {
+      console.warn('[saveAsLearningAsset] 저장 실패:', savedCtx._error);
+      return ctx;  // 원본 ctx 반환 (번역 결과 보존)
     }
+    return savedCtx;
   } catch (e) {
     console.warn('[saveAsLearningAsset] exception:', e.message);
+    return ctx;  // 원본 ctx 반환
   }
-  return ctx;
 }

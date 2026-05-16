@@ -28,21 +28,22 @@ export async function getStorage() {
 
 export async function setCurrentDeviceId(ctx) {
   ctx = ctx || {};
-  const client = await getStorage();
-  if (!client) {
-    ctx._error = "Storage client not available";
-    return ctx;
-  }
-
   const deviceId = ctx.device_id || ctx.payload?.device_id || ctx.payload?.user_id;
+  
+  // device_id 없으면 저장 스킵 (에러 아님)
   if (!deviceId) {
-    ctx._error = "device_id is required";
+    ctx._skipSave = true;
     return ctx;
   }
 
   ctx.device_id = deviceId;
 
-  // rpc는 아직 없으면 무시
+  const client = await getStorage();
+  if (!client) {
+    ctx._skipSave = true;
+    return ctx;
+  }
+
   try {
     await client.rpc('set_app_current_device_id', { device_id: deviceId });
   } catch (e) {
@@ -52,13 +53,12 @@ export async function setCurrentDeviceId(ctx) {
   return ctx;
 }
 
-export async function saveTranslationAsset(ctx) {
-  ctx = ctx || {};
-  const client = await getStorage();
-  if (!client) {
-    ctx._error = "Supabase client not available";
-    return ctx;
-  }
+export async function saveTranslation(ctx) {
+  ctx = await setCurrentDeviceId(ctx);
+  if (ctx._error) return ctx;
+  if (ctx._skipSave) return ctx;  // device_id 없으면 저장 안 하고 통과
+  return await saveTranslationAsset(ctx);
+}
 
   try {
     const p = ctx.payload || {};
