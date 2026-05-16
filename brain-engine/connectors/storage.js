@@ -1,5 +1,4 @@
 ﻿// brain-engine/connectors/storage.js
-// BRAINPOOL OS Supabase 단일 접근점 (최종 정리 버전)
 
 let _client = null;
 
@@ -29,8 +28,7 @@ export async function getStorage() {
 export async function setCurrentDeviceId(ctx) {
   ctx = ctx || {};
   const deviceId = ctx.device_id || ctx.payload?.device_id || ctx.payload?.user_id;
-  
-  // device_id 없으면 저장 스킵 (에러 아님)
+
   if (!deviceId) {
     ctx._skipSave = true;
     return ctx;
@@ -53,12 +51,13 @@ export async function setCurrentDeviceId(ctx) {
   return ctx;
 }
 
-export async function saveTranslation(ctx) {
-  ctx = await setCurrentDeviceId(ctx);
-  if (ctx._error) return ctx;
-  if (ctx._skipSave) return ctx;  // device_id 없으면 저장 안 하고 통과
-  return await saveTranslationAsset(ctx);
-}
+export async function saveTranslationAsset(ctx) {
+  ctx = ctx || {};
+  const client = await getStorage();
+  if (!client) {
+    ctx._skipSave = true;
+    return ctx;
+  }
 
   try {
     const p = ctx.payload || {};
@@ -71,7 +70,6 @@ export async function saveTranslation(ctx) {
         standard_vi: p.translated || p.translatedText || p.standard_vi,
         southern_vi: p.translated || p.translatedText,
         is_southern: true,
-
         marriage_type: p.marriage_type || null,
         partner_device_id: p.partner_device_id || null,
         context_category: p.context_category || 'daily',
@@ -82,19 +80,20 @@ export async function saveTranslation(ctx) {
       .single();
 
     if (error) {
-      ctx._error = `DB Error: ${error.message}`;
+      console.warn('[Storage] DB 저장 실패:', error.message);
     } else {
       ctx.payload.asset_id = data?.id;
     }
   } catch (err) {
-    ctx._error = `saveTranslationAsset error: ${err.message}`;
+    console.warn('[Storage] saveTranslationAsset exception:', err.message);
   }
 
   return ctx;
+}
 
-// 메인 추천 함수
 export async function saveTranslation(ctx) {
   ctx = await setCurrentDeviceId(ctx);
   if (ctx._error) return ctx;
+  if (ctx._skipSave) return ctx;
   return await saveTranslationAsset(ctx);
 }
