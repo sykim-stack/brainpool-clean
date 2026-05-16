@@ -91,7 +91,6 @@ export async function saveTranslation(ctx) {
   }
 
   return ctx;
-}
 
 // 메인 추천 함수
 export async function saveTranslation(ctx) {
