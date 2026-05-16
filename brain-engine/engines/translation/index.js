@@ -23,7 +23,7 @@ export const TranslationEngine = {
       let sourceLang = ctx.payload.sourceLang;
       if (!sourceLang) {
         const detectCtx = await detect({ payload: { text: sourceText }, traceId });
-        sourceLang = detectCtx.payload?.language || 'auto';
+        sourceLang = detectCtx.payload?.sourceLang || 'auto';
       }
 
       // 2. 캐시 체크
