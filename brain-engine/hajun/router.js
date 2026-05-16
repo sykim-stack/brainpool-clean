@@ -1,13 +1,11 @@
 // brain-engine/hajun/router.js
-// BRAINPOOL OS Hajun Router - (ctx) => ctx
 
 import { TranslationEngine } from '../engines/translation/index.js';
+import { analyze } from '../engines/emotion/analyze.js';
 
 const ROUTES = {
   translate: TranslationEngine.run,
-  // emotion: analyze,
-  // detect: detect,
-  // 나중에 다른 엔진 추가
+  emotion: analyze,
 };
 
 export async function route(engine, ctx) {
