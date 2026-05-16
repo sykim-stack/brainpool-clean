@@ -3,6 +3,9 @@
 // 모든 DB 접근은 반드시 여기서만!
 // throw 절대 금지 → ctx._error 사용
 
+// connectors/storage.js 상단에 추가/변경
+import { createClient } from '@supabase/supabase-js';
+
 let _client = null;
 
 async function getStorage() {
