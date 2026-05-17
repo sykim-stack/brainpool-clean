@@ -1,0 +1,26 @@
+{
+  "name": "brainpool-os",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BRAINPOOL Core Engine",
+  "main": "./hajun/router.js",
+  "exports": {
+    ".": "./hajun/router.js",
+    "./hajun": "./hajun/router.js",
+    "./contracts": "./contracts/ctx.js",
+    "./connectors": "./connectors/storage.js",
+    "./engines/translation": "./engines/translation/index.js",
+    "./engines/language": "./engines/language/index.js",
+    "./engines/emotion": "./engines/emotion/index.js",
+    "./engines/chat/room": "./engines/chat/room.js",
+    "./engines/chat/message": "./engines/chat/message.js",
+    "./engines/chat/poll": "./engines/chat/poll.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

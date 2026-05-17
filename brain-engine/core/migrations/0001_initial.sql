@@ -1,0 +1,3 @@
+﻿-- migrations/0001_initial.sql
+-- corenull_interests, messages, corenull_houses 등 생성
+-- 실제 SQL은 기존 마이그레이션 참고하여 재작성
