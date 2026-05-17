@@ -1,53 +1,73 @@
-import { NextRequest } from 'next/server';
+﻿// app/api/brainpool/route.ts
+import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
-  let body: any;
+
+  let body: { text?: string; author?: string; payload?: { text?: string } };
   try {
-    const raw = await request.text();
-    body = JSON.parse(raw);
-  } catch {
-    return Response.json(
-      { _error: { code: 'PARSE_FAIL', message: 'parse failed' }, traceId },
+    const rawBody = await request.text();
+    body = JSON.parse(rawBody);
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({ error: { code: 'PARSE_FAIL', message: 'Invalid JSON' }, traceId }),
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
+
   const text = body.text || body.payload?.text || '';
   if (!text) {
-    return Response.json(
-      { _error: { code: 'MISSING_TEXT', message: 'text field required' }, traceId },
+    return new Response(
+      JSON.stringify({ error: { code: 'MISSING_TEXT', message: 'text required' }, traceId }),
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 
-  const { route } = await import('@/brain-engine/hajun/router');
-  const targetLang = /[가-힣]/.test(text) ? 'vi' : 'ko';
-  const sourceLang = targetLang === 'vi' ? 'ko' : 'vi';
+  console.log(`📝 [brainpool] 원문: "${text}" (${text.length}자)`);
 
-  let ctx: any = { payload: { sourceText: text, targetLang }, traceId, _error: null };
-  ctx = await route('translate', ctx);
-  if (ctx._error) {
-    return Response.json(
-      { _error: ctx._error, traceId },
+  try {
+    // Turbopack subpath 우회 — 절대경로 직접 import
+    const { route }     = await import('@/brain-engine/core/hajun/router.js');
+    const { createCtx } = await import('@/brain-engine/core/contracts/ctx.js');
+
+    let ctx = createCtx({ text, author: body.author || 'anonymous' }, traceId);
+    ctx = await route('translate', ctx);
+    if (!ctx._error) ctx = await route('emotion', ctx);
+
+    const p = ctx.payload;
+    const message = {
+      id: crypto.randomUUID(),
+      type: 'post',
+      author: p.author || 'anonymous',
+      createdAt: Date.now(),
+      payload: {
+        original: p.text,
+        translated: p.translatedText || p.text,
+      },
+      traceId,
+      meta: {
+        sourceLang: p.sourceLang || null,
+        targetLang: p.sourceLang === 'ko' ? 'vi' : 'ko',
+        translationSource: p.translationSource || 'unknown',
+        emotionScore: p.emotionScore ?? null,
+        emotion: p.emotion || null,
+        culturalNote: p.culturalNote || '중립',
+        conflicts: [],
+      },
+    };
+
+    console.log(`✅ [brainpool] ${p.sourceLang}→${message.meta.targetLang}, source=${p.translationSource}`);
+
+    return new Response(
+      JSON.stringify({ message }),
+      { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+
+  } catch (e: any) {
+    console.error(`❌ [brainpool] 엔진 오류:`, e.message);
+    return new Response(
+      JSON.stringify({ error: { code: 'ENGINE_FAIL', message: e.message }, traceId }),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-  ctx = await route('emotion', ctx);
-  return Response.json(
-    {
-      message: {
-        payload: {
-          original:          text,
-          translated:        ctx.payload.translated,
-          sourceLang,
-          targetLang,
-          translationSource: ctx.payload.fromCache ? 'cache' : 'deepl',
-          emotion:           ctx.payload.emotion,
-          emotionScore:      ctx.payload.emotionScore,
-        },
-        traceId,
-      }
-    },
-    { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-  );
 }

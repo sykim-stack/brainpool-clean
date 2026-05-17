@@ -1,67 +1,107 @@
-import { NextRequest } from 'next/server';
+﻿// app/api/chat/send/route.ts
+import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
-  let body: any;
+
+  let body: { roomId?: string; userId?: string; original?: string; analyze?: boolean };
   try {
-    const raw = await request.text();
-    body = JSON.parse(raw);
-  } catch {
-    return Response.json(
-      { _error: { code: 'PARSE_FAIL', message: 'parse failed' }, traceId },
+    const rawBody = await request.text();
+    body = JSON.parse(rawBody);
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({ payload: null, _error: 'PARSE_FAIL', traceId }),
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
+
   const { roomId, userId, original, analyze = true } = body;
   if (!roomId || !userId || !original) {
-    return Response.json(
-      { _error: { code: 'MISSING_FIELDS', message: 'roomId, userId, original required' }, traceId },
+    return new Response(
+      JSON.stringify({ payload: null, _error: 'roomId, userId, original are required', traceId }),
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 
-  const { route } = await import('@/brain-engine/hajun/router');
-  const messageEngine = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
-
-  const targetLang = /[가-힣]/.test(original) ? 'vi' : 'ko';
-  const sourceLang = targetLang === 'vi' ? 'ko' : 'vi';
-
-  let ctx: any = { payload: { sourceText: original, targetLang }, traceId, _error: null };
+  let translationMeta: {
+    translations: { ko?: string; vi?: string };
+    detectedLanguage: string | null;
+    emotion: { primary: string; intensity: number } | null;
+    cultureHints: string[];
+    translatedText: string | null;
+    targetLang: string | null;
+  } = {
+    translations: {},
+    detectedLanguage: null,
+    emotion: null,
+    cultureHints: [],
+    translatedText: null,
+    targetLang: null,
+  };
 
   if (analyze) {
-    ctx = await route('translate', ctx);
-    if (!ctx._error) ctx = await route('emotion', ctx);
-    // 방언 자동 저장 (비동기 - 응답 속도 영향 없음)
-    import('@/brain-engine/engines/dialect.js')
-      .then(({ run }) => run(ctx))
-      .catch(() => {});
+    try {
+      // Turbopack subpath 우회 — 절대경로 직접 import
+      const { route }     = await import('@/brain-engine/core/hajun/router.js');
+      const { createCtx } = await import('@/brain-engine/core/contracts/ctx.js');
+
+      let ctx = createCtx({ text: original, author: userId }, traceId);
+      ctx = await route('translate', ctx);
+      if (!ctx._error) ctx = await route('emotion', ctx);
+
+      const p = ctx.payload;
+      const sourceLang = p.sourceLang || null;
+      const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
+      const translated = p.translatedText || null;
+
+      translationMeta = {
+        translations: translated ? { [targetLang]: translated } : {},
+        detectedLanguage: sourceLang,
+        emotion: p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
+        cultureHints: p.culturalNote && p.culturalNote !== '중립' ? [p.culturalNote] : [],
+        translatedText: translated,
+        targetLang,
+      };
+
+      console.log(`✅ [chat/send] ${sourceLang}→${targetLang}: "${translated}"`);
+    } catch (e: any) {
+      console.warn(`⚠️ [chat/send] 번역 실패, 계속: ${e.message}`);
+    }
   }
 
-  ctx = await messageEngine({
-    ...ctx,
-    type: 'SEND_MESSAGE',
-    payload: {
-      roomId,
-      userId,
-      original,
-      meta: {
-        translations: {
-          [targetLang]: ctx.payload.translated,
-        },
-        detectedLanguage: sourceLang,
-        emotion: { primary: ctx.payload.emotion || 'neutral', intensity: ctx.payload.emotionScore || 0.5 },
-      },
-    },
-  });
+  try {
+    const ChatMessageLayer = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
+    const result: any = await ChatMessageLayer({
+      type: 'SEND_MESSAGE',
+      payload: { roomId, userId, original, meta: translationMeta },
+      traceId,
+      _error: null,
+    });
 
-  if (ctx._error) {
-    return Response.json(
-      { _error: ctx._error, traceId },
+    if (result._error) {
+      return new Response(
+        JSON.stringify({ payload: null, _error: result._error, traceId }),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    try {
+      const ChatPresenceLayer = (await import('@/brain-engine/layers/sub/chat-presence-layer')).default;
+      await ChatPresenceLayer({
+        type: 'UPDATE_PRESENCE',
+        payload: { userId, status: 'online', currentRoom: roomId },
+        traceId, _error: null,
+      });
+    } catch (_) {}
+
+    return new Response(
+      JSON.stringify({ payload: { message: result.message }, _error: null, traceId }),
+      { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({ payload: null, _error: e.message, traceId }),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-  return Response.json(
-    { payload: { message: ctx.message }, _error: null, traceId },
-    { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-  );
 }
