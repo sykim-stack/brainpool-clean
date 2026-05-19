@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { run as roomEngine } from '@/brain-engine/chat-room.js';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import ChatRoomEngine from "@/brain-engine/engines/chat/room.js";
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
-    const ctx = await roomEngine({
+    const ctx = await ChatRoomEngine({
       type: 'FIND_BY_CODE',
       payload: { inviteCode },
       traceId,

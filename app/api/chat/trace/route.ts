@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -6,10 +6,9 @@ export async function GET(request: NextRequest) {
   const targetTraceId = url.searchParams.get('traceId') || '';
 
   try {
-    const ChatMessageLayer = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
-
-    const result: any = await ChatMessageLayer({
-      type: 'FIND_TRACE',
+    const { ChatMessageEngine } = await import('@/brain-engine/core/engines/chat/message.js');
+    const result: any = await ChatMessageEngine({
+      type: 'GET_TRACE',
       payload: { traceId: targetTraceId },
       traceId,
       _error: null,
@@ -26,9 +25,9 @@ export async function GET(request: NextRequest) {
       { payload: { message: result.traceMessage }, _error: null, traceId },
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
-  } catch (err) {
+  } catch (err: any) {
     return Response.json(
-      { payload: null, _error: (err as Error).message, traceId },
+      { payload: null, _error: err.message, traceId },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }

@@ -85,16 +85,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Presence — 실패해도 무시
-    try {
-      const ChatPresenceLayer = (await import('@/brain-engine/layers/sub/chat-presence-layer')).default;
-      await ChatPresenceLayer({
-        type:    'UPDATE_PRESENCE',
-        payload: { userId, status: 'online', currentRoom: roomId },
-        traceId, _error: null,
-      });
-    } catch (_) {}
-
     return new Response(
       JSON.stringify({ payload: { message: result.message }, _error: null, traceId }),
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }

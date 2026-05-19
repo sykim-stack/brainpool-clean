@@ -1,4 +1,4 @@
-﻿import { NextRequest } from 'next/server';
+﻿import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const ChatMessageLayer = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
-    const result: any = await ChatMessageLayer({
+    const { ChatMessageEngine } = await import('@/brain-engine/core/engines/chat/message.js');
+    const result: any = await ChatMessageEngine({
       type: 'GET_HISTORY',
       payload: { roomId, limit },
       traceId,
