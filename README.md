@@ -38,6 +38,4 @@ API 명세
 아키텍처
 디버깅 가이드
 
-
-상태: CoreRing 연동 완료 | Shark 모드
 관련 레포: brainpool-os

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     body = JSON.parse(rawBody);
-  } catch (e: any) {
+  } catch {
     return new Response(
       JSON.stringify({ payload: null, _error: 'PARSE_FAIL', traceId }),
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
 
   if (analyze) {
     try {
-      // Turbopack subpath 우회 — 절대경로 직접 import
       const { route }     = await import('@/brain-engine/core/hajun/router.js');
       const { createCtx } = await import('@/brain-engine/core/contracts/ctx.js');
 
@@ -52,14 +51,14 @@ export async function POST(request: NextRequest) {
       const p = ctx.payload;
       const sourceLang = p.sourceLang || null;
       const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
-      const translated = p.translatedText || null;
+      const translated  = p.translatedText || null;
 
       translationMeta = {
-        translations: translated ? { [targetLang]: translated } : {},
+        translations:    translated ? { [targetLang]: translated } : {},
         detectedLanguage: sourceLang,
-        emotion: p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
-        cultureHints: p.culturalNote && p.culturalNote !== '중립' ? [p.culturalNote] : [],
-        translatedText: translated,
+        emotion:         p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
+        cultureHints:    p.culturalNote && p.culturalNote !== '중립' ? [p.culturalNote] : [],
+        translatedText:  translated,
         targetLang,
       };
 
@@ -70,12 +69,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const ChatMessageLayer = (await import('@/brain-engine/layers/sub/chat-message-layer')).default;
-    const result: any = await ChatMessageLayer({
-      type: 'SEND_MESSAGE',
+    // ✅ core 엔진으로 교체
+    const { ChatMessageEngine } = await import('@/brain-engine/core/engines/chat/message.js');
+    const result: any = await ChatMessageEngine({
+      type:    'SEND_MESSAGE',
       payload: { roomId, userId, original, meta: translationMeta },
       traceId,
-      _error: null,
+      _error:  null,
     });
 
     if (result._error) {
@@ -85,10 +85,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Presence — 실패해도 무시
     try {
       const ChatPresenceLayer = (await import('@/brain-engine/layers/sub/chat-presence-layer')).default;
       await ChatPresenceLayer({
-        type: 'UPDATE_PRESENCE',
+        type:    'UPDATE_PRESENCE',
         payload: { userId, status: 'online', currentRoom: roomId },
         traceId, _error: null,
       });
