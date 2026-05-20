@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       let ctx = createCtx({ text: original, author: userId }, traceId);
       ctx = await route('translate', ctx);
       if (!ctx._error) ctx = await route('emotion', ctx);
+      // 백그라운드 실행 (await 없음)
+      import('@/brain-engine/engines/dialect/index.js')
+      .then(({ saveDialect }) => saveDialect(ctx))
+      .catch(() => {});
 
       const p = ctx.payload;
       const sourceLang = p.sourceLang || null;
