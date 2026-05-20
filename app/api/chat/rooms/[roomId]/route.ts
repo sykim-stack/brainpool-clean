@@ -1,4 +1,4 @@
-﻿import type { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export async function GET(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function GET(
   const { roomId } = await params;
 
   try {
-    const { ChatRoomEngine } = await import('@/brain-engine/core/engines/chat/room.js');
+    const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result: any = await ChatRoomEngine({
       type:    'GET_ROOM',
       payload: { roomId },
@@ -43,7 +43,7 @@ export async function DELETE(
   const { roomId } = await params;
 
   try {
-    const { ChatRoomEngine } = await import('@/brain-engine/core/engines/chat/room.js');
+    const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result: any = await ChatRoomEngine({
       type:    'DELETE_ROOM',
       payload: { roomId },

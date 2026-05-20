@@ -1,32 +1,15 @@
-// brain-engine/hajun/router.js
-
-import { TranslationEngine } from '../engines/translation/index.js';
-import { analyze } from '../engines/emotion/analyze.js';
+import { run as translateEngine } from '../engines/translation/index.js';
+import { analyze as emotionEngine } from '../engines/emotion/index.js';
+import { detect as languageEngine } from '../engines/language/detect.js';
 
 const ROUTES = {
-  translate: TranslationEngine.run,
-  emotion: analyze,
+  translate: translateEngine,
+  emotion:   emotionEngine,
+  detect:    languageEngine,
 };
 
 export async function route(engine, ctx) {
-  ctx = ctx || {};
-  ctx.payload = ctx.payload || {};
-  ctx._error = ctx._error || null;
-  ctx.traceId = ctx.traceId || 'trace_' + Date.now();
-
   const handler = ROUTES[engine];
-
-  if (!handler) {
-    console.error(`[Hajun] ì•Œ ìˆ˜ ì—†ëŠ” ì—”ì§„: ${engine}`);
-    return { ...ctx, _error: `Unknown engine: ${engine}` };
-  }
-
-  console.log(`[Hajun] route -> ${engine}, traceId=${ctx.traceId}`);
-
-  try {
-    return await handler(ctx);
-  } catch (err) {
-    console.error(`[Hajun] ${engine} ì‹¤í–‰ ì¤‘ ì˜¤ë¥˜:`, err);
-    return { ...ctx, _error: err.message };
-  }
+  if (!handler) return { ...ctx, _error: { code: 'UNKNOWN_ENGINE', message: `¾Ë ¼ö ¾ø´Â ¿£Áø: ${engine}`, retryable: false } };
+  return await handler(ctx);
 }

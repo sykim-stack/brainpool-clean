@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
   if (analyze) {
     try {
-      const { route }     = await import('@/brain-engine/core/hajun/router.js');
-      const { createCtx } = await import('@/brain-engine/core/contracts/ctx.js');
+      const { route }     = await import('@/brain-engine/hajun/router.js');
+      const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
 
       let ctx = createCtx({ text: original, author: userId }, traceId);
       ctx = await route('translate', ctx);
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // ✅ core 엔진으로 교체
-    const { ChatMessageEngine } = await import('@/brain-engine/core/engines/chat/message.js');
+    const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
     const result: any = await ChatMessageEngine({
       type:    'SEND_MESSAGE',
       payload: { roomId, userId, original, meta: translationMeta },

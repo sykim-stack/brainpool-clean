@@ -1,172 +1,51 @@
-﻿// DB 스키마: id, standard_word, southern_word, hue_word, mekong_word, meaning_ko, meaning_en,
-// part_of_speech, category_main, category_sub, pronunciation_diff, conversion_rule,
-// frequency, formality_level, generation, region, example_northern, example_southern,
-// notes, created_at, entry_type, dialect, status, source, emotion_score, conflict_weight
-
 export class CoreNullLayer {
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
     switch (action) {
-      case 'getWordData':
-        return await this.getWordData(ctx);
-      case 'saveWord':
-        return await this.saveWord(ctx);
-      case 'reportConflict':
-        return await this.reportConflict(ctx);
-      case 'getRandomWord':
-        return await this.getRandomWord(ctx);
-      case 'resolveConflict':
-        return await this.resolveConflict(ctx);
+      case 'getWordData':   return await this.getWordData(ctx);
+      case 'saveWord':      return await this.saveWord(ctx);
+      case 'reportConflict':  return await this.reportConflict(ctx);
+      case 'resolveConflict': return await this.resolveConflict(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
   }
 
   async getWordData(ctx) {
-    const { word, dialect = 'standard' } = ctx.payload;
-    if (!word) {
-      return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
-    }
-  
-    // 언어 감지 — 한글 포함 여부로 판단
-    const isKorean = /[\uAC00-\uD7A3]/.test(word);
-  
-    let data, error;
-  
-    if (isKorean) {
-      // 한국어 입력 → meaning_ko 완전 일치 우선, 없으면 첫 번째
-      ({ data, error } = await ctx.supabase
-        .from('tp_translations')
-        .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
-        .eq('meaning_ko', word)
-        .limit(1)
-        .maybeSingle());
-    } else {
-      // 베트남어 입력 → standard_word 완전 일치
-      ({ data, error } = await ctx.supabase
-        .from('tp_translations')
-        .select('standard_word, southern_word, hue_word, mekong_word, meaning_ko, example_northern, example_southern, notes, part_of_speech, pronunciation_diff, conversion_rule, frequency, formality_level, emotion_score, conflict_weight')
-        .eq('standard_word', word)
-        .limit(1)
-        .maybeSingle());
-    }
-  
-    if (error) {
-      return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
-    }
-    if (!data) {
-      return { ...ctx, _error: { code: 'NOT_FOUND', message: `"${word}" not found` } };
-    }
-  
-    const dialectMap = {
-      standard: 'standard_word',
-      southern: 'southern_word',
-      hue: 'hue_word',
-      mekong: 'mekong_word',
-    };
-    const targetField = dialectMap[dialect] || 'standard_word';
-    const translatedWord = data[targetField] || data.standard_word;
-  
-    let example = null;
-    if (dialect === 'standard' || dialect === 'northern') example = data.example_northern;
-    else if (dialect === 'southern') example = data.example_southern;
-    else example = data.example_northern;
-  
-    return {
-      ...ctx,
-      result: {
-        word,
-        standard: data.standard_word,
-        southern: data.southern_word,
-        hue: data.hue_word,
-        mekong: data.mekong_word,
-        meaning: data.meaning_ko,
-        examples: example ? [example] : [],
-        culturalNote: data.notes || null,
-        riskScore: data.conflict_weight || 0,
-        emotion: data.emotion_score > 0.5 ? '긍정' : '중립',
-        partOfSpeech: data.part_of_speech,
-      },
-    };
+    const { word } = ctx.payload;
+    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+    const { data, error } = await ctx.supabase.from('tp_translations').select('*').eq('meaning_ko', word).maybeSingle();
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
+    return { ...ctx, result: {
+      word, standard: data.standard_word, southern: data.southern_word,
+      hue: data.hue_word, mekong: data.mekong_word, meaning: data.meaning_ko,
+      examples: data.example_northern ? [data.example_northern] : [],
+      culturalNote: data.notes || null,
+      riskScore: data.conflict_weight || 0,
+      emotion: data.emotion_score > 0.5 ? '����' : '�߸�',
+    }};
   }
 
   async saveWord(ctx) {
-    // 실제 존재하는 컬럼만 삽입 (example_hue, cultural_note 등 없음)
-    const {
-      standard_word, southern_word, hue_word, mekong_word,
-      meaning_ko, meaning_en, part_of_speech,
-      category_main, category_sub, pronunciation_diff, conversion_rule,
-      frequency, formality_level, generation, region,
-      example_northern, example_southern, notes,
-      entry_type, dialect, status, source,
-      emotion_score, conflict_weight
-    } = ctx.payload;
-
-    const { data, error } = await ctx.supabase
-      .from('tp_translations')
-      .insert([{
-        standard_word, southern_word, hue_word, mekong_word,
-        meaning_ko, meaning_en, part_of_speech,
-        category_main, category_sub, pronunciation_diff, conversion_rule,
-        frequency, formality_level, generation, region,
-        example_northern, example_southern, notes,
-        entry_type, dialect, status, source,
-        emotion_score, conflict_weight
-      }])
-      .select()
-      .single();
-
+    const { data, error } = await ctx.supabase.from('tp_translations').insert([ctx.payload]).select().single();
     if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
     return { ...ctx, result: data };
   }
 
   async reportConflict(ctx) {
     const { source_word, target_word, dialect, description, reporter_id } = ctx.payload;
-    const { data, error } = await ctx.supabase
-      .from('tp_conflicts')
-      .insert([{ source_word, target_word, dialect, description, reporter_id, status: 'pending' }])
-      .select()
-      .single();
+    const { data, error } = await ctx.supabase.from('tp_conflicts').insert([{ source_word, target_word, dialect, description, reporter_id, status: 'pending' }]).select().single();
     if (error) return { ...ctx, _error: { code: 'DB_CONFLICT_ERROR', message: error.message } };
     return { ...ctx, result: data };
   }
 
-  async getRandomWord(ctx) {
-    const { data, error } = await ctx.supabase
-      .from('tp_translations')
-      .select('standard_word, southern_word, meaning_ko, example_northern, notes, emotion_score')
-      .not('standard_word', 'is', null)
-      .not('meaning_ko', 'is', null)
-      .limit(50);
-    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
-    if (!data || data.length === 0) return { ...ctx, _error: { code: 'NOT_FOUND', message: 'no words' } };
-    const row = data[Math.floor(Math.random() * data.length)];
-    return { ...ctx, result: {
-      word: row.standard_word,
-      standard: row.standard_word,
-      southern: row.southern_word,
-      meaning: row.meaning_ko,
-      usage: row.example_northern || null,
-      culturalNote: row.notes || null,
-    }};
-  }
   async resolveConflict(ctx) {
     const { conflict_id, resolution_note, new_translation, original_word } = ctx.payload;
-    const { error: updateError } = await ctx.supabase
-      .from('tp_conflicts')
-      .update({ status: 'resolved', resolution_note, resolved_at: new Date() })
-      .eq('id', conflict_id);
-    if (updateError) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: updateError.message } };
-    if (new_translation && original_word) {
-      const { error: transError } = await ctx.supabase
-        .from('tp_translations')
-        .update({ standard_word: new_translation })
-        .eq('meaning_ko', original_word);
-      if (transError) return { ...ctx, _error: { code: 'DB_TRANS_UPDATE_ERROR', message: transError.message } };
-    }
+    const { error } = await ctx.supabase.from('tp_conflicts').update({ status: 'resolved', resolution_note, resolved_at: new Date() }).eq('id', conflict_id);
+    if (error) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: error.message } };
     return { ...ctx, result: { success: true, conflict_id } };
   }
 }
 
 export default CoreNullLayer;
-

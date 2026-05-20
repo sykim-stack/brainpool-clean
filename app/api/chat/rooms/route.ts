@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { ChatRoomEngine } = await import('@/brain-engine/core/engines/chat/room.js');
+    const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result: any = await ChatRoomEngine({
       type:    'CREATE_ROOM',
       payload: { title, createdBy: createdBy || 'anonymous', tags: tags || [], maxParticipants: maxParticipants || 100 },
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const traceId = crypto.randomUUID();
   try {
-    const { ChatRoomEngine } = await import('@/brain-engine/core/engines/chat/room.js');
+    const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result: any = await ChatRoomEngine({
       type:    'LIST_ROOMS',
       payload: {},

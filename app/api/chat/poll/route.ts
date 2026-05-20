@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { ChatMessageEngine } = await import('@/brain-engine/core/engines/chat/message.js');
+    const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
     const result: any = await ChatMessageEngine({
       type: 'GET_HISTORY',
       payload: { roomId, limit },

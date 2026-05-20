@@ -1,6 +1,6 @@
-// app/api/brainpool/learn/route.ts
+﻿// app/api/brainpool/learn/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { route } from '@/brain-engine/hajun/router';
+import { route } from '@/brain-engine/hajun/router.js';
 
 export async function POST(req: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -12,16 +12,16 @@ export async function POST(req: NextRequest) {
     try {
       body = JSON.parse(raw);
     } catch (e) {
-      console.warn('[API] JSON parse 실패, 빈 객체로 진행');
+      console.warn('[API] JSON parse ?ㅽ뙣, 鍮?媛앹껜濡?吏꾪뻾');
     }
 
-    // ==================== device_id 필수 처리 ====================
+    // ==================== device_id ?꾩닔 泥섎━ ====================
     const device_id = 
       body.device_id || 
       req.headers.get('x-device-id') || 
       `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-    // ==================== ctx 구성 ====================
+    // ==================== ctx 援ъ꽦 ====================
     const ctx = {
       device_id,
       payload: {
@@ -34,9 +34,9 @@ export async function POST(req: NextRequest) {
       traceId,
     };
 
-    console.log(`[API] translate 요청 → device_id: ${device_id}, text: "${ctx.payload.sourceText?.slice(0, 60)}..."`);
+    console.log(`[API] translate ?붿껌 ??device_id: ${device_id}, text: "${ctx.payload.sourceText?.slice(0, 60)}..."`);
 
-    // ==================== Engine 실행 ====================
+    // ==================== Engine ?ㅽ뻾 ====================
     const resultCtx = await route('translate', ctx);
 
     if (resultCtx._error) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 성공 응답
+    // ?깃났 ?묐떟
     return NextResponse.json({
       success: true,
       translated: resultCtx.payload.translated || resultCtx.payload.translatedText,

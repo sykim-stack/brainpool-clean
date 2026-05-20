@@ -265,6 +265,11 @@ const saveMyRoom = (room: Room) => {
     }).catch(() => null);
     const data = res ? await res.json().catch(() => null) : null;
     if (data?.payload?.deleted) {
+      setMyRooms(prev => {
+        const updated = prev.filter(r => r.roomId !== roomId);
+        localStorage.setItem('myRooms', JSON.stringify(updated));
+        return updated;
+      });
       loadRooms();
     }
   }, [loadRooms]);

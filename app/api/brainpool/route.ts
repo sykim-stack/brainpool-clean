@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
 
   try {
     // Turbopack subpath 우회 — 절대경로 직접 import
-    const { route }     = await import('@/brain-engine/core/hajun/router.js');
-    const { createCtx } = await import('@/brain-engine/core/contracts/ctx.js');
+    const { route }     = await import('@/brain-engine/hajun/router.js');
+    const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
 
     let ctx = createCtx({ text, author: body.author || 'anonymous' }, traceId);
     ctx = await route('translate', ctx);
@@ -71,3 +71,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
