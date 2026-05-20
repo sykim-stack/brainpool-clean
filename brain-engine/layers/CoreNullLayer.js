@@ -1,4 +1,4 @@
-export class CoreNullLayer {
+ï»¿export class CoreNullLayer {
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
     switch (action) {
@@ -23,7 +23,7 @@ export class CoreNullLayer {
       examples: data.example_northern ? [data.example_northern] : [],
       culturalNote: data.notes || null,
       riskScore: data.conflict_weight || 0,
-      emotion: data.emotion_score > 0.5 ? '±àÁ¤' : 'Áß¸³',
+      emotion: data.emotion_score > 0.5 ? 'ï¿½ï¿½ï¿½ï¿½' : 'ï¿½ß¸ï¿½',
     }};
   }
 

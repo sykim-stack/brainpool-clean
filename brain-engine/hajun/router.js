@@ -1,4 +1,4 @@
-import { run as translateEngine } from '../engines/translation/index.js';
+ï»¿import { run as translateEngine } from '../engines/translation/index.js';
 import { analyze as emotionEngine } from '../engines/emotion/index.js';
 import { detect as languageEngine } from '../engines/language/detect.js';
 
@@ -10,6 +10,6 @@ const ROUTES = {
 
 export async function route(engine, ctx) {
   const handler = ROUTES[engine];
-  if (!handler) return { ...ctx, _error: { code: 'UNKNOWN_ENGINE', message: `¾Ë ¼ö ¾ø´Â ¿£Áø: ${engine}`, retryable: false } };
+  if (!handler) return { ...ctx, _error: { code: 'UNKNOWN_ENGINE', message: `ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½: ${engine}`, retryable: false } };
   return await handler(ctx);
 }
