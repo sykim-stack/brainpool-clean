@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import ChatRoomEngine from "@/brain-engine/engines/chat/room.js";
 
 export async function POST(request: NextRequest) {

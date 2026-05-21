@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     if (!title) {
       return NextResponse.json(
-        { _error: 'title required', traceId },
+        { payload: null, _error: 'title required', traceId },
         { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
@@ -23,18 +23,18 @@ export async function POST(request: NextRequest) {
 
     if (result._error) {
       return NextResponse.json(
-        { _error: result._error, traceId },
+        { payload: null, _error: result._error, traceId },
         { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
 
     return NextResponse.json(
-      { success: true, data: { room: result.room }, _error: null, traceId },
+      { payload: { room: result.room }, _error: null, traceId },
       { status: 201, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err: any) {
     return NextResponse.json(
-      { _error: err.message, traceId },
+      { payload: null, _error: err.message, traceId },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
@@ -53,18 +53,18 @@ export async function GET(request: NextRequest) {
 
     if (result._error) {
       return NextResponse.json(
-        { _error: result._error, traceId },
+        { payload: null, _error: result._error, traceId },
         { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
 
     return NextResponse.json(
-      { success: true, data: { rooms: result.rooms ?? [] }, _error: null, traceId },
+      { payload: { rooms: result.rooms ?? [] }, _error: null, traceId },
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err: any) {
     return NextResponse.json(
-      { _error: err.message, traceId },
+      { payload: null, _error: err.message, traceId },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }

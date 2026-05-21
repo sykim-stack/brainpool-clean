@@ -165,7 +165,7 @@ const saveMyRoom = (room: Room) => {
           translated = m.translations[tgtLang] || m.translations[srcLang] || '';
         }
         if (!translated || translated === m.original) {
-          translated = m.original;
+          translated = m.original;  // ← 번역 없으면 원문으로 대체
         }
 
         return {

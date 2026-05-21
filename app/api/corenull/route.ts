@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+﻿import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { CoreNullLayer } from '@/brain-engine/layers/CoreNullLayer.js';
 

@@ -1,4 +1,3 @@
-﻿// app/api/chat/send/route.ts
 import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -47,10 +46,6 @@ export async function POST(request: NextRequest) {
       let ctx = createCtx({ text: original, author: userId }, traceId);
       ctx = await route('translate', ctx);
       if (!ctx._error) ctx = await route('emotion', ctx);
-      // 백그라운드 실행 (await 없음)
-      import('@/brain-engine/engines/dialect/index.js')
-      .then(({ saveDialect }) => saveDialect(ctx))
-      .catch(() => {});
 
       const p = ctx.payload;
       const sourceLang = p.sourceLang || null;
@@ -58,22 +53,21 @@ export async function POST(request: NextRequest) {
       const translated  = p.translatedText || null;
 
       translationMeta = {
-        translations:    translated ? { [targetLang]: translated } : {},
+        translations:     translated ? { [targetLang]: translated } : {},
         detectedLanguage: sourceLang,
-        emotion:         p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
-        cultureHints:    p.culturalNote && p.culturalNote !== '중립' ? [p.culturalNote] : [],
-        translatedText:  translated,
+        emotion:          p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
+        cultureHints:     p.culturalNote && p.culturalNote !== 'neutral' ? [p.culturalNote] : [],
+        translatedText:   translated,
         targetLang,
       };
 
-      console.log(`✅ [chat/send] ${sourceLang}→${targetLang}: "${translated}"`);
+      console.log(`[chat/send] ${sourceLang}->${targetLang}: "${translated}"`);
     } catch (e: any) {
-      console.warn(`⚠️ [chat/send] 번역 실패, 계속: ${e.message}`);
+      console.warn(`[chat/send] translate failed: ${e.message}`);
     }
   }
 
   try {
-    // ✅ core 엔진으로 교체
     const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
     const result: any = await ChatMessageEngine({
       type:    'SEND_MESSAGE',

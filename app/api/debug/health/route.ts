@@ -1,4 +1,4 @@
-export async function GET() {
+﻿export async function GET() {
   return Response.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
