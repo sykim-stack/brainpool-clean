@@ -105,3 +105,237 @@
   color: var(--color-text-muted);
   opacity: 0.6;
 }
+
+/* ── 전체 래퍼 ── */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+}
+
+/* ── 툴바 ── */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2);
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.filterBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.filterActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.studyStartBtn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.studyStartBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── 학습 모드 ── */
+.studyWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4) var(--space-3);
+  height: calc(100vh - 180px);
+}
+
+.studyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.studyProgress {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.studyBackBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+/* ── 진행 바 ── */
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-5);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease;
+}
+
+/* ── 플립 카드 ── */
+.flipCard {
+  width: 100%;
+  max-width: 340px;
+  height: 220px;
+  perspective: 1000px;
+  cursor: pointer;
+  margin-bottom: var(--space-5);
+}
+
+.flipInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s ease;
+  transform-style: preserve-3d;
+}
+
+.flipped .flipInner {
+  transform: rotateY(180deg);
+}
+
+.flipFront,
+.flipBack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  backface-visibility: hidden;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.flipBack {
+  transform: rotateY(180deg);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.flipLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.flipBack .flipLabel {
+  color: var(--color-bg);
+  opacity: 0.7;
+}
+
+.flipWord {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  text-align: center;
+  line-height: var(--line-height);
+}
+
+.flipBack .flipWord {
+  color: var(--color-bg);
+}
+
+.flipHint {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+/* ── 알아요/몰라요 버튼 ── */
+.studyBtns {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 340px;
+}
+
+.knowBtn,
+.dontKnowBtn {
+  flex: 1;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: var(--touch-min-height);
+}
+
+.knowBtn {
+  background: var(--color-success);
+  color: var(--color-bg);
+  border-color: var(--color-success);
+}
+
+.dontKnowBtn {
+  background: var(--color-surface);
+  color: var(--color-text-sub);
+}
+
+/* ── 학습 완료 ── */
+.studyDone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 180px);
+  gap: var(--space-2);
+}
+
+.studyDoneEmoji {
+  font-size: 48px;
+}
+
+.studyDoneText {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.studyDoneSub {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}

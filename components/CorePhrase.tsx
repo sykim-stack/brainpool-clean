@@ -11,15 +11,22 @@ interface VocabItem {
   is_bookmarked: boolean;
   created_at: string;
   source_session_id?: string;
+  review_at?: string;
 }
 
 interface CorePhraseProps {
   userId: string;
 }
 
+type ViewMode = 'list' | 'study';
+
 export default function CorePhrase({ userId }: CorePhraseProps) {
   const [items, setItems] = useState<VocabItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [mode, setMode] = useState<ViewMode>('list');
+  const [studyIndex, setStudyIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'bookmarked' | 'review'>('all');
 
   const fetchVocab = async () => {
     setIsLoading(true);
@@ -28,58 +35,75 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'get-user-vocabulary', user_id: userId }),
     }).catch(() => null);
-
     if (!res || !res.ok) { setIsLoading(false); return; }
     const json = await res.json().catch(() => null);
-    if (json?.success && Array.isArray(json.payload)) {
-      setItems(json.payload);
-    }
+    if (json?.success && Array.isArray(json.payload)) setItems(json.payload);
     setIsLoading(false);
   };
 
   useEffect(() => { fetchVocab(); }, [userId]);
 
-  const toggleBookmark = async (item: VocabItem) => {
-    const res = await fetch('/api/corenull', {
+  const updateItem = async (item: VocabItem, fields: Record<string, any>) => {
+    await fetch('/api/corenull', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({
-        action: 'update-vocabulary',
-        id: item.id,
-        user_id: userId,
-        is_bookmarked: !item.is_bookmarked,
-      }),
+      body: JSON.stringify({ action: 'update-vocabulary', id: item.id, user_id: userId, ...fields }),
     }).catch(() => null);
-    if (res?.ok) fetchVocab();
-  };
-
-  const cycleStatus = async (item: VocabItem) => {
-    const next: Record<string, string> = { new: 'learning', learning: 'done', done: 'new' };
-    const res = await fetch('/api/corenull', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({
-        action: 'update-vocabulary',
-        id: item.id,
-        user_id: userId,
-        learn_status: next[item.learn_status] || 'new',
-      }),
-    }).catch(() => null);
-    if (res?.ok) fetchVocab();
+    fetchVocab();
   };
 
   const deleteItem = async (item: VocabItem) => {
-    const res = await fetch('/api/corenull', {
+    await fetch('/api/corenull', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({
-        action: 'delete-vocabulary',
-        id: item.id,
-        user_id: userId,
-      }),
+      body: JSON.stringify({ action: 'delete-vocabulary', id: item.id, user_id: userId }),
     }).catch(() => null);
-    if (res?.ok) setItems(prev => prev.filter(i => i.id !== item.id));
+    setItems(prev => prev.filter(i => i.id !== item.id));
   };
+
+  const handleKnow = async (item: VocabItem) => {
+    const reviewAt = new Date();
+    reviewAt.setDate(reviewAt.getDate() + 7);
+    await updateItem(item, {
+      learn_status: 'done',
+      review_at: reviewAt.toISOString(),
+    });
+    nextCard();
+  };
+
+  const handleDontKnow = async (item: VocabItem) => {
+    const reviewAt = new Date();
+    reviewAt.setDate(reviewAt.getDate() + 1);
+    await updateItem(item, {
+      learn_status: 'learning',
+      review_at: reviewAt.toISOString(),
+    });
+    nextCard();
+  };
+
+  const nextCard = () => {
+    setFlipped(false);
+    setTimeout(() => {
+      setStudyIndex(prev => prev + 1);
+    }, 200);
+  };
+
+  const startStudy = () => {
+    setStudyIndex(0);
+    setFlipped(false);
+    setMode('study');
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const filteredItems = items.filter(item => {
+    if (filter === 'bookmarked') return item.is_bookmarked;
+    if (filter === 'review') return item.review_at && item.review_at.split('T')[0] <= today;
+    return true;
+  });
+
+  const studyItems = filteredItems.filter(i => i.learn_status !== 'done');
+  const currentCard = studyItems[studyIndex];
+  const isDone = studyIndex >= studyItems.length;
 
   const statusLabel: Record<string, string> = {
     new: '🆕 새로운',
@@ -88,47 +112,133 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   };
 
   if (isLoading) return <div className={styles.empty}>불러오는 중...</div>;
-  if (!items.length) return (
-    <div className={styles.empty}>
-      <p>저장된 단어가 없어요</p>
-      <p className={styles.emptySub}>채팅 버블을 클릭해서 단어를 저장해보세요</p>
-    </div>
-  );
 
-  return (
-    <div className={styles.list}>
-      {items.map((item) => (
-        <div key={item.id} className={styles.card}>
-          <div className={styles.cardTop}>
-            <div className={styles.words}>
-              <span className={styles.word}>{item.word}</span>
-              {item.meaning_kr && (
-                <span className={styles.meaning}>{item.meaning_kr}</span>
-              )}
+  // ── 학습 모드 ──
+  if (mode === 'study') {
+    if (isDone) return (
+      <div className={styles.studyDone}>
+        <p className={styles.studyDoneEmoji}>🎉</p>
+        <p className={styles.studyDoneText}>오늘 학습 완료!</p>
+        <p className={styles.studyDoneSub}>{studyItems.length}개 카드를 모두 봤어요</p>
+        <button className={styles.studyBackBtn} onClick={() => setMode('list')}>목록으로</button>
+      </div>
+    );
+
+    return (
+      <div className={styles.studyWrap}>
+        <div className={styles.studyHeader}>
+          <button className={styles.studyBackBtn} onClick={() => setMode('list')}>← 목록</button>
+          <span className={styles.studyProgress}>{studyIndex + 1} / {studyItems.length}</span>
+        </div>
+
+        <div className={styles.progressBar}>
+          <div
+            className={styles.progressFill}
+            style={{ width: `${((studyIndex) / studyItems.length) * 100}%` }}
+          />
+        </div>
+
+        <div
+          className={`${styles.flipCard} ${flipped ? styles.flipped : ''}`}
+          onClick={() => setFlipped(prev => !prev)}
+        >
+          <div className={styles.flipInner}>
+            <div className={styles.flipFront}>
+              <p className={styles.flipLabel}>베트남어</p>
+              <p className={styles.flipWord}>{currentCard?.word}</p>
+              <p className={styles.flipHint}>탭해서 한국어 확인</p>
             </div>
-            <button
-              className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
-              onClick={() => toggleBookmark(item)}
-            >
-              {item.is_bookmarked ? '🔖' : '🤍'}
-            </button>
-          </div>
-          <div className={styles.cardBottom}>
-            <button
-              className={styles.statusBtn}
-              onClick={() => cycleStatus(item)}
-            >
-              {statusLabel[item.learn_status] || '🆕 새로운'}
-            </button>
-            <button
-              className={styles.deleteBtn}
-              onClick={() => deleteItem(item)}
-            >
-              삭제
-            </button>
+            <div className={styles.flipBack}>
+              <p className={styles.flipLabel}>한국어</p>
+              <p className={styles.flipWord}>{currentCard?.meaning_kr}</p>
+            </div>
           </div>
         </div>
-      ))}
+
+        {flipped && (
+          <div className={styles.studyBtns}>
+            <button
+              className={styles.dontKnowBtn}
+              onClick={() => currentCard && handleDontKnow(currentCard)}
+            >
+              😅 모르겠어요
+            </button>
+            <button
+              className={styles.knowBtn}
+              onClick={() => currentCard && handleKnow(currentCard)}
+            >
+              😊 알아요!
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 목록 모드 ──
+  return (
+    <div className={styles.wrap}>
+      <div className={styles.toolbar}>
+        <div className={styles.filters}>
+          <button
+            className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('all')}
+          >전체 {items.length}</button>
+          <button
+            className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('bookmarked')}
+          >🔖 {items.filter(i => i.is_bookmarked).length}</button>
+          <button
+            className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('review')}
+          >📅 복습 {items.filter(i => i.review_at && i.review_at.split('T')[0] <= today).length}</button>
+        </div>
+        <button
+          className={styles.studyStartBtn}
+          onClick={startStudy}
+          disabled={studyItems.length === 0}
+        >
+          학습 시작 {studyItems.length > 0 ? `(${studyItems.length})` : ''}
+        </button>
+      </div>
+
+      {filteredItems.length === 0 ? (
+        <div className={styles.empty}>
+          <p>저장된 단어가 없어요</p>
+          <p className={styles.emptySub}>채팅 버블을 클릭해서 단어를 저장해보세요</p>
+        </div>
+      ) : (
+        <div className={styles.list}>
+          {filteredItems.map((item) => (
+            <div key={item.id} className={styles.card}>
+              <div className={styles.cardTop}>
+                <div className={styles.words}>
+                  <span className={styles.word}>{item.word}</span>
+                  {item.meaning_kr && <span className={styles.meaning}>{item.meaning_kr}</span>}
+                </div>
+                <button
+                  className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
+                  onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
+                >
+                  {item.is_bookmarked ? '🔖' : '🤍'}
+                </button>
+              </div>
+              <div className={styles.cardBottom}>
+                <button
+                  className={styles.statusBtn}
+                  onClick={() => {
+                    const next: Record<string, string> = { new: 'learning', learning: 'done', done: 'new' };
+                    updateItem(item, { learn_status: next[item.learn_status] || 'new' });
+                  }}
+                >
+                  {statusLabel[item.learn_status] || '🆕 새로운'}
+                </button>
+                <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>삭제</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
