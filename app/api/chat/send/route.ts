@@ -1,8 +1,7 @@
-import type { NextRequest } from 'next/server';
+﻿import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
-
   let body: { roomId?: string; userId?: string; original?: string; analyze?: boolean };
   try {
     const rawBody = await request.text();
@@ -13,7 +12,6 @@ export async function POST(request: NextRequest) {
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-
   const { roomId, userId, original, analyze = true } = body;
   if (!roomId || !userId || !original) {
     return new Response(
@@ -21,7 +19,6 @@ export async function POST(request: NextRequest) {
       { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
-
   let translationMeta: {
     translations: { ko?: string; vi?: string };
     detectedLanguage: string | null;
@@ -37,21 +34,17 @@ export async function POST(request: NextRequest) {
     translatedText: null,
     targetLang: null,
   };
-
   if (analyze) {
     try {
       const { route }     = await import('@/brain-engine/hajun/router.js');
       const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
-
       let ctx = createCtx({ text: original, author: userId }, traceId);
       ctx = await route('translate', ctx);
       if (!ctx._error) ctx = await route('emotion', ctx);
-
       const p = ctx.payload;
       const sourceLang = p.sourceLang || null;
       const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
       const translated  = p.translatedText || null;
-
       translationMeta = {
         translations:     translated ? { [targetLang]: translated } : {},
         detectedLanguage: sourceLang,
@@ -60,13 +53,14 @@ export async function POST(request: NextRequest) {
         translatedText:   translated,
         targetLang,
       };
-
       console.log(`[chat/send] ${sourceLang}->${targetLang}: "${translated}"`);
+
+
+
     } catch (e: any) {
       console.warn(`[chat/send] translate failed: ${e.message}`);
     }
   }
-
   try {
     const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
     const result: any = await ChatMessageEngine({
@@ -75,14 +69,12 @@ export async function POST(request: NextRequest) {
       traceId,
       _error:  null,
     });
-
     if (result._error) {
       return new Response(
         JSON.stringify({ payload: null, _error: result._error, traceId }),
         { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
-
     return new Response(
       JSON.stringify({ payload: { message: result.message }, _error: null, traceId }),
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
@@ -94,3 +86,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+

@@ -1,8 +1,8 @@
-// brain-engine/engines/translation/cache.js
-// ─────────────────────────────────────────────────────────────
-// 번역 캐시 — DB 확인 / 저장
-// (ctx) => ctx 형태 준수, throw 금지
-// ─────────────────────────────────────────────────────────────
+﻿// brain-engine/engines/translation/cache.js
+// ?????????????????????????????????????????????????????????????
+// 踰덉뿭 罹먯떆 ??DB ?뺤씤 / ???
+// (ctx) => ctx ?뺥깭 以?? throw 湲덉?
+// ?????????????????????????????????????????????????????????????
 
 import { getStorage } from '../../connectors/storage.js';
 
@@ -10,10 +10,10 @@ export async function findCache(ctx) {
   const { text, sourceLang } = ctx.payload;
   if (!text || !sourceLang) return ctx;
 
-  const direction = sourceLang === 'ko' ? 'ko→vi' : 'vi→ko';
+  const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
 
   const db = await getStorage();
-  if (!db) return ctx; // DB 없으면 캐시 없이 통과
+  if (!db) return ctx; // DB ?놁쑝硫?罹먯떆 ?놁씠 ?듦낵
 
   const { data, error } = await db
     .from('tb_trans_logs')
@@ -24,9 +24,9 @@ export async function findCache(ctx) {
     .limit(1)
     .single();
 
-  if (error || !data) return ctx; // 캐시 미스 → 통과
+  if (error || !data) return ctx; // 罹먯떆 誘몄뒪 ???듦낵
 
-  console.log(`[TranslationCache] 캐시 히트: "${text}"`);
+  console.log(`[TranslationCache] 罹먯떆 ?덊듃: "${text}"`);
 
   return {
     ...ctx,
@@ -44,10 +44,10 @@ export async function findCache(ctx) {
 export async function saveCache(ctx) {
   const { text, sourceLang, translatedText, translationSource } = ctx.payload;
 
-  // 이미 캐시에서 온 것은 다시 저장하지 않음
+  // ?대? 罹먯떆?먯꽌 ??寃껋? ?ㅼ떆 ??ν븯吏 ?딆쓬
   if (!text || !translatedText || translationSource === 'cache') return ctx;
 
-  const direction = sourceLang === 'ko' ? 'ko→vi' : 'vi→ko';
+  const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
 
   const db = await getStorage();
   if (!db) return ctx;
@@ -63,7 +63,7 @@ export async function saveCache(ctx) {
   });
 
   if (error) {
-    console.warn('[TranslationCache] 저장 실패:', error.message);
+    console.warn('[TranslationCache] ????ㅽ뙣:', error.message);
   }
 
   return ctx;

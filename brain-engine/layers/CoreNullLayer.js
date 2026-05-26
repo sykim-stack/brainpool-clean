@@ -5,6 +5,8 @@
       case 'getWordData':        return await this.getWordData(ctx);
       case 'saveWord':           return await this.saveWord(ctx);
       case 'getUserVocabulary':  return await this.getUserVocabulary(ctx);
+      case 'updateVocabulary':   return await this.updateVocabulary(ctx);
+      case 'deleteVocabulary':   return await this.deleteVocabulary(ctx);
       case 'reportConflict':     return await this.reportConflict(ctx);
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
@@ -56,21 +58,16 @@
 
   async saveWord(ctx) {
     const { user_id, trans_id, word, meaning_kr, source_session_id } = ctx.payload;
-    console.log('[saveWord] payload:', JSON.stringify({ user_id, trans_id, word, meaning_kr, source_session_id }));
     if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
     if (!user_id) return { ...ctx, _error: { code: 'MISSING_USER', message: 'user_id is required' } };
     const insertData = { user_id, word, meaning_kr, source_session_id };
     if (trans_id) insertData.trans_id = trans_id;
-    console.log('[saveWord] inserting:', JSON.stringify(insertData));
     const { data, error } = await ctx.supabase
       .from('user_vocabulary')
       .insert([insertData])
       .select()
       .single();
-    if (error) {
-      console.error('[saveWord] DB error:', error.message, error.details, error.hint);
-      return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message, details: error.details } };
-    }
+    if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
     return { ...ctx, result: data };
   }
 
@@ -84,6 +81,37 @@
       .order('created_at', { ascending: false });
     if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
     return { ...ctx, result: data };
+  }
+
+  async updateVocabulary(ctx) {
+    const { id, user_id, ...fields } = ctx.payload;
+    if (!id || !user_id) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'id and user_id are required' } };
+    const allowed = ['is_bookmarked', 'learn_status', 'memo', 'review_at'];
+    const update = Object.fromEntries(
+      Object.entries(fields).filter(([k]) => allowed.includes(k))
+    );
+    if (!Object.keys(update).length) return { ...ctx, _error: { code: 'NO_FIELDS', message: 'No valid fields to update' } };
+    const { data, error } = await ctx.supabase
+      .from('user_vocabulary')
+      .update(update)
+      .eq('id', id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
+
+  async deleteVocabulary(ctx) {
+    const { id, user_id } = ctx.payload;
+    if (!id || !user_id) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'id and user_id are required' } };
+    const { error } = await ctx.supabase
+      .from('user_vocabulary')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user_id);
+    if (error) return { ...ctx, _error: { code: 'DB_DELETE_ERROR', message: error.message } };
+    return { ...ctx, result: { success: true, id } };
   }
 
   async reportConflict(ctx) {

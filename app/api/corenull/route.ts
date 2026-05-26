@@ -10,6 +10,9 @@ function normalizeAction(action: string): string {
   if (action === 'report-conflict') return 'reportConflict';
   if (action === 'resolve-conflict') return 'resolveConflict';
   if (action === 'get-random-word') return 'getRandomWord';
+  if (action === 'get-user-vocabulary') return 'getUserVocabulary';
+  if (action === 'update-vocabulary') return 'updateVocabulary';
+  if (action === 'delete-vocabulary') return 'deleteVocabulary';
   return action;
 }
 
@@ -80,4 +83,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
 

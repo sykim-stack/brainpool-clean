@@ -7,6 +7,7 @@ import ChatInput from '@/components/ChatInput';
 import RoomList from '@/components/RoomList';
 import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
+import CorePhrase from '@/components/CorePhrase';
 import styles from './page.module.css';
 
 interface Message {
@@ -273,6 +274,8 @@ const saveMyRoom = (room: Room) => {
       loadRooms();
     }
   }, [loadRooms]);
+  const [activeTab, setActiveTab] = useState<'ring' | 'phrase'>('ring');
+
   return (
     <div className="app-shell">
       <BrainHeader
@@ -319,7 +322,22 @@ const saveMyRoom = (room: Room) => {
         visible={isRoomMode && !currentRoomId}
       />
 
-      <div className="chat-container" ref={chatRef}>
+      <div className={styles.tabBar}>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('ring')}
+        >CoreRing</button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('phrase')}
+        >CorePhrase</button>
+      </div>
+
+      {activeTab === 'phrase' && (
+        <CorePhrase userId={deviceId} />
+      )}
+
+      <div className="chat-container" ref={chatRef} style={{ display: activeTab === 'ring' ? 'flex' : 'none' }}>
         {showDaily && messages.length === 0 && !isLoading && (
           <div className={styles.dailyCard}>
             <p className={styles.dailyLabel}>오늘의 단어</p>
@@ -405,3 +423,6 @@ const saveMyRoom = (room: Room) => {
     </div>
   );
 }
+
+
+
