@@ -386,19 +386,20 @@ const saveMyRoom = (room: Room) => {
         word={
           selectedMessage
             ? {
-                word: selectedMessage.translated,
-                standard: selectedMessage.translated,
-                meaning: `"${selectedMessage.original}" → "${selectedMessage.translated}"`,
+                word: selectedMessage.original,
+                meaning: selectedMessage.translated,
                 usage: selectedMessage.sourceLang === 'ko'
                   ? '한국어에서 베트남어로 번역된 표현입니다.'
                   : '베트남어에서 한국어로 번역된 표현입니다.',
                 emotion: selectedMessage.emotion,
                 riskScore: selectedMessage.riskScore,
-                culturalNote: selectedMessage.culturalNote || '문화적 맥락을 분석 중입니다.',
-                relatedWords: [selectedMessage.original],
+                culturalNote: selectedMessage.culturalNote,
+                relatedWords: selectedMessage.translated ? [selectedMessage.translated] : [],
+                sessionId: currentRoomId || undefined,
               }
             : null
         }
+        userId={deviceId}
         onClose={() => setSelectedMessage(null)}
       />
     </div>

@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import styles from './WordModal.module.css';
 
 interface WordDetail {
@@ -15,77 +15,51 @@ interface WordDetail {
   riskScore?: number;
   culturalNote?: string;
   relatedWords?: string[];
+  transId?: string;
+  sessionId?: string;
 }
 
 interface WordModalProps {
   word: WordDetail | null;
   onClose: () => void;
+  userId?: string;
 }
 
-// ── API 조회 결과 타입 ──
-interface WordData {
-  standard?: string;
-  southern?: string;
-  mekong?: string;
-  hue?: string;
-  examples?: string[];
-  culturalNote?: string;
-  riskScore?: number;
-}
-
-// ── API 조회 함수 (throw 금지 → _error 필드) ──
-const fetchWordData = async (word: string): Promise<WordData & { _error?: string }> => {
+const saveWord = async (payload: {
+  user_id?: string;
+  trans_id?: string;
+  word: string;
+  meaning_kr?: string;
+  source_session_id?: string;
+}) => {
   const res = await fetch('/api/corenull', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ action: 'get-word-data', word, lang: 'vi' }),
+    body: JSON.stringify({ action: 'save-word', ...payload }),
   }).catch(() => null);
-
-  if (!res || !res.ok) return { _error: 'fetch_failed' };
-
-  const text = await res.text().catch(() => null);
-  if (!text) return { _error: 'empty_response' };
-
-  const json = JSON.parse(text) as { success?: boolean; payload?: WordData; _error?: string };
-  if (!json.success || !json.payload) return { _error: json._error || 'no_payload' };
-
-  return json.payload;
+  if (!res || !res.ok) return false;
+  const json = await res.json().catch(() => null);
+  return json?.success === true;
 };
 
-export default function WordModal({ word, onClose }: WordModalProps) {
-  const [wordData, setWordData] = useState<WordData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // ── 모달 열릴 때 데이터 조회 ──
-  useEffect(() => {
-    if (!word) {
-      setWordData(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setWordData(null);
-
-    fetchWordData(word.word).then((result) => {
-      if (!result._error) {
-        setWordData(result);
-      }
-      setIsLoading(false);
-    });
-  }, [word?.word]);
+export default function WordModal({ word, onClose, userId }: WordModalProps) {
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!word) return null;
 
-  // ── props와 API 결과 병합 (API 우선) ──
-  const merged: WordDetail = {
-    ...word,
-    standard:     wordData?.standard     ?? word.standard,
-    southern:     wordData?.southern     ?? word.southern,
-    mekong:       wordData?.mekong       ?? word.mekong,
-    hue:          wordData?.hue          ?? word.hue,
-    culturalNote: wordData?.culturalNote ?? word.culturalNote,
-    riskScore:    wordData?.riskScore    ?? word.riskScore,
-    relatedWords: wordData?.examples     ?? word.relatedWords,
+  const handleSave = async () => {
+    if (isSaved || isSaving) return;
+    setIsSaving(true);
+    const ok = await saveWord({
+      user_id: userId,
+      trans_id: word.transId,
+      word: word.word,
+      meaning_kr: word.meaning,
+      source_session_id: word.sessionId,
+    });
+    setIsSaving(false);
+    if (ok) setIsSaved(true);
   };
 
   const riskClass = (score?: number): string => {
@@ -95,13 +69,8 @@ export default function WordModal({ word, onClose }: WordModalProps) {
     return styles.riskLow;
   };
 
-  const LOADING_TEXT = '정보를 가져오는 중...';
-  const EMPTY_TEXT   = '아직 데이터가 없습니다';
-
-  const val = (v?: string) => {
-    if (isLoading) return LOADING_TEXT;
-    return v || EMPTY_TEXT;
-  };
+  const EMPTY_TEXT = '아직 데이터가 없습니다';
+  const val = (v?: string) => v || EMPTY_TEXT;
 
   return (
     <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
@@ -110,68 +79,67 @@ export default function WordModal({ word, onClose }: WordModalProps) {
         <h2 className={styles.title}>📖 {word.word}</h2>
         <p className={styles.subtitle}>단어 학습 카드</p>
 
-        {/* 방언 변형 */}
-        <Section title="🗣️ 방언 변형">
-          <Row label="표준어" value={val(merged.standard)} />
-          <Row label="남부"   value={val(merged.southern)} />
-          <Row label="메콩"   value={val(merged.mekong)}   />
-          <Row label="후에"   value={val(merged.hue)}      />
+        <Section title="🗣 방언 변형">
+          <Row label="표준어" value={val(word.standard)} />
+          <Row label="남부"   value={val(word.southern)} />
+          <Row label="메콩"   value={val(word.mekong)}   />
+          <Row label="후에"   value={val(word.hue)}      />
         </Section>
 
-        {/* 뜻과 쓰임새 */}
         <Section title="💡 뜻과 쓰임새">
-          <Row label="뜻"     value={val(merged.meaning)} />
-          <Row label="쓰임새" value={val(merged.usage)}   />
+          <Row label="뜻"     value={val(word.meaning)} />
+          <Row label="쓰임새" value={val(word.usage)}   />
         </Section>
 
-        {/* 위험 점수 */}
-        {merged.riskScore !== undefined && (
-          <Section title="⚠️ 위험 분석">
+        {word.riskScore !== undefined && word.riskScore > 0 && (
+          <Section title="⚠ 위험 분석">
             <div className={styles.riskRow}>
               <div className={styles.riskTrack}>
                 <div
-                  className={`${styles.riskBar} ${riskClass(merged.riskScore)}`}
-                  style={{ width: `${Math.round(merged.riskScore * 100)}%` }}
+                  className={`${styles.riskBar} ${riskClass(word.riskScore)}`}
+                  style={{ width: `${Math.round(word.riskScore * 100)}%` }}
                 />
               </div>
-              <span className={`${styles.riskValue} ${riskClass(merged.riskScore)}`}>
-                {Math.round(merged.riskScore * 100)}%
+              <span className={`${styles.riskValue} ${riskClass(word.riskScore)}`}>
+                {Math.round(word.riskScore * 100)}%
               </span>
             </div>
           </Section>
         )}
 
-        {/* 문화 메모 */}
-        <Section title="🔍 문화 메모">
-          <p className={styles.culturalNote}>
-            {isLoading ? LOADING_TEXT : (merged.culturalNote || EMPTY_TEXT)}
-          </p>
-        </Section>
-
-        {/* 감정 */}
-        {merged.emotion && (
-          <Section title="🎭 감정">
-            <span className={styles.emotionTag}>{merged.emotion}</span>
+        {word.culturalNote && (
+          <Section title="🔍 문화 메모">
+            <p className={styles.culturalNote}>{word.culturalNote}</p>
           </Section>
         )}
 
-        {/* 관련 표현 / 예문 */}
-        <Section title="📚 관련 표현">
-          {isLoading ? (
-            <p className={styles.culturalNote}>{LOADING_TEXT}</p>
-          ) : merged.relatedWords && merged.relatedWords.length > 0 ? (
+        {word.emotion && (
+          <Section title="🎭 감정">
+            <span className={styles.emotionTag}>{word.emotion}</span>
+          </Section>
+        )}
+
+        {word.relatedWords && word.relatedWords.length > 0 && (
+          <Section title="🔗 관련 표현">
             <div className={styles.relatedList}>
-              {merged.relatedWords.map((w, i) => (
+              {word.relatedWords.map((w, i) => (
                 <span key={i} className={styles.relatedTag}>{w}</span>
               ))}
             </div>
-          ) : (
-            <p className={styles.culturalNote}>{EMPTY_TEXT}</p>
-          )}
-        </Section>
+          </Section>
+        )}
 
-        {/* 닫기 */}
-        <button onClick={onClose} className={styles.closeBtn}>확인</button>
+        <div className={styles.btnRow}>
+          <button
+            onClick={handleSave}
+            disabled={isSaved || isSaving}
+            className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
+          >
+            {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
+          </button>
+          <button onClick={onClose} className={styles.closeBtn}>확인</button>
+        </div>
+
       </div>
     </div>
   );

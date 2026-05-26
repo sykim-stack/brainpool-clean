@@ -2,12 +2,11 @@
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
     switch (action) {
-      case 'getWordData':        return await this.getWordData(ctx);
-      case 'saveWord':           return await this.saveWord(ctx);
-      case 'getUserVocabulary':  return await this.getUserVocabulary(ctx);
-      case 'reportConflict':     return await this.reportConflict(ctx);
-      case 'resolveConflict':    return await this.resolveConflict(ctx);
-      case 'getRandomWord':      return await this.getRandomWord(ctx);
+      case 'getWordData':     return await this.getWordData(ctx);
+      case 'saveWord':        return await this.saveWord(ctx);
+      case 'reportConflict':  return await this.reportConflict(ctx);
+      case 'resolveConflict': return await this.resolveConflict(ctx);
+      case 'getRandomWord':   return await this.getRandomWord(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
@@ -16,13 +15,17 @@
   async getWordData(ctx) {
     const { word } = ctx.payload;
     if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+
+    // standard_word OR meaning_ko 둘 다 검색
     const { data, error } = await ctx.supabase
       .from('tp_translations')
       .select('*')
       .or(`standard_word.eq.${word},meaning_ko.eq.${word}`)
       .maybeSingle();
+
     if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
     if (!data)  return { ...ctx, _error: { code: 'NOT_FOUND', message: `"${word}" not found` } };
+
     return { ...ctx, result: {
       word:        data.standard_word,
       standard:    data.standard_word,
@@ -43,8 +46,10 @@
       .select('standard_word, meaning_ko, example_northern, notes')
       .not('meaning_ko', 'is', null)
       .limit(50);
+
     if (error || !data?.length)
       return { ...ctx, _error: { code: 'NOT_FOUND', message: 'No words found' } };
+
     const random = data[Math.floor(Math.random() * data.length)];
     return { ...ctx, result: {
       word:        random.standard_word,
@@ -55,34 +60,12 @@
   }
 
   async saveWord(ctx) {
-    const { user_id, trans_id, word, meaning_kr, source_session_id } = ctx.payload;
-    console.log('[saveWord] payload:', JSON.stringify({ user_id, trans_id, word, meaning_kr, source_session_id }));
-    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
-    if (!user_id) return { ...ctx, _error: { code: 'MISSING_USER', message: 'user_id is required' } };
-    const insertData = { user_id, word, meaning_kr, source_session_id };
-    if (trans_id) insertData.trans_id = trans_id;
-    console.log('[saveWord] inserting:', JSON.stringify(insertData));
     const { data, error } = await ctx.supabase
-      .from('user_vocabulary')
-      .insert([insertData])
+      .from('tp_translations')
+      .insert([ctx.payload])
       .select()
       .single();
-    if (error) {
-      console.error('[saveWord] DB error:', error.message, error.details, error.hint);
-      return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message, details: error.details } };
-    }
-    return { ...ctx, result: data };
-  }
-
-  async getUserVocabulary(ctx) {
-    const { user_id } = ctx.payload;
-    if (!user_id) return { ...ctx, _error: { code: 'MISSING_USER', message: 'user_id is required' } };
-    const { data, error } = await ctx.supabase
-      .from('user_vocabulary')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
-    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
     return { ...ctx, result: data };
   }
 
