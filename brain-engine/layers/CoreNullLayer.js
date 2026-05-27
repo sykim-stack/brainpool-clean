@@ -1,4 +1,4 @@
-﻿export class CoreNullLayer {
+export class CoreNullLayer {
   async handle(ctx) {
     const action = ctx.payload?.action || ctx.action;
     switch (action) {

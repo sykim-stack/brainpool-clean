@@ -106,6 +106,8 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false);
   const [nickname, setNickname] = useState('익명');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedWord, setSelectedWord] = useState<any>(null);
+  const [wordLoading, setWordLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [deviceId] = useState(getDeviceId());
   const chatRef = useRef<HTMLDivElement>(null);
@@ -258,8 +260,28 @@ const saveMyRoom = (room: Room) => {
     setIsLoading(false);
   }, [currentRoomId, deviceId, loadRooms]);
 
-  const handleBubbleClick = useCallback((msg: Message) => {
+  const handleBubbleClick = useCallback(async (msg: Message) => {
     setSelectedMessage(msg);
+    setWordLoading(true);
+    setSelectedWord(null);
+    const res = await fetch('/api/corenull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordData', word: msg.original }),
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.success && json.payload) {
+      setSelectedWord(json.payload);
+    } else {
+      setSelectedWord({
+        word: msg.original,
+        meaning: msg.translated,
+        emotion: msg.emotion,
+        riskScore: msg.riskScore,
+        culturalNote: msg.culturalNote,
+      });
+    }
+    setWordLoading(false);
   }, []);
 
   const handleExitRoom = useCallback(() => {
@@ -437,24 +459,12 @@ const saveMyRoom = (room: Room) => {
       <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
 
       <WordModal
-        word={
-          selectedMessage
-            ? {
-                word: selectedMessage.original,
-                meaning: selectedMessage.translated,
-                usage: selectedMessage.sourceLang === 'ko'
-                  ? '한국어에서 베트남어로 번역된 표현입니다.'
-                  : '베트남어에서 한국어로 번역된 표현입니다.',
-                emotion: selectedMessage.emotion,
-                riskScore: selectedMessage.riskScore,
-                culturalNote: selectedMessage.culturalNote,
-                relatedWords: selectedMessage.translated ? [selectedMessage.translated] : [],
-                sessionId: currentRoomId || undefined,
-              }
-            : null
-        }
+        word={selectedMessage ? (selectedWord ?? {
+          word: selectedMessage.original,
+          meaning: wordLoading ? '불러오는 중...' : selectedMessage.translated,
+        }) : null}
         userId={deviceId}
-        onClose={() => setSelectedMessage(null)}
+        onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
       />
     </div>
   );
