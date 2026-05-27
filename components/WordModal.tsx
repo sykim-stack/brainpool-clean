@@ -3,34 +3,33 @@
 import { useState } from 'react';
 import styles from './WordModal.module.css';
 
-interface WordDetail {
-  word: string;
-  standard?: string;
-  southern?: string;
-  mekong?: string;
-  hue?: string;
-  meaning?: string;
-  usage?: string;
-  emotion?: string;
-  riskScore?: number;
-  culturalNote?: string;
-  relatedWords?: string[];
-  transId?: string;
-  sessionId?: string;
+interface WordEntry {
+  standard_word: string;
+  meaning_ko: string;
+  southern_word?: string;
+  notes?: string;
+  emotion_score?: number;
+  conflict_weight?: number;
+}
+
+interface WordData {
+  sentence: string;
+  translated: string;
+  words: WordEntry[];
+  total: number;
+  matched: number;
 }
 
 interface WordModalProps {
-  word: WordDetail | null;
+  word: WordData | null;
   onClose: () => void;
   userId?: string;
 }
 
 const saveWord = async (payload: {
   user_id?: string;
-  trans_id?: string;
   word: string;
   meaning_kr?: string;
-  source_session_id?: string;
 }) => {
   const res = await fetch('/api/corenull', {
     method: 'POST',
@@ -43,122 +42,75 @@ const saveWord = async (payload: {
 };
 
 export default function WordModal({ word, onClose, userId }: WordModalProps) {
-  const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
 
   if (!word) return null;
 
-  const handleSave = async () => {
-    if (isSaved || isSaving) return;
-    setIsSaving(true);
+  const handleSave = async (entry: WordEntry) => {
+    if (saved[entry.standard_word] || saving[entry.standard_word]) return;
+    setSaving(prev => ({ ...prev, [entry.standard_word]: true }));
     const ok = await saveWord({
       user_id: userId,
-      trans_id: word.transId,
-      word: word.word,
-      meaning_kr: word.meaning,
-      source_session_id: word.sessionId,
+      word: entry.standard_word,
+      meaning_kr: entry.meaning_ko,
     });
-    setIsSaving(false);
-    if (ok) setIsSaved(true);
+    setSaving(prev => ({ ...prev, [entry.standard_word]: false }));
+    if (ok) setSaved(prev => ({ ...prev, [entry.standard_word]: true }));
   };
 
-  const riskClass = (score?: number): string => {
-    if (!score) return styles.riskNone;
-    if (score >= 0.7) return styles.riskHigh;
-    if (score >= 0.4) return styles.riskMid;
-    return styles.riskLow;
-  };
-
-  const EMPTY_TEXT = '아직 데이터가 없습니다';
-  const val = (v?: string) => v || EMPTY_TEXT;
+  const overlayClass = 'modal-overlay open ' + styles.overlay;
 
   return (
-    <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
+    <div className={overlayClass} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
-        <h2 className={styles.title}>📖 {word.word}</h2>
-        <p className={styles.subtitle}>단어 학습 카드</p>
+        <h2 className={styles.title}>단어장</h2>
 
-        <Section title="🗣 방언 변형">
-          <Row label="표준어" value={val(word.standard)} />
-          <Row label="남부"   value={val(word.southern)} />
-          <Row label="메콩"   value={val(word.mekong)}   />
-          <Row label="후에"   value={val(word.hue)}      />
-        </Section>
+        <div className={styles.sentenceBox}>
+          <p className={styles.sentenceOriginal}>{word.sentence}</p>
+          {word.translated && word.translated !== word.sentence && (
+            <p className={styles.sentenceTranslated}>{word.translated}</p>
+          )}
+        </div>
 
-        <Section title="💡 뜻과 쓰임새">
-          <Row label="뜻"     value={val(word.meaning)} />
-          <Row label="쓰임새" value={val(word.usage)}   />
-        </Section>
-
-        {word.riskScore !== undefined && word.riskScore > 0 && (
-          <Section title="⚠ 위험 분석">
-            <div className={styles.riskRow}>
-              <div className={styles.riskTrack}>
-                <div
-                  className={`${styles.riskBar} ${riskClass(word.riskScore)}`}
-                  style={{ width: `${Math.round(word.riskScore * 100)}%` }}
-                />
+        {word.words.length === 0 ? (
+          <div className={styles.emptyWords}>
+            <p>등록된 단어가 없습니다</p>
+            <p className={styles.emptyWordsSub}>{word.total}개 단어 중 0개 매칭</p>
+          </div>
+        ) : (
+          <div className={styles.wordList}>
+            <p className={styles.matchInfo}>{word.total}개 단어 중 {word.matched}개 매칭</p>
+            {word.words.map((entry) => (
+              <div key={entry.standard_word} className={styles.wordCard}>
+                <div className={styles.wordCardMain}>
+                  <span className={styles.wordCardVn}>{entry.standard_word}</span>
+                  <span className={styles.wordCardKo}>{entry.meaning_ko}</span>
+                </div>
+                {entry.southern_word && entry.southern_word !== entry.standard_word && (
+                  <p className={styles.wordCardSouthern}>남부: {entry.southern_word}</p>
+                )}
+                {entry.notes && (
+                  <p className={styles.wordCardNote}>{entry.notes}</p>
+                )}
+                <button
+                  onClick={() => handleSave(entry)}
+                  disabled={!!saved[entry.standard_word] || !!saving[entry.standard_word]}
+                  className={saved[entry.standard_word] ? styles.savedBtn : styles.wordSaveBtn}
+                >
+                  {saving[entry.standard_word] ? '저장 중...' : saved[entry.standard_word] ? '저장됨' : '저장'}
+                </button>
               </div>
-              <span className={`${styles.riskValue} ${riskClass(word.riskScore)}`}>
-                {Math.round(word.riskScore * 100)}%
-              </span>
-            </div>
-          </Section>
-        )}
-
-        {word.culturalNote && (
-          <Section title="🔍 문화 메모">
-            <p className={styles.culturalNote}>{word.culturalNote}</p>
-          </Section>
-        )}
-
-        {word.emotion && (
-          <Section title="🎭 감정">
-            <span className={styles.emotionTag}>{word.emotion}</span>
-          </Section>
-        )}
-
-        {word.relatedWords && word.relatedWords.length > 0 && (
-          <Section title="🔗 관련 표현">
-            <div className={styles.relatedList}>
-              {word.relatedWords.map((w, i) => (
-                <span key={i} className={styles.relatedTag}>{w}</span>
-              ))}
-            </div>
-          </Section>
+            ))}
+          </div>
         )}
 
         <div className={styles.btnRow}>
-          <button
-            onClick={handleSave}
-            disabled={isSaved || isSaving}
-            className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
-          >
-            {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
-          </button>
           <button onClick={onClose} className={styles.closeBtn}>확인</button>
         </div>
 
       </div>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className={styles.section}>
-      <h4 className={styles.sectionTitle}>{title}</h4>
-      {children}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.row}>
-      <span className={styles.rowLabel}>{label}</span>
-      <span className={styles.rowValue}>{value}</span>
     </div>
   );
 }

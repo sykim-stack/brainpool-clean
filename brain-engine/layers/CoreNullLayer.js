@@ -10,6 +10,7 @@ export class CoreNullLayer {
       case 'reportConflict':     return await this.reportConflict(ctx);
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
+      case 'getWordsFromSentence': return await this.getWordsFromSentence(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
@@ -37,6 +38,19 @@ export class CoreNullLayer {
       riskScore:   data.conflict_weight || 0,
       emotion:     (data.emotion_score || 0) > 0.5 ? '긍정' : '중립',
     }};
+  }
+
+  async getWordsFromSentence(ctx) {
+    const { sentence } = ctx.payload;
+    if (!sentence) return { ...ctx, _error: { code: 'MISSING_SENTENCE', message: 'sentence is required' } };
+    const words = sentence.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return { ...ctx, _error: { code: 'EMPTY_SENTENCE', message: 'no words found' } };
+    const { data, error } = await ctx.supabase
+      .from('tp_translations')
+      .select('standard_word, meaning_ko, southern_word, notes, emotion_score, conflict_weight')
+      .in('standard_word', words);
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    return { ...ctx, result: { words: data || [], total: words.length, matched: (data || []).length } };
   }
 
   async getRandomWord(ctx) {

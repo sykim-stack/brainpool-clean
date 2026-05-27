@@ -190,3 +190,88 @@
   flex: 1;
   margin-top: 0;
 }
+
+/* 단어장 모드 */
+.sentenceBox {
+  padding: var(--space-md) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+  margin-bottom: var(--space-md);
+}
+.sentenceOriginal {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+.sentenceTranslated {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.matchInfo {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-sm) 0;
+}
+.wordList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.wordCard {
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.wordCardMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wordCardVn {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+.wordCardKo {
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+}
+.wordCardSouthern {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.wordCardNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.wordSaveBtn {
+  align-self: flex-end;
+  font-size: var(--font-size-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.wordSaveBtn:disabled {
+  background: var(--color-surface-elevated);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+.emptyWords {
+  text-align: center;
+  padding: var(--space-xl) 0;
+  color: var(--color-text-secondary);
+}
+.emptyWordsSub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
