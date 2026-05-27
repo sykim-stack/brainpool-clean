@@ -11,6 +11,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  manifest: '/manifest.json',
   title: 'CORE-RING ENGINE',
   description: '한↔베 방언 번역기 · CoreRing – 한국어 ↔ 베트남어, 사투리까지 번역돼요 🗣️',
   openGraph: {
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body><script dangerouslySetInnerHTML={{ __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js'); }); }` }} />{children}</body>
     </html>
   );
 }
