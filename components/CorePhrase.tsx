@@ -27,6 +27,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const [studyIndex, setStudyIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'review'>('all');
+  const [studiedToday, setStudiedToday] = useState(0);
 
   const fetchVocab = async () => {
     setIsLoading(true);
@@ -64,28 +65,22 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const handleKnow = async (item: VocabItem) => {
     const reviewAt = new Date();
     reviewAt.setDate(reviewAt.getDate() + 7);
-    await updateItem(item, {
-      learn_status: 'done',
-      review_at: reviewAt.toISOString(),
-    });
+    await updateItem(item, { learn_status: 'done', review_at: reviewAt.toISOString() });
+    setStudiedToday(prev => prev + 1);
     nextCard();
   };
 
   const handleDontKnow = async (item: VocabItem) => {
     const reviewAt = new Date();
     reviewAt.setDate(reviewAt.getDate() + 1);
-    await updateItem(item, {
-      learn_status: 'learning',
-      review_at: reviewAt.toISOString(),
-    });
+    await updateItem(item, { learn_status: 'learning', review_at: reviewAt.toISOString() });
+    setStudiedToday(prev => prev + 1);
     nextCard();
   };
 
   const nextCard = () => {
     setFlipped(false);
-    setTimeout(() => {
-      setStudyIndex(prev => prev + 1);
-    }, 200);
+    setTimeout(() => setStudyIndex(prev => prev + 1), 200);
   };
 
   const startStudy = () => {
@@ -95,6 +90,26 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   };
 
   const today = new Date().toISOString().split('T')[0];
+
+  // 통계
+  const totalCount   = items.length;
+  const doneCount    = items.filter(i => i.learn_status === 'done').length;
+  const reviewCount  = items.filter(i => i.review_at && i.review_at.split('T')[0] <= today).length;
+  const streakDays   = (() => {
+    const dates = [...new Set(items
+      .filter(i => i.review_at)
+      .map(i => i.review_at!.split('T')[0])
+    )].sort().reverse();
+    let streak = 0;
+    let cursor = new Date();
+    for (const d of dates) {
+      const diff = Math.round((cursor.getTime() - new Date(d).getTime()) / 86400000);
+      if (diff <= 1) { streak++; cursor = new Date(d); }
+      else break;
+    }
+    return streak;
+  })();
+
   const filteredItems = items.filter(item => {
     if (filter === 'bookmarked') return item.is_bookmarked;
     if (filter === 'review') return item.review_at && item.review_at.split('T')[0] <= today;
@@ -119,8 +134,8 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       <div className={styles.studyDone}>
         <p className={styles.studyDoneEmoji}>🎉</p>
         <p className={styles.studyDoneText}>오늘 학습 완료!</p>
-        <p className={styles.studyDoneSub}>{studyItems.length}개 카드를 모두 봤어요</p>
-        <button className={styles.studyBackBtn} onClick={() => setMode('list')}>목록으로</button>
+        <p className={styles.studyDoneSub}>{studiedToday}개 카드를 학습했어요</p>
+        <button className={styles.studyBackBtn} onClick={() => { setMode('list'); setStudiedToday(0); }}>목록으로</button>
       </div>
     );
 
@@ -134,7 +149,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
         <div className={styles.progressBar}>
           <div
             className={styles.progressFill}
-            style={{ width: `${((studyIndex) / studyItems.length) * 100}%` }}
+            style={{ width: `${(studyIndex / studyItems.length) * 100}%` }}
           />
         </div>
 
@@ -157,16 +172,10 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
         {flipped && (
           <div className={styles.studyBtns}>
-            <button
-              className={styles.dontKnowBtn}
-              onClick={() => currentCard && handleDontKnow(currentCard)}
-            >
+            <button className={styles.dontKnowBtn} onClick={() => currentCard && handleDontKnow(currentCard)}>
               😅 모르겠어요
             </button>
-            <button
-              className={styles.knowBtn}
-              onClick={() => currentCard && handleKnow(currentCard)}
-            >
+            <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>
               😊 알아요!
             </button>
           </div>
@@ -178,6 +187,30 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   // ── 목록 모드 ──
   return (
     <div className={styles.wrap}>
+
+      {/* 통계 카드 */}
+      <div className={styles.stats}>
+        <div className={styles.statItem}>
+          <span className={styles.statNum}>{totalCount}</span>
+          <span className={styles.statLabel}>전체</span>
+        </div>
+        <div className={styles.statDivider} />
+        <div className={styles.statItem}>
+          <span className={styles.statNum}>{doneCount}</span>
+          <span className={styles.statLabel}>완료</span>
+        </div>
+        <div className={styles.statDivider} />
+        <div className={styles.statItem}>
+          <span className={styles.statNum}>{reviewCount}</span>
+          <span className={styles.statLabel}>오늘 복습</span>
+        </div>
+        <div className={styles.statDivider} />
+        <div className={styles.statItem}>
+          <span className={styles.statNum}>{streakDays}🔥</span>
+          <span className={styles.statLabel}>연속 학습</span>
+        </div>
+      </div>
+
       <div className={styles.toolbar}>
         <div className={styles.filters}>
           <button
@@ -191,7 +224,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           <button
             className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
             onClick={() => setFilter('review')}
-          >📅 복습 {items.filter(i => i.review_at && i.review_at.split('T')[0] <= today).length}</button>
+          >📅 복습 {reviewCount}</button>
         </div>
         <button
           className={styles.studyStartBtn}
