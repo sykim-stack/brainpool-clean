@@ -95,3 +95,17 @@
   font-family: inherit;
   line-height: var(--line-height);
 }
+
+/* 단어 클릭 스타일 */
+.word {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  transition: var(--transition-fast);
+  display: inline;
+}
+
+.word:hover {
+  background: var(--color-border);
+  color: var(--color-accent);
+}
