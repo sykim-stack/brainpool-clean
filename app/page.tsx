@@ -260,28 +260,23 @@ const saveMyRoom = (room: Room) => {
     setIsLoading(false);
   }, [currentRoomId, deviceId, loadRooms]);
 
-  const handleBubbleClick = useCallback(async (msg: Message) => {
+  const handleBubbleClick = useCallback((msg: Message) => {
     setSelectedMessage(msg);
-    setWordLoading(true);
+    setSelectedWord(null);
+  }, []);
+
+  const handleWordClick = useCallback(async (msg: Message, word: string) => {
+    setSelectedMessage(msg);
     setSelectedWord(null);
     const res = await fetch('/api/corenull', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'getWordData', word: msg.original }),
+      body: JSON.stringify({ action: 'getWordData', word }),
     }).catch(() => null);
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.success && json.payload) {
       setSelectedWord(json.payload);
-    } else {
-      setSelectedWord({
-        word: msg.original,
-        meaning: msg.translated,
-        emotion: msg.emotion,
-        riskScore: msg.riskScore,
-        culturalNote: msg.culturalNote,
-      });
     }
-    setWordLoading(false);
   }, []);
 
   const handleExitRoom = useCallback(() => {
