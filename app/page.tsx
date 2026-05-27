@@ -286,7 +286,14 @@ const saveMyRoom = (room: Room) => {
           else setIsRoomMode(prev => !prev);
         }}
         isTyping={isTyping}
-        onClear={() => setMessages([])}
+        onClear={async () => {
+          setMessages([]);
+          if (currentRoomId) {
+            await fetch(`/api/chat/rooms/${currentRoomId}`, {
+              method: 'PATCH',
+            }).catch(() => null);
+          }
+        }}
         onShare={async () => {
           await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
             .catch(() => navigator.clipboard.writeText(location.href));
@@ -423,6 +430,7 @@ const saveMyRoom = (room: Room) => {
     </div>
   );
 }
+
 
 
 
