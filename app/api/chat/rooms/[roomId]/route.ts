@@ -1,6 +1,6 @@
 export async function PATCH(
-  request,
-  { params }
+  request: Request,
+  { params }: { params: Promise<{ roomId: string }> }
 ) {
   const traceId = crypto.randomUUID();
   const { roomId } = await params;
@@ -16,7 +16,7 @@ export async function PATCH(
       return Response.json({ payload: null, _error: result._error, traceId }, { status: 500 });
     }
     return Response.json({ payload: { cleared: true }, _error: null, traceId });
-  } catch (err) {
+  } catch (err: any) {
     return Response.json({ payload: null, _error: err.message, traceId }, { status: 500 });
   }
 }
