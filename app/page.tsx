@@ -459,10 +459,15 @@ const saveMyRoom = (room: Room) => {
       <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
 
       <WordModal
-        word={selectedMessage ? (selectedWord ?? {
-          word: selectedMessage.original,
-          meaning: wordLoading ? '불러오는 중...' : selectedMessage.translated,
-        }) : null}
+        data={selectedMessage ? {
+          sentence: selectedMessage.original,
+          translated: selectedMessage.translated,
+          sourceLang: selectedMessage.sourceLang,
+          emotion: selectedMessage.emotion,
+          riskScore: selectedMessage.riskScore,
+          culturalNote: selectedMessage.culturalNote,
+          sessionId: currentRoomId || undefined,
+        } : null}
         userId={deviceId}
         onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
       />

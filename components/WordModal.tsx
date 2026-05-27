@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './WordModal.module.css';
 
 interface WordEntry {
@@ -8,56 +8,62 @@ interface WordEntry {
   meaning_ko: string;
   southern_word?: string;
   notes?: string;
-  emotion_score?: number;
-  conflict_weight?: number;
 }
 
-interface WordData {
+interface TranslationCardProps {
   sentence: string;
-  translated: string;
-  words: WordEntry[];
-  total: number;
-  matched: number;
+  translated?: string;
+  sourceLang?: string;
+  emotion?: string;
+  riskScore?: number;
+  sessionId?: string;
 }
 
 interface WordModalProps {
-  word: WordData | null;
+  data: TranslationCardProps | null;
   onClose: () => void;
   userId?: string;
 }
 
-const saveWord = async (payload: {
-  user_id?: string;
-  word: string;
-  meaning_kr?: string;
-}) => {
-  const res = await fetch('/api/corenull', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ action: 'save-word', ...payload }),
-  }).catch(() => null);
-  if (!res || !res.ok) return false;
-  const json = await res.json().catch(() => null);
-  return json?.success === true;
+const EMOTION_LABEL: Record<string, string> = {
+  positive: '긍정', negative: '부정', neutral: '중립',
+  happy: '기쁨', sad: '슬픔', angry: '화남', fear: '불안',
 };
 
-export default function WordModal({ word, onClose, userId }: WordModalProps) {
+export default function WordModal({ data, onClose, userId }: WordModalProps) {
+  const [words, setWords] = useState<WordEntry[]>([]);
+  const [wordLoading, setWordLoading] = useState(false);
   const [saved, setSaved] = useState<Record<string, boolean>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
 
-  if (!word) return null;
-  const wordList = word.words || [];
+  useEffect(() => {
+    if (!data?.sentence) return;
+    setWords([]);
+    setWordLoading(true);
+    fetch('/api/corenull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordsFromSentence', sentence: data.sentence }),
+    })
+      .then(r => r.json())
+      .then(json => { if (json?.success) setWords(json.payload?.words || []); })
+      .catch(() => {})
+      .finally(() => setWordLoading(false));
+  }, [data?.sentence]);
+
+  if (!data) return null;
+
+  const emotionLabel = data.emotion ? (EMOTION_LABEL[data.emotion] || data.emotion) : null;
+  const riskLevel = !data.riskScore ? null : data.riskScore >= 0.7 ? '높음' : data.riskScore >= 0.4 ? '보통' : null;
 
   const handleSave = async (entry: WordEntry) => {
-    if (saved[entry.standard_word] || saving[entry.standard_word]) return;
-    setSaving(prev => ({ ...prev, [entry.standard_word]: true }));
-    const ok = await saveWord({
-      user_id: userId,
-      word: entry.standard_word,
-      meaning_kr: entry.meaning_ko,
-    });
-    setSaving(prev => ({ ...prev, [entry.standard_word]: false }));
-    if (ok) setSaved(prev => ({ ...prev, [entry.standard_word]: true }));
+    if (saved[entry.standard_word]) return;
+    const res = await fetch('/api/corenull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'save-word', user_id: userId, word: entry.standard_word, meaning_kr: entry.meaning_ko }),
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.success) setSaved(prev => ({ ...prev, [entry.standard_word]: true }));
   };
 
   const overlayClass = 'modal-overlay open ' + styles.overlay;
@@ -66,41 +72,37 @@ export default function WordModal({ word, onClose, userId }: WordModalProps) {
     <div className={overlayClass} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
-        <h2 className={styles.title}>단어장</h2>
-
-        <div className={styles.sentenceBox}>
-          <p className={styles.sentenceOriginal}>{word.sentence}</p>
-          {word.translated && word.translated !== word.sentence && (
-            <p className={styles.sentenceTranslated}>{word.translated}</p>
+        <div className={styles.mainCard}>
+          <p className={styles.original}>{data.sentence}</p>
+          {data.translated && data.translated !== data.sentence && (
+            <p className={styles.translated}>{data.translated}</p>
           )}
         </div>
 
-        {wordList.length === 0 ? (
-          <div className={styles.emptyWords}>
-            <p>등록된 단어가 없습니다</p>
-            <p className={styles.emptyWordsSub}>{word.total || 0}개 단어 중 0개 매칭</p>
+        {(emotionLabel || riskLevel) && (
+          <div className={styles.metaRow}>
+            {emotionLabel && <span className={styles.metaTag}>{emotionLabel}</span>}
+            {riskLevel && <span className={styles.metaTagRisk}>{riskLevel} 위험도</span>}
           </div>
-        ) : (
-          <div className={styles.wordList}>
-            <p className={styles.matchInfo}>{word.total || 0}개 단어 중 {word.matched || 0}개 매칭</p>
-            {wordList.map((entry) => (
-              <div key={entry.standard_word} className={styles.wordCard}>
-                <div className={styles.wordCardMain}>
-                  <span className={styles.wordCardVn}>{entry.standard_word}</span>
-                  <span className={styles.wordCardKo}>{entry.meaning_ko}</span>
-                </div>
-                {entry.southern_word && entry.southern_word !== entry.standard_word && (
-                  <p className={styles.wordCardSouthern}>남부: {entry.southern_word}</p>
-                )}
-                {entry.notes && (
-                  <p className={styles.wordCardNote}>{entry.notes}</p>
-                )}
+        )}
+
+        {wordLoading && (
+          <p className={styles.wordLoadingText}>단어 분석 중...</p>
+        )}
+
+        {!wordLoading && words.length > 0 && (
+          <div className={styles.wordSection}>
+            <p className={styles.wordSectionTitle}>관련 단어</p>
+            {words.map((entry) => (
+              <div key={entry.standard_word} className={styles.wordRow}>
+                <span className={styles.wordVn}>{entry.standard_word}</span>
+                <span className={styles.wordKo}>{entry.meaning_ko}</span>
                 <button
                   onClick={() => handleSave(entry)}
-                  disabled={!!saved[entry.standard_word] || !!saving[entry.standard_word]}
+                  disabled={!!saved[entry.standard_word]}
                   className={saved[entry.standard_word] ? styles.savedBtn : styles.wordSaveBtn}
                 >
-                  {saving[entry.standard_word] ? '저장 중...' : saved[entry.standard_word] ? '저장됨' : '저장'}
+                  {saved[entry.standard_word] ? '저장됨' : '저장'}
                 </button>
               </div>
             ))}
