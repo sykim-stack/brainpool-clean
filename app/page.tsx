@@ -39,6 +39,28 @@ interface DailyWord {
   culturalNote?: string;
 }
 
+
+  const subscribePush = async (deviceId: string) => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) return;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      });
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: deviceId, subscription: sub }),
+      });
+      console.log('[Push] 구독 완료');
+    } catch (e) {
+      console.warn('[Push] 구독 실패:', e);
+    }
+  };
+
 const getDeviceId = () => {
   if (typeof window === 'undefined') return 'anonymous';
   let id = localStorage.getItem('deviceId');
@@ -141,6 +163,13 @@ const saveMyRoom = (room: Room) => {
   }, [deviceId]);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') subscribePush(deviceId);
+    });
+  }, [deviceId]);
 
   useEffect(() => {
     if (!currentRoomId) return;
