@@ -46,6 +46,7 @@ export default function WordModal({ word, onClose, userId }: WordModalProps) {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
 
   if (!word) return null;
+  const wordList = word.words || [];
 
   const handleSave = async (entry: WordEntry) => {
     if (saved[entry.standard_word] || saving[entry.standard_word]) return;
@@ -74,15 +75,15 @@ export default function WordModal({ word, onClose, userId }: WordModalProps) {
           )}
         </div>
 
-        {word.words.length === 0 ? (
+        {wordList.length === 0 ? (
           <div className={styles.emptyWords}>
             <p>등록된 단어가 없습니다</p>
-            <p className={styles.emptyWordsSub}>{word.total}개 단어 중 0개 매칭</p>
+            <p className={styles.emptyWordsSub}>{word.total || 0}개 단어 중 0개 매칭</p>
           </div>
         ) : (
           <div className={styles.wordList}>
-            <p className={styles.matchInfo}>{word.total}개 단어 중 {word.matched}개 매칭</p>
-            {word.words.map((entry) => (
+            <p className={styles.matchInfo}>{word.total || 0}개 단어 중 {word.matched || 0}개 매칭</p>
+            {wordList.map((entry) => (
               <div key={entry.standard_word} className={styles.wordCard}>
                 <div className={styles.wordCardMain}>
                   <span className={styles.wordCardVn}>{entry.standard_word}</span>
