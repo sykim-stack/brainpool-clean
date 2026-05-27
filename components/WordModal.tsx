@@ -16,6 +16,7 @@ interface TranslationCardProps {
   sourceLang?: string;
   emotion?: string;
   riskScore?: number;
+  culturalNote?: string;
   sessionId?: string;
 }
 
