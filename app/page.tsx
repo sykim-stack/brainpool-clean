@@ -439,6 +439,7 @@ const saveMyRoom = (room: Room) => {
               messageId={msg.messageId}
               isFirstLang={isFirstLang}
               onClick={() => handleBubbleClick(msg)}
+              onWordClick={(word) => handleWordClick(msg, word)}
             />
           );
         })}
@@ -467,6 +468,7 @@ const saveMyRoom = (room: Room) => {
           riskScore: selectedMessage.riskScore,
           culturalNote: selectedMessage.culturalNote,
           sessionId: currentRoomId || undefined,
+          wordDetail: selectedWord || undefined,
         } : null}
         userId={deviceId}
         onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
