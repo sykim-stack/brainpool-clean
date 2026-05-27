@@ -1,4 +1,7 @@
-import type { NextRequest } from 'next/server';
+﻿const fs = require('fs');
+const path = 'C:/brainpool-clean/brainpool-clean/app/api/push/send/route.ts';
+
+const sendRoute = `import type { NextRequest } from 'next/server';
 import webpush from 'web-push';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -65,4 +68,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }
-}
+}`;
+
+fs.writeFileSync(path, sendRoute, 'utf8');
+console.log('완료');
