@@ -43,3 +43,29 @@
   width: 20px;
   height: 20px;
 }
+.voiceBtn {
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 18px;
+  transition: var(--transition-fast);
+  min-height: var(--touch-min-height);
+  min-width: var(--touch-min-height);
+}
+
+.voiceBtn:hover {
+  background: var(--color-surface);
+}
+
+.recording {
+  background: var(--color-warn);
+  border-color: var(--color-warn);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
