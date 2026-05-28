@@ -1,4 +1,6 @@
-'use client';
+﻿const fs = require('fs');
+
+const tsx = `'use client';
 
 import { useState } from 'react';
 import styles from './WordModal.module.css';
@@ -76,7 +78,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   };
 
   return (
-    <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
+    <div className={\`modal-overlay open \${styles.overlay}\`} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
         <h2 className={styles.title}>📖 {word}</h2>
@@ -92,11 +94,11 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             <div className={styles.riskRow}>
               <div className={styles.riskTrack}>
                 <div
-                  className={`${styles.riskBar} ${riskClass(riskScore)}`}
-                  style={{ width: `${Math.round(riskScore * 100)}%` }}
+                  className={\`\${styles.riskBar} \${riskClass(riskScore)}\`}
+                  style={{ width: \`\${Math.round(riskScore * 100)}%\` }}
                 />
               </div>
-              <span className={`${styles.riskValue} ${riskClass(riskScore)}`}>
+              <span className={\`\${styles.riskValue} \${riskClass(riskScore)}\`}>
                 {Math.round(riskScore * 100)}%
               </span>
             </div>
@@ -127,7 +129,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           <button
             onClick={handleSave}
             disabled={isSaved || isSaving}
-            className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
+            className={\`\${styles.saveBtn} \${isSaved ? styles.savedBtn : ''}\`}
           >
             {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
           </button>
@@ -156,3 +158,7 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/components/WordModal.tsx', tsx, 'utf8');
+console.log('완료');
