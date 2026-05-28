@@ -1,4 +1,5 @@
-const CACHE_NAME = 'corering-v1';
+﻿const fs = require('fs');
+const sw = `const CACHE_NAME = 'corering-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -29,4 +30,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(clients.openWindow(event.notification.data?.url || '/'));
-});
+});`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/public/sw.js', sw, 'utf8');
+console.log('완료');
