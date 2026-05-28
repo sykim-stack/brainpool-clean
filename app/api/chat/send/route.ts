@@ -61,6 +61,23 @@ export async function POST(request: NextRequest) {
       console.warn(`[chat/send] translate failed: ${e.message}`);
     }
   }
+
+    // 푸시 알림 발송
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://corering.vercel.app';
+      await fetch(appUrl + '/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_id: roomId,
+          sender_id: userId,
+          title: 'CoreRing',
+          body: original.length > 50 ? original.slice(0, 50) + '...' : original,
+          url: '/',
+        }),
+      }).catch(() => null);
+    } catch (e) {}
+
   try {
     const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
     const result: any = await ChatMessageEngine({
