@@ -1,4 +1,6 @@
-'use client';
+﻿const fs = require('fs');
+
+const tsx = `'use client';
 
 import { useEffect, useState } from 'react';
 import styles from './CorePhrase.module.css';
@@ -152,9 +154,9 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           <span className={styles.studyProgress}>{studyIndex + 1} / {studyItems.length}</span>
         </div>
         <div className={styles.progressBar}>
-          <div className={styles.progressFill} style={{ width: `${(studyIndex / studyItems.length) * 100}%` }} />
+          <div className={styles.progressFill} style={{ width: \`\${(studyIndex / studyItems.length) * 100}%\` }} />
         </div>
-        <div className={`${styles.flipCard} ${flipped ? styles.flipped : ''}`} onClick={() => setFlipped(prev => !prev)}>
+        <div className={\`\${styles.flipCard} \${flipped ? styles.flipped : ''}\`} onClick={() => setFlipped(prev => !prev)}>
           <div className={styles.flipInner}>
             <div className={styles.flipFront}>
               <p className={styles.flipLabel}>베트남어</p>
@@ -203,12 +205,12 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
       <div className={styles.toolbar}>
         <div className={styles.filters}>
-          <button className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`} onClick={() => setFilter('all')}>전체 {items.length}</button>
-          <button className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`} onClick={() => setFilter('bookmarked')}>🔖 {items.filter(i => i.is_bookmarked).length}</button>
-          <button className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`} onClick={() => setFilter('review')}>📅 복습 {reviewCount}</button>
+          <button className={\`\${styles.filterBtn} \${filter === 'all' ? styles.filterActive : ''}\`} onClick={() => setFilter('all')}>전체 {items.length}</button>
+          <button className={\`\${styles.filterBtn} \${filter === 'bookmarked' ? styles.filterActive : ''}\`} onClick={() => setFilter('bookmarked')}>🔖 {items.filter(i => i.is_bookmarked).length}</button>
+          <button className={\`\${styles.filterBtn} \${filter === 'review' ? styles.filterActive : ''}\`} onClick={() => setFilter('review')}>📅 복습 {reviewCount}</button>
         </div>
         <button className={styles.studyStartBtn} onClick={startStudy} disabled={studyItems.length === 0}>
-          학습 시작 {studyItems.length > 0 ? `(${studyItems.length})` : ''}
+          학습 시작 {studyItems.length > 0 ? \`(\${studyItems.length})\` : ''}
         </button>
       </div>
 
@@ -251,7 +253,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                       {item.memo && <span className={styles.memo}>✏️ {item.memo}</span>}
                     </div>
                     <button
-                      className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
+                      className={\`\${styles.bookmark} \${item.is_bookmarked ? styles.bookmarked : ''}\`}
                       onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
                     >
                       {item.is_bookmarked ? '🔖' : '🤍'}
@@ -281,3 +283,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/components/CorePhrase.tsx', tsx, 'utf8');
+console.log('완료');
