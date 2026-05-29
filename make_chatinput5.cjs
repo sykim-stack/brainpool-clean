@@ -1,4 +1,6 @@
-'use client';
+﻿const fs = require('fs');
+
+const tsx = `'use client';
 import { useState, useRef } from 'react';
 import styles from './ChatInput.module.css';
 
@@ -51,49 +53,54 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
       mediaRecorder.current = recorder;
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.current.push(e.data);
-        console.log('[Voice] chunk:', e.data.size);
-      };
-      recorder.onstop = async () => {
-        setIsUploading(true);
-        try {
-          const mType = recorder.mimeType || 'audio/webm';
-          const blob = new Blob(audioChunks.current, { type: mType });
-          console.log('[Voice] blob:', blob.size, mType);
-
-          const ext = mType.includes('mp4') ? 'mp4' : mType.includes('ogg') ? 'ogg' : 'webm';
-          const fileName = `voice/${userId || 'anon'}/${Date.now()}.${ext}`;
-
-          const formData = new FormData();
-          formData.append('file', blob, fileName);
-          formData.append('fileName', fileName);
-          formData.append('mimeType', mType);
-
-          const res = await fetch('/api/voice/upload', {
-            method: 'POST',
-            body: formData,
-          }).catch(() => null);
-
-          const json = res ? await res.json().catch(() => null) : null;
-          console.log('[Voice] 결과:', json);
-        } catch (e) {
-          console.warn('[Voice] 실패:', e);
-        } finally {
-          setIsUploading(false);
-        }
       };
       recorder.start(100);
       setIsRecording(true);
-      console.log('[Voice] 시작 mimeType:', recorder.mimeType);
+      console.log('[Voice] 녹음 시작 mimeType:', recorder.mimeType);
     } catch (e) {
       console.warn('마이크 실패:', e);
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (!isRecording) return;
     setIsRecording(false);
+
+    const recorder = mediaRecorder.current;
+    if (!recorder) return;
+
+    recorder.stop();
     streamRef.current?.getTracks().forEach(t => t.stop());
-    mediaRecorder.current?.stop();
+
+    // 300ms 대기 후 업로드 (마지막 chunk 수집 대기)
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    setIsUploading(true);
+    try {
+      const mType = recorder.mimeType || 'audio/webm';
+      const blob = new Blob(audioChunks.current, { type: mType });
+      console.log('[Voice] blob size:', blob.size, 'chunks:', audioChunks.current.length, 'mimeType:', mType);
+
+      const fileName = \`voice/\${userId || 'anon'}/\${Date.now()}.webm\`;
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const base64 = btoa(binary);
+
+      const res = await fetch('/api/voice/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, fileName, mimeType: mType }),
+      }).catch(() => null);
+
+      const json = res ? await res.json().catch(() => null) : null;
+      console.log('[Voice] 업로드 결과:', json);
+    } catch (e) {
+      console.warn('[Voice] 실패:', e);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -111,7 +118,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
         onPointerDown={startRecording}
         onPointerUp={stopRecording}
         onPointerLeave={stopRecording}
-        className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
+        className={\`\${styles.voiceBtn} \${isRecording ? styles.recording : ''}\`}
         disabled={isUploading}
         type="button"
       >
@@ -131,3 +138,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
     </div>
   );
 }
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/components/ChatInput.tsx', tsx, 'utf8');
+console.log('완료');
