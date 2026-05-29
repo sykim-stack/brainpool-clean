@@ -53,7 +53,8 @@ export default function ChatInput({ onSend, onTypingChange, onVoiceSend, userId 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const recorder = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorder.current = recorder;
 
       // onstop 먼저 등록
@@ -61,7 +62,8 @@ export default function ChatInput({ onSend, onTypingChange, onVoiceSend, userId 
         streamRef.current?.getTracks().forEach(t => t.stop());
         setIsUploading(true);
         try {
-          const blob = new Blob(audioChunks.current, { type: 'audio/webm' });
+          const mType = mediaRecorder.current?.mimeType || 'audio/webm';
+          const blob = new Blob(audioChunks.current, { type: mType });
           console.log('[Voice] blob size:', blob.size, 'chunks:', audioChunks.current.length);
 
           const fileName = `voice/${userId || 'anon'}/${Date.now()}.webm`;
