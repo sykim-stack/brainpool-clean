@@ -1,4 +1,6 @@
-'use client';
+﻿const fs = require('fs');
+
+const tsx = `'use client';
 import { useState, useRef } from 'react';
 import styles from './ChatInput.module.css';
 
@@ -79,7 +81,7 @@ export default function ChatInput({ onSend, onTypingChange, onVoiceSend, userId 
             return;
           }
 
-          const fileName = `voice/${userId || 'anon'}/${Date.now()}.webm`;
+          const fileName = \`voice/\${userId || 'anon'}/\${Date.now()}.webm\`;
           const arrayBuffer = await blob.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
           let binary = '';
@@ -137,7 +139,7 @@ export default function ChatInput({ onSend, onTypingChange, onVoiceSend, userId 
         onPointerDown={startRecording}
         onPointerUp={stopRecording}
         onPointerLeave={stopRecording}
-        className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
+        className={\`\${styles.voiceBtn} \${isRecording ? styles.recording : ''}\`}
         disabled={isUploading}
         aria-label="음성 녹음"
         type="button"
@@ -158,3 +160,7 @@ export default function ChatInput({ onSend, onTypingChange, onVoiceSend, userId 
     </div>
   );
 }
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/components/ChatInput.tsx', tsx, 'utf8');
+console.log('완료');

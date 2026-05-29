@@ -1,4 +1,6 @@
-import type { NextRequest } from 'next/server';
+﻿const fs = require('fs');
+
+const route = `import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -38,4 +40,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }
-}
+}`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/app/api/voice/upload/route.ts', route, 'utf8');
+console.log('완료');
