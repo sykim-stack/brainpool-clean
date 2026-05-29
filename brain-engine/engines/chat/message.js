@@ -13,7 +13,7 @@ async function sendMessage(ctx) {
   if (!db) return { ...ctx, _error: 'DB connection failed' };
 
   // insert 먼저
-  const { error: insertError } = await db.from('chat_messages').insert({
+  const { error: insertError } = await db.from('messages').insert({
     room_id:       roomId,
     sender_id:     isUUID(userId) ? userId : null,
     sender_role:   'user',
@@ -103,3 +103,4 @@ export async function ChatMessageEngine(ctx) {
 }
 
 export default ChatMessageEngine;
+
