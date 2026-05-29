@@ -232,7 +232,7 @@ const saveMyRoom = (room: Room) => {
     await fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ roomId, userId: deviceId, original: text, analyze: true, audioUrl }),,
+      body: JSON.stringify({ roomId, userId: deviceId, original: text, analyze: true, audioUrl }),
     }).catch((err) => console.error('메시지 전송 실패:', err));
   };
 
@@ -472,6 +472,7 @@ const saveMyRoom = (room: Room) => {
     </div>
   );
 }
+
 
 
 
