@@ -453,7 +453,7 @@ const saveMyRoom = (room: Room) => {
         visible={!!currentRoomId}
       />
 
-      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleVoiceSend} />
+      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleSend} />
 
       <WordModal
         data={selectedMessage ? {
@@ -472,6 +472,7 @@ const saveMyRoom = (room: Room) => {
     </div>
   );
 }
+
 
 
 
