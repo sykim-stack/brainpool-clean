@@ -210,6 +210,7 @@ const saveMyRoom = (room: Room) => {
           riskScore: 0,
           timestamp: m.timestamp || m.createdAt,
           userId: m.userId || '',
+          audioUrl: m.audioUrl || m.meta?.audioUrl || undefined,
         };
       });
 
@@ -227,11 +228,11 @@ const saveMyRoom = (room: Room) => {
     }
   }, [messages.length, firstLanguage]);
 
-  const sendMessageToRoom = async (roomId: string, text: string) => {
+  const sendMessageToRoom = async (roomId: string, text: string, audioUrl?: string) => {
     await fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ roomId, userId: deviceId, original: text, analyze: true }),
+      body: JSON.stringify({ roomId, userId: deviceId, original: text, analyze: true, audioUrl }),,
     }).catch((err) => console.error('메시지 전송 실패:', err));
   };
 
@@ -452,7 +453,7 @@ const saveMyRoom = (room: Room) => {
         visible={!!currentRoomId}
       />
 
-      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
+      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleVoiceSend} />
 
       <WordModal
         data={selectedMessage ? {
