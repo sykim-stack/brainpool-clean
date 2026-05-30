@@ -1,4 +1,6 @@
-import { getStorage } from '../../connectors/storage.js';
+﻿const fs = require('fs');
+
+const js = `import { getStorage } from '../../connectors/storage.js';
 
 function isUUID(str) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str || '');
@@ -72,3 +74,7 @@ export async function ChatMessageEngine(ctx) {
 }
 
 export default ChatMessageEngine;
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/brain-engine/engines/chat/message.js', js, 'utf8');
+console.log('완료');
