@@ -39,28 +39,28 @@ interface DailyWord {
   culturalNote?: string;
 }
 
+// ── 푸시 구독 ────────────────────────────────────────────────────────
+const subscribePush = async (deviceId: string) => {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    });
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: deviceId, subscription: sub }),
+    });
+  } catch (e) {
+    console.warn('[Push] 구독 실패:', e);
+  }
+};
 
-  const subscribePush = async (deviceId: string) => {
-    try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-      const reg = await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
-      if (existing) return;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      });
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: deviceId, subscription: sub }),
-      });
-      console.log('[Push] 구독 완료');
-    } catch (e) {
-      console.warn('[Push] 구독 실패:', e);
-    }
-  };
-
+// ── device_id ────────────────────────────────────────────────────────
 const getDeviceId = () => {
   if (typeof window === 'undefined') return 'anonymous';
   let id = localStorage.getItem('deviceId');
@@ -71,6 +71,7 @@ const getDeviceId = () => {
   return id;
 };
 
+// ── 오늘의 단어 ──────────────────────────────────────────────────────
 const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   const res = await fetch('/api/corenull', {
     method: 'POST',
@@ -79,7 +80,6 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   }).catch(() => null);
 
   if (!res || !res.ok) return { word: '', _error: 'fetch_failed' };
-
   const text = await res.text().catch(() => null);
   if (!text) return { word: '', _error: 'empty' };
 
@@ -90,63 +90,59 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   if (!json.success || !json.payload?.word) return { word: '', _error: 'no_payload' };
 
   return {
-    word: json.payload.word,
-    meaning: json.payload.meaning,
-    usage: json.payload.usage,
+    word:        json.payload.word,
+    meaning:     json.payload.meaning,
+    usage:       json.payload.usage,
     culturalNote: json.payload.culturalNote,
   };
 };
 
+// ── 메인 컴포넌트 ────────────────────────────────────────────────────
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
-  const [currentRoomCode, setCurrentRoomCode] = useState('------');
-  const [isRoomMode, setIsRoomMode] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [nickname, setNickname] = useState('익명');
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [selectedWord, setSelectedWord] = useState<any>(null);
-  const [wordLoading, setWordLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [deviceId] = useState(getDeviceId());
-  const chatRef = useRef<HTMLDivElement>(null);
-  const [firstLanguage, setFirstLanguage] = useState<string | null>(null);
-  const [dailyWord, setDailyWord] = useState<DailyWord>({
-    word: 'xin chào',
-    meaning: '안녕하세요',
+  const [messages,       setMessages]       = useState<Message[]>([]);
+  const [rooms,          setRooms]          = useState<Room[]>([]);
+  const [currentRoomId,  setCurrentRoomId]  = useState<string | null>(null);
+  const [currentRoomCode,setCurrentRoomCode]= useState('------');
+  const [isRoomMode,     setIsRoomMode]     = useState(false);
+  const [isTyping,       setIsTyping]       = useState(false);
+  const [nickname,       setNickname]       = useState('익명');
+  const [selectedMessage,setSelectedMessage]= useState<Message | null>(null);
+  const [selectedWord,   setSelectedWord]   = useState<any>(null);
+  const [isLoading,      setIsLoading]      = useState(false);
+  const [deviceId]                          = useState(getDeviceId);
+  const chatRef                             = useRef<HTMLDivElement>(null);
+  const [firstLanguage,  setFirstLanguage]  = useState<string | null>(null);
+  const [dailyWord,      setDailyWord]      = useState<DailyWord>({
+    word: 'xin chào', meaning: '안녕하세요',
     usage: '처음 만나는 사람에게 쓰는 베트남어 인사',
     culturalNote: '남부에서는 "chào" 만으로도 자연스럽습니다',
   });
-  const [showDaily, setShowDaily] = useState(true);
-
-// 불러오기
-const [myRooms, setMyRooms] = useState<Room[]>(() => {
-  if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem('myRooms') || '[]');
-});
-
-const saveMyRoom = (room: Room) => {
-  setMyRooms(prev => {
-    const exists = prev.find(r => r.roomId === room.roomId);
-    if (exists) return prev;
-    const updated = [room, ...prev].slice(0, 10);
-    localStorage.setItem('myRooms', JSON.stringify(updated));
-    return updated;
+  const [showDaily, setShowDaily]   = useState(true);
+  const [activeTab, setActiveTab]   = useState<'ring' | 'phrase'>('ring');
+  const [myRooms,   setMyRooms]     = useState<Room[]>(() => {
+    if (typeof window === 'undefined') return [];
+    return JSON.parse(localStorage.getItem('myRooms') || '[]');
   });
-};
 
+  const saveMyRoom = (room: Room) => {
+    setMyRooms(prev => {
+      const exists = prev.find(r => r.roomId === room.roomId);
+      if (exists) return prev;
+      const updated = [room, ...prev].slice(0, 10);
+      localStorage.setItem('myRooms', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // ── 스크롤 ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
 
+  // ── 오늘의 단어 로드 ───────────────────────────────────────────────
   useEffect(() => {
-    fetchDailyWord().then((result) => {
-      if (!result._error && result.word) {
-        setDailyWord(result);
-      }
+    fetchDailyWord().then(result => {
+      if (!result._error && result.word) setDailyWord(result);
     });
   }, []);
 
@@ -154,18 +150,23 @@ const saveMyRoom = (room: Room) => {
     if (messages.length > 0) setShowDaily(false);
   }, [messages.length]);
 
+  // ── 방 목록 로드 ───────────────────────────────────────────────────
+  // /api/chat GET 으로 변경 (list rooms는 ChatRoomEngine LIST_ROOMS 활용)
+  // 단, GET /api/chat은 poll 전용이므로 rooms 조회는 별도 처리
+  // → ChatRoomEngine LIST_ROOMS를 /api/chat POST action=list 로 추가하거나
+  //   아래처럼 /api/chat/rooms GET 임시 유지 (TASK-02 완전 전환 후 제거)
   const loadRooms = useCallback(async () => {
     const res = await fetch('/api/chat/rooms', {
       headers: { 'x-device-id': deviceId },
     }).catch(() => null);
     if (!res) return;
     const data = await res.json().catch(() => null);
-    if (!data) return;
     if (data?.payload?.rooms) setRooms(data.payload.rooms);
   }, [deviceId]);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
 
+  // ── 푸시 ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!deviceId) return;
     Notification.requestPermission().then(permission => {
@@ -173,11 +174,16 @@ const saveMyRoom = (room: Room) => {
     });
   }, [deviceId]);
 
+  // ── 폴링: /api/chat POST action=poll ────────────────────────────
   useEffect(() => {
     if (!currentRoomId) return;
 
     const poll = async () => {
-      const res = await fetch(`/api/chat/poll?roomId=${currentRoomId}&limit=50`).catch(() => null);
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
+      }).catch(() => null);
       if (!res || !res.ok) return;
 
       const data = await res.json().catch(() => null);
@@ -186,31 +192,23 @@ const saveMyRoom = (room: Room) => {
       const rawMsgs = data.payload?.messages || [];
       if (!rawMsgs.length) return;
 
-      const msgs = [...rawMsgs].reverse();
+      const msgs     = [...rawMsgs].reverse();
       const enriched = msgs.map((m: any) => {
         const hasKorean = /[가-힣]/.test(m.original || '');
-        const srcLang = hasKorean ? 'ko' : 'vi';
-        const tgtLang = srcLang === 'ko' ? 'vi' : 'ko';
-
-        let translated = '';
-        if (m.translations) {
-          translated = m.translations[tgtLang] || m.translations[srcLang] || '';
-        }
-        if (!translated || translated === m.original) {
-          translated = m.original;  // ← 번역 없으면 원문으로 대체
-        }
+        const srcLang   = hasKorean ? 'ko' : 'vi';
+        const tgtLang   = srcLang === 'ko' ? 'vi' : 'ko';
+        let translated  = m.translations?.[tgtLang] || m.translations?.[srcLang] || m.original;
 
         return {
-          messageId: m.messageId || m.id,
-          original: m.original || '',
+          messageId:  m.messageId || m.id,
+          original:   m.original || '',
           translated,
           sourceLang: srcLang,
           targetLang: tgtLang,
-          emotion: typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
-          riskScore: 0,
-          timestamp: m.timestamp || m.createdAt,
-          userId: m.userId || '',
-          audioUrl: m.audioUrl || m.meta?.audioUrl || undefined,
+          emotion:    typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
+          riskScore:  0,
+          timestamp:  m.timestamp || m.createdAt,
+          userId:     m.userId || '',
         };
       });
 
@@ -228,85 +226,62 @@ const saveMyRoom = (room: Room) => {
     }
   }, [messages.length, firstLanguage]);
 
-  const sendMessageToRoom = async (roomId: string, text: string, audioUrl?: string) => {
-    await fetch('/api/chat/send', {
+  // ── 메시지 전송: /api/chat POST action=send ──────────────────────
+  const sendMessageToRoom = async (roomId: string, text: string) => {
+    await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ roomId, userId: deviceId, original: text, analyze: true, audioUrl }),
-    }).catch((err) => console.error('메시지 전송 실패:', err));
+      body: JSON.stringify({ action: 'send', roomId, userId: deviceId, original: text, analyze: true }),
+    }).catch(err => console.error('메시지 전송 실패:', err));
   };
 
+  // ── 방 생성: /api/chat POST action=create ────────────────────────
   const handleSend = useCallback(async (text: string) => {
     setIsLoading(true);
+
     if (!currentRoomId) {
-      const res = await fetch('/api/chat/rooms', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ title: '기본 채팅방' }),
+        body: JSON.stringify({ action: 'create', title: '기본 채팅방' }),
       }).catch(() => null);
 
       const data = res ? await res.json().catch(() => null) : null;
-      // API 응답: { payload: { room: {...} } }
       if (data?.payload?.room) {
         const newRoomId = data.payload.room.roomId;
         setCurrentRoomId(newRoomId);
         setCurrentRoomCode(data.payload.room.inviteCode || '------');
-        saveMyRoom(data.payload.room); // ← 추가
+        saveMyRoom(data.payload.room);
         loadRooms();
         await sendMessageToRoom(newRoomId, text);
       }
     } else {
       await sendMessageToRoom(currentRoomId, text);
     }
+
     setIsLoading(false);
   }, [currentRoomId, deviceId, loadRooms]);
 
-  const handleBubbleClick = useCallback((msg: Message) => {
-    setSelectedMessage(msg);
-    setSelectedWord(null);
-  }, []);
-
-  const handleWordClick = useCallback(async (msg: Message, word: string) => {
-    setSelectedMessage(msg);
-    setSelectedWord(null);
-    const res = await fetch('/api/corenull', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'getWordData', word }),
-    }).catch(() => null);
-    const json = res ? await res.json().catch(() => null) : null;
-    if (json?.success && json.payload) {
-      setSelectedWord(json.payload);
-    }
-  }, []);
-
-  const handleExitRoom = useCallback(() => {
-    setCurrentRoomId(null);
-    setCurrentRoomCode('------');
-    setMessages([]);
-    setIsRoomMode(false);
-    setFirstLanguage(null);
-    setShowDaily(true);
-  }, []);
-
+  // ── 초대코드 입장: /api/chat POST action=join ────────────────────
   const handleJoinByCode = useCallback(async (inviteCode: string) => {
-    const res = await fetch('/api/chat/join', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ inviteCode }),
+      body: JSON.stringify({ action: 'join', inviteCode }),
     }).catch(() => null);
 
     const data = res ? await res.json().catch(() => null) : null;
-    // API 응답: { payload: { room: {...} } }
     if (data?.payload?.room) {
       setCurrentRoomId(data.payload.room.roomId);
       setCurrentRoomCode(data.payload.room.inviteCode || '------');
-      saveMyRoom(data.payload.room); // ← 추가
+      saveMyRoom(data.payload.room);
       setIsRoomMode(false);
     } else {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
     }
   }, []);
+
+  // ── 방 삭제 ───────────────────────────────────────────────────────
   const handleDeleteRoom = useCallback(async (roomId: string) => {
     const res = await fetch(`/api/chat/rooms/${roomId}`, {
       method: 'DELETE',
@@ -321,8 +296,35 @@ const saveMyRoom = (room: Room) => {
       loadRooms();
     }
   }, [loadRooms]);
-  const [activeTab, setActiveTab] = useState<'ring' | 'phrase'>('ring');
 
+  // ── 버블 클릭 ─────────────────────────────────────────────────────
+  const handleBubbleClick = useCallback((msg: Message) => {
+    setSelectedMessage(msg);
+    setSelectedWord(null);
+  }, []);
+
+  const handleWordClick = useCallback(async (msg: Message, word: string) => {
+    setSelectedMessage(msg);
+    setSelectedWord(null);
+    const res = await fetch('/api/corenull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordData', word }),
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.success && json.payload) setSelectedWord(json.payload);
+  }, []);
+
+  const handleExitRoom = useCallback(() => {
+    setCurrentRoomId(null);
+    setCurrentRoomCode('------');
+    setMessages([]);
+    setIsRoomMode(false);
+    setFirstLanguage(null);
+    setShowDaily(true);
+  }, []);
+
+  // ── 렌더 ─────────────────────────────────────────────────────────
   return (
     <div className="app-shell">
       <BrainHeader
@@ -336,9 +338,7 @@ const saveMyRoom = (room: Room) => {
         onClear={async () => {
           setMessages([]);
           if (currentRoomId) {
-            await fetch(`/api/chat/rooms/${currentRoomId}`, {
-              method: 'PATCH',
-            }).catch(() => null);
+            await fetch(`/api/chat/rooms/${currentRoomId}`, { method: 'PATCH' }).catch(() => null);
           }
         }}
         onShare={async () => {
@@ -349,7 +349,7 @@ const saveMyRoom = (room: Room) => {
 
       <RoomList
         rooms={rooms}
-        myRooms={myRooms} 
+        myRooms={myRooms}
         onSelectRoom={(id) => {
           const room = rooms.find(r => r.roomId === id);
           setCurrentRoomId(id);
@@ -357,22 +357,21 @@ const saveMyRoom = (room: Room) => {
         }}
         onJoinByCode={handleJoinByCode}
         onCreateRoom={async (title: string, isPublic: boolean) => {
-          const res = await fetch('/api/chat/rooms', {
+          const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            body: JSON.stringify({ title, isPublic }),
+            body: JSON.stringify({ action: 'create', title, isPublic }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
           if (data?.payload?.room) {
             loadRooms();
             setCurrentRoomId(data.payload.room.roomId);
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
-            saveMyRoom(data.payload.room); // ← 추가
+            saveMyRoom(data.payload.room);
             setIsRoomMode(false);
           }
-
         }}
-        onDeleteRoom={handleDeleteRoom}  // ← 여기 추가
+        onDeleteRoom={handleDeleteRoom}
         visible={isRoomMode && !currentRoomId}
       />
 
@@ -387,37 +386,29 @@ const saveMyRoom = (room: Room) => {
         >CorePhrase</button>
       </div>
 
-      {activeTab === 'phrase' && (
-        <CorePhrase userId={deviceId} />
-      )}
+      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
 
-      <div className="chat-container" ref={chatRef} style={{ display: activeTab === 'ring' ? 'flex' : 'none' }}>
+      <div className="chat-container" ref={chatRef}
+        style={{ display: activeTab === 'ring' ? 'flex' : 'none' }}>
+
         {showDaily && messages.length === 0 && !isLoading && (
           <div className={styles.dailyCard}>
             <p className={styles.dailyLabel}>오늘의 단어</p>
             <p className={styles.dailyWord}>{dailyWord.word}</p>
-            {dailyWord.meaning && (
-              <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
-            )}
-            {dailyWord.usage && (
-              <p className={styles.dailyUsage}>{dailyWord.usage}</p>
-            )}
-            {dailyWord.culturalNote && (
-              <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>
-            )}
+            {dailyWord.meaning    && <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>}
+            {dailyWord.usage      && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
+            {dailyWord.culturalNote && <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>}
           </div>
         )}
 
-        {messages.length === 0 && !isLoading && !dailyWord.word && (
+        {messages.length === 0 && !isLoading && !showDaily && (
           <div className={styles.emptyState}>
             <p>심장을 분석합니다...</p>
             <p className={styles.emptyStateSub}>한국어 ↔ 베트남어 방언까지</p>
           </div>
         )}
 
-        {isLoading && (
-          <div className={styles.loadingState}>번역 분석 중...</div>
-        )}
+        {isLoading && <div className={styles.loadingState}>번역 분석 중...</div>}
 
         {messages.map((msg) => {
           const isFirstLang = msg.sourceLang === firstLanguage;
@@ -457,14 +448,14 @@ const saveMyRoom = (room: Room) => {
 
       <WordModal
         data={selectedMessage ? {
-          sentence: selectedMessage.original,
-          translated: selectedMessage.translated,
-          sourceLang: selectedMessage.sourceLang,
-          emotion: selectedMessage.emotion,
-          riskScore: selectedMessage.riskScore,
-          culturalNote: selectedMessage.culturalNote,
-          sessionId: currentRoomId || undefined,
-          wordDetail: selectedWord || undefined,
+          sentence:    selectedMessage.original,
+          translated:  selectedMessage.translated,
+          sourceLang:  selectedMessage.sourceLang,
+          emotion:     selectedMessage.emotion,
+          riskScore:   selectedMessage.riskScore,
+          culturalNote:selectedMessage.culturalNote,
+          sessionId:   currentRoomId || undefined,
+          wordDetail:  selectedWord || undefined,
         } : null}
         userId={deviceId}
         onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
@@ -472,9 +463,3 @@ const saveMyRoom = (room: Room) => {
     </div>
   );
 }
-
-
-
-
-
-
