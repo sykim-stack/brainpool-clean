@@ -119,6 +119,7 @@ export default function Home() {
   });
   const [showDaily, setShowDaily]   = useState(true);
   const [showRoomBanner, setShowRoomBanner] = useState(false);
+  const [langHistory, setLangHistory] = useState<string[]>([]);
   const [activeTab, setActiveTab]   = useState<'ring' | 'phrase'>('ring');
   const [myRooms,   setMyRooms]     = useState<Room[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -239,9 +240,7 @@ export default function Home() {
   // ── 방 생성: /api/chat POST action=create ────────────────────────
   const handleSend = useCallback(async (text: string) => {
     setIsLoading(true);
-
     if (!currentRoomId) {
-      // 방 없으면 번역만 하고 배너 표시
       try {
         const res = await fetch('/api/brainpool', {
           method: 'POST',
@@ -249,30 +248,36 @@ export default function Home() {
           body: JSON.stringify({ text }),
         }).catch(() => null);
         const data = res ? await res.json().catch(() => null) : null;
-        if (data?.message) {
-          const msg = data.message;
-          const srcLang = msg.meta?.sourceLang || null;
-          const tgtLang = srcLang === 'ko' ? 'vi' : 'ko';
+        if (data?.payload) {
+          const p = data.payload;
+          const srcLang = p.sourceLang || null;
+          const tgtLang = p.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
           setMessages(prev => [...prev, {
-            messageId: msg.id,
-            original: msg.payload.original,
-            translated: msg.payload.translated,
+            messageId: p.id || crypto.randomUUID(),
+            original: p.original || text,
+            translated: p.translated || text,
             sourceLang: srcLang,
             targetLang: tgtLang,
-            emotion: msg.meta?.emotion || 'neutral',
+            emotion: p.emotion || 'neutral',
             riskScore: 0,
             timestamp: new Date().toISOString(),
             userId: deviceId,
           }]);
+          // 양방향 대화 감지
+          setLangHistory(prev => {
+            const updated = [...prev, srcLang || 'unknown'];
+            const hasKo = updated.includes('ko');
+            const hasVi = updated.includes('vi');
+            if (hasKo && hasVi) setShowRoomBanner(true);
+            return updated;
+          });
         }
       } catch (e) {}
-      setShowRoomBanner(true);
       setIsLoading(false);
       return;
     } else {
       await sendMessageToRoom(currentRoomId, text);
     }
-
     setIsLoading(false);
   }, [currentRoomId, deviceId, loadRooms]);
 
