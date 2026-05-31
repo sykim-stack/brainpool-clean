@@ -118,6 +118,7 @@ export default function Home() {
     culturalNote: '남부에서는 "chào" 만으로도 자연스럽습니다',
   });
   const [showDaily, setShowDaily]   = useState(true);
+  const [showRoomBanner, setShowRoomBanner] = useState(false);
   const [activeTab, setActiveTab]   = useState<'ring' | 'phrase'>('ring');
   const [myRooms,   setMyRooms]     = useState<Room[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -240,21 +241,34 @@ export default function Home() {
     setIsLoading(true);
 
     if (!currentRoomId) {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ action: 'create', title: '기본 채팅방' }),
-      }).catch(() => null);
-
-      const data = res ? await res.json().catch(() => null) : null;
-      if (data?.payload?.room) {
-        const newRoomId = data.payload.room.roomId;
-        setCurrentRoomId(newRoomId);
-        setCurrentRoomCode(data.payload.room.inviteCode || '------');
-        saveMyRoom(data.payload.room);
-        loadRooms();
-        await sendMessageToRoom(newRoomId, text);
-      }
+      // 방 없으면 번역만 하고 배너 표시
+      try {
+        const res = await fetch('/api/brainpool', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ text }),
+        }).catch(() => null);
+        const data = res ? await res.json().catch(() => null) : null;
+        if (data?.message) {
+          const msg = data.message;
+          const srcLang = msg.meta?.sourceLang || null;
+          const tgtLang = srcLang === 'ko' ? 'vi' : 'ko';
+          setMessages(prev => [...prev, {
+            messageId: msg.id,
+            original: msg.payload.original,
+            translated: msg.payload.translated,
+            sourceLang: srcLang,
+            targetLang: tgtLang,
+            emotion: msg.meta?.emotion || 'neutral',
+            riskScore: 0,
+            timestamp: new Date().toISOString(),
+            userId: deviceId,
+          }]);
+        }
+      } catch (e) {}
+      setShowRoomBanner(true);
+      setIsLoading(false);
+      return;
     } else {
       await sendMessageToRoom(currentRoomId, text);
     }
@@ -445,6 +459,58 @@ export default function Home() {
       />
 
       <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} />
+
+      {showRoomBanner && !currentRoomId && (
+        <div style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '16px 20px',
+          width: '90%',
+          maxWidth: '400px',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}>
+          <p style={{ color: 'var(--color-text)', fontSize: 'var(--font-sm)', margin: 0 }}>
+            상대방과 함께 사용하시나요?
+          </p>
+          <button
+            onClick={() => {
+              setShowRoomBanner(false);
+              setIsRoomMode(true);
+            }}
+            style={{
+              background: 'var(--color-accent)',
+              color: 'var(--color-bg)',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px',
+              cursor: 'pointer',
+              fontSize: 'var(--font-sm)',
+            }}
+          >
+            💬 채팅방 만들기
+          </button>
+          <button
+            onClick={() => setShowRoomBanner(false)}
+            style={{
+              background: 'transparent',
+              color: 'var(--color-text-muted)',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 'var(--font-xs)',
+            }}
+          >
+            닫기
+          </button>
+        </div>
+      )}
 
       <WordModal
         data={selectedMessage ? {
