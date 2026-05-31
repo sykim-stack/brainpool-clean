@@ -1,4 +1,6 @@
-// brain-engine/layers/CoreNullLayer.js
+﻿const fs = require('fs');
+
+const js = `// brain-engine/layers/CoreNullLayer.js
 // DB 스키마: id, standard_word, southern_word, hue_word, mekong_word, meaning_ko, meaning_en,
 // part_of_speech, category_main, category_sub, pronunciation_diff, conversion_rule,
 // frequency, formality_level, generation, region, example_northern, example_southern,
@@ -17,7 +19,7 @@ export class CoreNullLayer {
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
       default:
-        return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
+        return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: \`Unknown action: \${action}\` } };
     }
   }
 
@@ -53,7 +55,7 @@ export class CoreNullLayer {
       data = result2.data;
     }
 
-    if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
+    if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: \`Word "\${word}" not found\` } };
 
     const example = (dialect === 'southern')
       ? data.example_southern
@@ -179,3 +181,7 @@ export class CoreNullLayer {
 }
 
 export default CoreNullLayer;
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/brain-engine/layers/CoreNullLayer.js', js, 'utf8');
+console.log('완료');
