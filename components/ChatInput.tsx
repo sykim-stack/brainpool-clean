@@ -45,7 +45,24 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
   const startRecording = async () => {
     try {
       audioChunks.current = [];
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+        }
+      });
+
+      // 오디오 증폭
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = 2.5; // 2.5배 증폭
+      const dest = audioCtx.createMediaStreamDestination();
+      source.connect(gainNode);
+      gainNode.connect(dest);
+      const amplifiedStream = dest.stream;
       streamRef.current = stream;
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -54,7 +71,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
         ? 'audio/webm'
         : 'audio/mp4';
 
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const recorder = new MediaRecorder(amplifiedStream, { mimeType });
       mediaRecorder.current = recorder;
 
       recorder.ondataavailable = (e) => {
