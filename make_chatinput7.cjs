@@ -1,4 +1,6 @@
-'use client';
+﻿const fs = require('fs');
+
+const tsx = `'use client';
 import { useState, useRef } from 'react';
 import styles from './ChatInput.module.css';
 
@@ -79,7 +81,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
           }
 
           const ext = mType.includes('mp4') ? 'mp4' : mType.includes('ogg') ? 'ogg' : 'webm';
-          const fileName = `voice/${userId || 'anon'}/${Date.now()}.${ext}`;
+          const fileName = \`voice/\${userId || 'anon'}/\${Date.now()}.\${ext}\`;
 
           const formData = new FormData();
           formData.append('file', blob, fileName);
@@ -145,7 +147,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
         onPointerDown={startRecording}
         onPointerUp={stopRecording}
         onPointerLeave={stopRecording}
-        className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
+        className={\`\${styles.voiceBtn} \${isRecording ? styles.recording : ''}\`}
         disabled={isUploading}
         type="button"
       >
@@ -165,3 +167,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
     </div>
   );
 }
+`;
+
+fs.writeFileSync('C:/brainpool-clean/brainpool-clean/components/ChatInput.tsx', tsx, 'utf8');
+console.log('완료');
