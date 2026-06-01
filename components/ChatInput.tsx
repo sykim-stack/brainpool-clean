@@ -101,6 +101,8 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
           console.warn('[Voice] 실패:', e);
         } finally {
           setIsUploading(false);
+          mediaRecorder.current = null;
+          audioChunks.current = [];
         }
       };
 
