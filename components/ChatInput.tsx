@@ -18,6 +18,7 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -56,7 +57,9 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
       });
 
       // 오디오 증폭
+      if (audioCtxRef.current) { audioCtxRef.current.close(); }
       const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const gainNode = audioCtx.createGain();
       gainNode.gain.value = 5.0; // 2.5배 증폭
@@ -122,6 +125,7 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
           setIsUploading(false);
           mediaRecorder.current = null;
           audioChunks.current = [];
+          if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
         }
       };
 
