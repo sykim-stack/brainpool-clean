@@ -166,6 +166,8 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
         onPointerDown={startRecording}
         onPointerUp={stopRecording}
         onPointerLeave={stopRecording}
+        onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+        onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
         disabled={isUploading}
         type="button"
