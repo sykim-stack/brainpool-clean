@@ -6,9 +6,10 @@ interface ChatInputProps {
   onSend: (text: string) => void;
   onTypingChange?: (isTyping: boolean) => void;
   userId?: string;
+  onVoiceSend?: (audioUrl: string) => void;
 }
 
-export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -113,6 +114,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
 
           if (json?.url) {
             console.log('[Voice] 저장 완료:', json.url);
+            if (onVoiceSend) onVoiceSend(json.url);
           }
         } catch (e) {
           console.warn('[Voice] 실패:', e);

@@ -15,6 +15,7 @@ interface ChatBubbleProps {
   messageId: string;
   isFirstLang: boolean;
   onClick?: () => void;
+  audioUrl?: string;
   onWordClick?: (word: string) => void;
 }
 

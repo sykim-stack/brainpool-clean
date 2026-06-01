@@ -211,6 +211,7 @@ export default function Home() {
           riskScore:  0,
           timestamp:  m.timestamp || m.createdAt,
           userId:     m.userId || '',
+          audioUrl:   m.audioUrl || undefined,
         };
       });
 
@@ -317,6 +318,15 @@ export default function Home() {
   }, [loadRooms]);
 
   // ── 버블 클릭 ─────────────────────────────────────────────────────
+
+  const handleVoiceSend = useCallback((audioUrl: string) => {
+    setMessages(prev => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      return [...prev.slice(0, -1), { ...last, audioUrl }];
+    });
+  }, []);
+
   const handleBubbleClick = useCallback((msg: Message) => {
     setSelectedMessage(msg);
     setSelectedWord(null);
@@ -463,7 +473,7 @@ export default function Home() {
         visible={!!currentRoomId}
       />
 
-      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} />
+      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleVoiceSend} />
 
       {showRoomBanner && !currentRoomId && (
         <div style={{
