@@ -58,7 +58,7 @@ export default function ChatInput({ onSend, onTypingChange, userId }: ChatInputP
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
       const gainNode = audioCtx.createGain();
-      gainNode.gain.value = 2.5; // 2.5배 증폭
+      gainNode.gain.value = 5.0; // 2.5배 증폭
       const dest = audioCtx.createMediaStreamDestination();
       source.connect(gainNode);
       gainNode.connect(dest);
