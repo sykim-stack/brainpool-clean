@@ -22,6 +22,7 @@ interface Message {
   culturalNote?: string;
   timestamp: string;
   userId?: string;
+  audioUrl?: string;
 }
 
 interface Room {

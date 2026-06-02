@@ -32,6 +32,7 @@ export default function ChatBubble({
   isFirstLang,
   onClick,
   onWordClick,
+  audioUrl,
 }: ChatBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
