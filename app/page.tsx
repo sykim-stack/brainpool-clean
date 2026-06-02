@@ -319,13 +319,19 @@ export default function Home() {
 
   // ── 버블 클릭 ─────────────────────────────────────────────────────
 
-  const handleVoiceSend = useCallback((audioUrl: string) => {
+  const handleVoiceSend = useCallback(async (audioUrl: string) => {
+    // 음성 메시지 채팅 전송
+    const voiceText = '🎤 음성 메시지';
+    if (currentRoomId) {
+      await sendMessageToRoom(currentRoomId, voiceText);
+    }
+    // 마지막 메시지에 audioUrl 붙이기
     setMessages(prev => {
       if (!prev.length) return prev;
       const last = prev[prev.length - 1];
       return [...prev.slice(0, -1), { ...last, audioUrl }];
     });
-  }, []);
+  }, [currentRoomId]);
 
   const handleBubbleClick = useCallback((msg: Message) => {
     setSelectedMessage(msg);
@@ -455,6 +461,7 @@ export default function Home() {
               messageId={msg.messageId}
               isFirstLang={isFirstLang}
               onClick={() => handleBubbleClick(msg)}
+              audioUrl={msg.audioUrl}
               onWordClick={(word) => handleWordClick(msg, word)}
             />
           );

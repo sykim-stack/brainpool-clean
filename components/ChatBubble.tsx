@@ -175,6 +175,15 @@ export default function ChatBubble({
             ⚠{Math.round(riskScore * 100)}
           </span>
         )}
+        {audioUrl && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              new Audio(audioUrl).play().catch(() => null);
+            }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px" }}
+          >🔊</button>
+        )}
         <span>
           {new Date(timestamp).toLocaleTimeString('ko-KR', {
             hour: '2-digit', minute: '2-digit',
