@@ -212,11 +212,9 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             </div>
           ) : (
             <button
-              onPointerDown={startRecording}
-              onPointerUp={stopRecording}
-              onPointerLeave={stopRecording}
               onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
               onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
+              onClick={startRecording}
               disabled={isUploading}
               className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
               style={{ width: '100%' }}
