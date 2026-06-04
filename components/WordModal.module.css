@@ -367,3 +367,8 @@
   color: var(--color-text-muted);
   cursor: default;
 }
+
+.recordingBtn {
+  background: var(--color-warn) !important;
+  animation: pulse 1s infinite;
+}
