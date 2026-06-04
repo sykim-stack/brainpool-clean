@@ -10,6 +10,7 @@ interface BrainHeaderProps {
   isTyping: boolean;
   onClear: () => void;
   onShare: () => void;
+  onInstall?: () => void;  // ← 추가
 }
 
 export default function BrainHeader({
@@ -19,6 +20,7 @@ export default function BrainHeader({
   isTyping,
   onClear,
   onShare,
+  onInstall,  // ← 추가
 }: BrainHeaderProps) {
   return (
     <header className={styles.header}>
@@ -48,19 +50,8 @@ export default function BrainHeader({
           <span className={styles.divider} />
 
           {/* 삭제 */}
-          <button
-            className="icon-btn"
-            onClick={onClear}
-            aria-label="대화 삭제"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="17"
-              height="17"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
+          <button className="icon-btn" onClick={onClear} aria-label="대화 삭제">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
               <path d="M10 11v6M14 11v6" />
@@ -69,23 +60,22 @@ export default function BrainHeader({
           </button>
 
           {/* 공유 */}
-          <button
-            className="icon-btn"
-            onClick={onShare}
-            aria-label="공유"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
+          <button className="icon-btn" onClick={onShare} aria-label="공유">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           </button>
+
+          {/* 홈 화면 추가 */}
+          {onInstall && (
+            <button className="icon-btn" onClick={onInstall} aria-label="홈 화면에 추가">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </button>
+          )}
 
         </div>
       </div>

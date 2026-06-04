@@ -136,7 +136,32 @@ export default function Home() {
       return updated;
     });
   };
-
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showIOSGuide,   setShowIOSGuide]   = useState(false);
+  
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+  
+  const handleInstall = useCallback(async () => {
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isKakao = /KAKAOTALK/i.test(navigator.userAgent);
+  
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    } else if (isIOS) {
+      setShowIOSGuide(true);
+    } else if (isKakao) {
+      window.open(
+        `intent://${location.href.replace(/https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
+      );
+    }
+  }, [deferredPrompt]);
   // ── 스크롤 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -394,6 +419,7 @@ export default function Home() {
           await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
             .catch(() => navigator.clipboard.writeText(location.href));
         }}
+        onInstall={handleInstall}
       />
 
       <RoomList
@@ -562,6 +588,27 @@ export default function Home() {
         userId={deviceId}
         onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
       />
+      {showIOSGuide && (
+  <div style={{
+    position: 'fixed', bottom: '80px', left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-accent)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '16px 20px', width: '90%', maxWidth: '400px', zIndex: 50,
+  }}>
+    <p style={{ color: 'var(--color-text)', fontSize: 'var(--font-sm)', margin: '0 0 10px' }}>
+      📲 Safari 하단 공유버튼 → "홈 화면에 추가"
+    </p>
+    <button onClick={() => setShowIOSGuide(false)}
+      style={{ background: 'transparent', color: 'var(--color-text-muted)', border: 'none', cursor: 'pointer' }}>
+      닫기
+    </button>
+  </div>
+)}
     </div>
   );
 }
+
+
+
