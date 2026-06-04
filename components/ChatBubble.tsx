@@ -180,7 +180,8 @@ export default function ChatBubble({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              new Audio(audioUrl).play().catch(() => null);
+              const audio = new Audio(audioUrl);
+              audio.play().catch(() => { window.open(audioUrl, '_blank'); });
             }}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px" }}
           >🔊</button>

@@ -190,7 +190,13 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           {audioUrl ? (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
-                onClick={() => new Audio(audioUrl).play()}
+                onClick={() => {
+                const audio = new Audio(audioUrl);
+                audio.play().catch(() => {
+                  // iOS fallback
+                  window.open(audioUrl, '_blank');
+                });
+              }}
                 className={styles.savedBtn}
                 style={{ flex: 1 }}
               >
