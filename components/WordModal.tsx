@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef } from 'react';
 import styles from './WordModal.module.css';
@@ -220,7 +220,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
               style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}
               disabled={isUploading}
               className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
-              style={{ width: '100%' }}
             >
               {isUploading ? '⏳ 저장 중...' : isRecording ? '🔴 녹음 중... (떼면 완료)' : '🎤 누르고 말하세요'}
             </button>
@@ -260,3 +259,4 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
