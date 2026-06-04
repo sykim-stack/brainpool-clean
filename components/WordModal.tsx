@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import styles from './WordModal.module.css';
@@ -30,7 +30,7 @@ interface WordModalProps {
 }
 
 const saveWord = async (payload: { user_id?: string; word: string; meaning_kr?: string; source_session_id?: string }) => {
-  const res = await fetch('/api/corenull', {
+  const res = await fetch('/api/phrase', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ action: 'save-word', ...payload }),
@@ -156,3 +156,4 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

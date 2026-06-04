@@ -74,7 +74,7 @@ const getDeviceId = () => {
 
 // ── 오늘의 단어 ──────────────────────────────────────────────────────
 const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
-  const res = await fetch('/api/corenull', {
+  const res = await fetch('/api/phrase', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ action: 'get-random-word' }),
@@ -355,7 +355,7 @@ export default function Home() {
   const handleWordClick = useCallback(async (msg: Message, word: string) => {
     setSelectedMessage(msg);
     setSelectedWord(null);
-    const res = await fetch('/api/corenull', {
+    const res = await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'getWordData', word }),

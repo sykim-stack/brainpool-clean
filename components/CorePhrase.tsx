@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import styles from './CorePhrase.module.css';
@@ -35,7 +35,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   const fetchVocab = async () => {
     setIsLoading(true);
-    const res = await fetch('/api/corenull', {
+    const res = await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'get-user-vocabulary', user_id: userId }),
@@ -49,7 +49,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   useEffect(() => { fetchVocab(); }, [userId]);
 
   const updateItem = async (item: VocabItem, fields: Record<string, any>) => {
-    await fetch('/api/corenull', {
+    await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'update-vocabulary', id: item.id, user_id: userId, ...fields }),
@@ -58,7 +58,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   };
 
   const deleteItem = async (item: VocabItem) => {
-    await fetch('/api/corenull', {
+    await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'delete-vocabulary', id: item.id, user_id: userId }),
@@ -281,3 +281,4 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     </div>
   );
 }
+
