@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useRef } from 'react';
 import styles from './ChatInput.module.css';
 
@@ -9,16 +9,11 @@ interface ChatInputProps {
   onVoiceSend?: (audioUrl: string) => void;
 }
 
-export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef<string>('');
 
@@ -46,135 +41,42 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
     }
   };
 
-  const cleanup = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close();
-      audioCtxRef.current = null;
-    }
-    try { recognitionRef.current?.stop(); } catch(e) {}
-    recognitionRef.current = null;
-    mediaRecorder.current = null;
-    audioChunks.current = [];
-  };
-
-  const uploadAudio = async (blob: Blob, mimeType: string) => {
-    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-    const fileName = `voice/${userId || 'anon'}/${Date.now()}.${ext}`;
-    const formData = new FormData();
-    formData.append('file', blob, fileName);
-    formData.append('fileName', fileName);
-    formData.append('mimeType', mimeType);
-    const res = await fetch('/api/voice/upload', { method: 'POST', body: formData }).catch(() => null);
-    const json = res ? await res.json().catch(() => null) : null;
-    return json?.url || null;
-  };
-
   const startRecording = async () => {
     try {
-      cleanup();
       transcriptRef.current = '';
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-      });
-      streamRef.current = stream;
-
-      // 오디오 증폭
-      const audioCtx = new AudioContext();
-      audioCtxRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.value = 5.0;
-      const dest = audioCtx.createMediaStreamDestination();
-      source.connect(gainNode);
-      gainNode.connect(dest);
-
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm';
-
-      const recorder = new MediaRecorder(dest.stream, { mimeType });
-      mediaRecorder.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        setIsUploading(true);
-        try {
-          const mType = recorder.mimeType || mimeType;
-          const blob = new Blob(audioChunks.current, { type: mType });
-          console.log('[Voice] blob:', blob.size);
-
-          if (blob.size > 1000) {
-            // STT 결과 (Web Speech API에서 받은 것)
-            const transcript = transcriptRef.current || '';
-            console.log('[STT] 결과:', transcript);
-
-            // 백그라운드 음성 저장
-            const audioUrl = await uploadAudio(blob, mType);
-            console.log('[Voice] URL:', audioUrl);
-
-            // 텍스트 전송
-            if (transcript) {
-              onSend(transcript);
-            }
-
-            // audioUrl 콜백
-            if (audioUrl && onVoiceSend) onVoiceSend(audioUrl);
-          }
-        } catch (e) {
-          console.warn('[Voice] 실패:', e);
-        } finally {
-          setIsUploading(false);
-          cleanup();
-        }
-      };
-
-      recorder.start(100);
-
-      // STT 시작
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.lang = 'vi-VN';
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.onresult = (e: any) => {
-          let final = '';
-          for (let i = 0; i < e.results.length; i++) {
-            if (e.results[i].isFinal) final += e.results[i][0].transcript;
-          }
-          if (final) {
-            transcriptRef.current = final;
-            console.log('[STT]', final);
-          }
-        };
-        rec.onerror = (e: any) => console.warn('[STT] 오류:', e.error);
-        rec.start();
-        recognitionRef.current = rec;
+      if (!SpeechRecognition) {
+        alert('이 브라우저는 음성 인식을 지원하지 않습니다.');
+        return;
       }
-
+      const rec = new SpeechRecognition();
+      rec.lang = 'ko-KR';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = (e: any) => {
+        let final = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        }
+        if (final) transcriptRef.current = final;
+      };
+      rec.onerror = (e: any) => console.warn('[STT] 오류:', e.error);
+      rec.start();
+      recognitionRef.current = rec;
       setIsRecording(true);
     } catch (e) {
-      console.warn('마이크 실패:', e);
+      console.warn('음성 인식 실패:', e);
     }
   };
 
   const stopRecording = () => {
     if (!isRecording) return;
     setIsRecording(false);
-
-    // STT 중지
     try { recognitionRef.current?.stop(); } catch(e) {}
-
-    // 500ms 대기 후 녹음 종료 (STT 마지막 결과 수집)
     setTimeout(() => {
-      if (mediaRecorder.current?.state === 'recording') {
-        mediaRecorder.current.requestData();
-        setTimeout(() => mediaRecorder.current?.stop(), 100);
+      if (transcriptRef.current) {
+        onSend(transcriptRef.current);
+        transcriptRef.current = '';
       }
     }, 500);
   };
@@ -197,10 +99,9 @@ export default function ChatInput({ onSend, onTypingChange, userId, onVoiceSend 
         onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
         onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
-        disabled={isUploading}
         type="button"
       >
-        {isUploading ? '⏳' : isRecording ? '🔴' : '🎤'}
+        {isRecording ? '🔴' : '🎤'}
       </button>
       <button
         onClick={handleSend}
