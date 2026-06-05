@@ -197,7 +197,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
                   window.open(audioUrl, '_blank');
                 });
               }}
-                className={styles.savedBtn}
+              className={styles.saveBtn}
                 style={{ flex: 1 }}
               >
                 🔊 발음 듣기
