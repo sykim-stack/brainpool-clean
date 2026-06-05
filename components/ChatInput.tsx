@@ -96,8 +96,9 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
         onPointerDown={startRecording}
         onPointerUp={stopRecording}
         onPointerLeave={stopRecording}
-        onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
-        onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
+        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); startRecording(); }}
+        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); stopRecording(); }}
+        onContextMenu={(e) => e.preventDefault()}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
         type="button"
       >
@@ -117,3 +118,4 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
     </div>
   );
 }
+
