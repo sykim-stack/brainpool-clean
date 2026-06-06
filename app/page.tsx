@@ -9,7 +9,6 @@ import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
 import CorePhrase from '@/components/CorePhrase';
 import ShareRoomModal from '@/components/ShareRoomModal';
-import ShareRoomModal from '@/components/ShareRoomModal';
 import styles from './page.module.css';
 
 interface Message {
