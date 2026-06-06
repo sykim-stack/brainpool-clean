@@ -9,6 +9,7 @@ import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
 import CorePhrase from '@/components/CorePhrase';
 import ShareRoomModal from '@/components/ShareRoomModal';
+import ShareRoomModal from '@/components/ShareRoomModal';
 import styles from './page.module.css';
 
 interface Message {
@@ -121,6 +122,7 @@ export default function Home() {
   });
   const [showDaily, setShowDaily]   = useState(true);
   const [showRoomBanner, setShowRoomBanner] = useState(false);
+  const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
   const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
   const [langHistory, setLangHistory] = useState<string[]>([]);
   const [activeTab, setActiveTab]   = useState<'ring' | 'phrase'>('ring');
@@ -574,6 +576,13 @@ export default function Home() {
             닫기
           </button>
         </div>
+      )}
+
+      {shareRoomCode && (
+        <ShareRoomModal
+          roomCode={shareRoomCode}
+          onClose={() => setShareRoomCode(null)}
+        />
       )}
 
       {shareRoomCode && (
