@@ -123,7 +123,6 @@ export default function Home() {
   const [showDaily, setShowDaily]   = useState(true);
   const [showRoomBanner, setShowRoomBanner] = useState(false);
   const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
-  const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
   const [langHistory, setLangHistory] = useState<string[]>([]);
   const [activeTab, setActiveTab]   = useState<'ring' | 'phrase'>('ring');
   const [myRooms,   setMyRooms]     = useState<Room[]>(() => {
