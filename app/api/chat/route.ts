@@ -78,10 +78,10 @@ export async function POST(request: NextRequest) {
 
     // ── create ──
     if (action === 'create') {
-      const { title, createdBy, tags, maxParticipants } = body;
+      const { title, createdBy, tags, maxParticipants, isPublic = true } = body;
       if (!title) return NextResponse.json({ payload: null, _error: 'title required', traceId }, { status: 400 });
       const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
-      const result: any = await ChatRoomEngine({ type: 'CREATE_ROOM', payload: { title, createdBy: createdBy || 'anonymous', tags: tags || [], maxParticipants: maxParticipants || 100 }, traceId, _error: null });
+      const result: any = await ChatRoomEngine({ type: 'CREATE_ROOM', payload: { title, createdBy: createdBy || 'anonymous', tags: tags || [], maxParticipants: maxParticipants || 100, isPublic }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
       return NextResponse.json({ payload: { room: result.room }, _error: null, traceId }, { status: 201 });
     }

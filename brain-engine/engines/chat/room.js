@@ -9,7 +9,7 @@ function generateInviteCode() {
 }
 
 async function createRoom(ctx) {
-  const { title, createdBy = 'anonymous', tags = [], maxParticipants = 100 } = ctx.payload || {};
+  const { title, createdBy = 'anonymous', tags = [], maxParticipants = 100, isPublic = true } = ctx.payload || {};
   if (!title) return { ...ctx, _error: 'Room title is required' };
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
