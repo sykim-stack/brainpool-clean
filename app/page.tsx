@@ -446,6 +446,7 @@ export default function Home() {
             setCurrentRoomId(data.payload.room.roomId);
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
             saveMyRoom(data.payload.room);
+            setShareRoomCode(data.payload.room.inviteCode || null);
             setIsRoomMode(false);
           }
         }}
