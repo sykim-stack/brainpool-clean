@@ -13,7 +13,7 @@ async function createRoom(ctx) {
   if (!title) return { ...ctx, _error: 'Room title is required' };
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
-  const { data, error } = await supabase.from('chat_rooms').insert({ room_name: title, invite_code: generateInviteCode(), room_type: 'chat', created_by: null, owner_device_id: createdBy, is_permanent: false, metadata: { tags, maxParticipants, createdBy } }).select().single();
+  const { data, error } = await supabase.from('chat_rooms').insert({ room_name: title, invite_code: generateInviteCode(), room_type: 'chat', created_by: null, owner_device_id: createdBy, is_permanent: false, is_public: isPublic, metadata: { tags, maxParticipants, createdBy, isPublic } }).select().single();
   if (error) return { ...ctx, _error: error.message };
   return { ...ctx, room: { roomId: data.id, inviteCode: data.invite_code, title: data.room_name, status: 'active', createdBy, createdAt: data.created_at, updatedAt: data.created_at, messageCount: 0, participantCount: 1, maxParticipants, tags } };
 }
