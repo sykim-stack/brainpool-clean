@@ -20,7 +20,7 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
     if (navigator.share) {
       await navigator.share({
         title: 'CoreRing 채팅방 초대',
-        text: `방 코드: ${roomCode}`,
+        text: `CoreRing에서 대화해요!\n방 코드: ${roomCode}\n크롬 브라우저로 열어주세요 👇\nhttps://corering.vercel.app`,
         url: 'https://corering.vercel.app',
       }).catch(() => null);
     } else {
