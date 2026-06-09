@@ -16,12 +16,21 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isKakao = () => {
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes('kakaotalk');
+  };
+
   const handleShare = async () => {
+    // 카카오 인앱이면 외부 브라우저로 강제 열기
+    const shareUrl = 'https://corering.vercel.app?code=' + roomCode;
+    const intentUrl = 'intent://' + shareUrl.replace('https://', '') + '#Intent;scheme=https;package=com.android.chrome;end';
+    
     if (navigator.share) {
       await navigator.share({
         title: 'CoreRing 채팅방 초대',
-        text: `CoreRing에서 대화해요!\n방 코드: ${roomCode}\n크롬 브라우저로 열어주세요 👇\nhttps://corering.vercel.app`,
-        url: 'https://corering.vercel.app',
+        text: `CoreRing에서 대화해요! 방 코드: ${roomCode}`,
+        url: intentUrl,
       }).catch(() => null);
     } else {
       handleCopy();
