@@ -103,6 +103,19 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             if (url) {
               setAudioUrl(url);
               console.log('[발음저장] URL:', url);
+              // audio_contributions DB 저장
+              fetch('/api/phrase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({
+                  action: 'save-audio',
+                  user_id: userId,
+                  word: word,
+                  dialect: sourceLang === 'ko' ? 'korean' : 'vietnamese',
+                  audio_url: url,
+                  session_id: data.sessionId || null,
+                }),
+              }).catch(() => null);
             }
           }
         } finally {

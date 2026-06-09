@@ -16,6 +16,7 @@ export class CoreNullLayer {
       case 'reportConflict':     return await this.reportConflict(ctx);
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
+      case 'saveAudio':         return await this.saveAudio(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
@@ -147,6 +148,19 @@ export class CoreNullLayer {
       .eq('user_id', user_id);
     if (error) return { ...ctx, _error: { code: 'DB_DELETE_ERROR', message: error.message } };
     return { ...ctx, result: { success: true, id } };
+  }
+
+
+  async saveAudio(ctx) {
+    const { user_id, word, dialect, audio_url, session_id, trans_id } = ctx.payload;
+    if (!user_id || !audio_url) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'user_id and audio_url required' } };
+    const { data, error } = await ctx.supabase
+      .from('audio_contributions')
+      .insert([{ user_id, word: word || '', dialect: dialect || 'standard', audio_url, session_id: session_id || null, trans_id: trans_id || null }])
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
+    return { ...ctx, result: data };
   }
 
   async reportConflict(ctx) {
