@@ -180,8 +180,14 @@ export default function ChatBubble({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              const audio = new Audio(audioUrl);
+              // iOS 호환 재생
+              const audio = document.createElement('audio');
+              audio.src = audioUrl;
+              audio.controls = false;
+              audio.playsInline = true;
+              document.body.appendChild(audio);
               audio.play().catch(() => { window.open(audioUrl, '_blank'); });
+              audio.onended = () => document.body.removeChild(audio);
             }}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px" }}
           >🔊</button>

@@ -429,7 +429,7 @@ export default function Home() {
         rooms={rooms}
         myRooms={myRooms}
         onSelectRoom={(id) => {
-          const room = rooms.find(r => r.roomId === id);
+          const room = rooms.find(r => r.roomId === id) || myRooms.find(r => r.roomId === id);
           setCurrentRoomId(id);
           setCurrentRoomCode(room?.inviteCode || '------');
         }}
