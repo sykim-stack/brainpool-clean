@@ -184,7 +184,7 @@ export default function ChatBubble({
               const audio = document.createElement('audio');
               audio.src = audioUrl;
               audio.controls = false;
-              audio.playsInline = true;
+              (audio as any).playsInline = true;
               document.body.appendChild(audio);
               audio.play().catch(() => { window.open(audioUrl, '_blank'); });
               audio.onended = () => document.body.removeChild(audio);
