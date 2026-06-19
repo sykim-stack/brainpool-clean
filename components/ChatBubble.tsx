@@ -167,37 +167,46 @@ export default function ChatBubble({
       <div className={`bubble-original ${styles.original}`}>{original}</div>
 
       {/* 메타 정보 */}
-      <div className={`bubble-meta ${styles.metaRow}`}>
-        {emotion && (
-          <span className={`bubble-emotion emotion-${emotion}`}>{emotion}</span>
-        )}
-        {riskScore !== undefined && riskScore > 0.3 && (
-          <span className={`bubble-risk ${riskScore >= 0.7 ? 'risk-high' : 'risk-mid'}`}>
-            ⚠{Math.round(riskScore * 100)}
-          </span>
-        )}
-        {audioUrl && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              // iOS 호환 재생
-              const audio = document.createElement('audio');
-              audio.src = audioUrl;
-              audio.controls = false;
-              (audio as any).playsInline = true;
-              document.body.appendChild(audio);
-              audio.play().catch(() => { window.open(audioUrl, '_blank'); });
-              audio.onended = () => document.body.removeChild(audio);
-            }}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px" }}
-          >🔊</button>
-        )}
-        <span>
-          {new Date(timestamp).toLocaleTimeString('ko-KR', {
-            hour: '2-digit', minute: '2-digit',
-          })}
-        </span>
-      </div>
+<div className={`bubble-meta ${styles.metaRow}`}>
+  {emotion && (
+    <span className={`bubble-emotion emotion-${emotion}`}>{emotion}</span>
+  )}
+  {riskScore !== undefined && riskScore > 0.3 && (
+    <span className={`bubble-risk ${riskScore >= 0.7 ? 'risk-high' : 'risk-mid'}`}>
+      ⚠{Math.round(riskScore * 100)}
+    </span>
+  )}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      if (audioUrl) {
+        // 원어민 발음 재생
+        const audio = document.createElement('audio');
+        audio.src = audioUrl;
+        audio.controls = false;
+        (audio as any).playsInline = true;
+        document.body.appendChild(audio);
+        audio.play().catch(() => { window.open(audioUrl, '_blank'); });
+        audio.onended = () => document.body.removeChild(audio);
+      } else if (typeof window !== 'undefined' && window.speechSynthesis) {
+        // TTS fallback
+        const utterance = new SpeechSynthesisUtterance(translated);
+        utterance.lang = targetLang === 'vi' ? 'vi-VN' : 'ko-KR';
+        utterance.rate = 0.9;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      }
+    }}
+    style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", opacity: audioUrl ? 1 : 0.5 }}
+    title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
+  >🔊</button>
+  <span>
+    {new Date(timestamp).toLocaleTimeString('ko-KR', {
+      hour: '2-digit', minute: '2-digit',
+    })}
+  </span>
+</div>
+
     </div>
   );
 }

@@ -11,6 +11,7 @@ function normalizeAction(action: string): string {
   if (action === 'resolve-conflict') return 'resolveConflict';
   if (action === 'get-random-word') return 'getRandomWord';
   if (action === 'save-audio') return 'saveAudio';
+  if (action === 'get-audio') return 'getAudio';
   if (action === 'get-user-vocabulary') return 'getUserVocabulary';
   if (action === 'update-vocabulary') return 'updateVocabulary';
   if (action === 'delete-vocabulary') return 'deleteVocabulary';

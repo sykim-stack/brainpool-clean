@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import styles from './WordModal.module.css';
 
 interface WordModalProps {
@@ -59,6 +59,24 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const riskScore = data.riskScore;
   const culturalNote = data.culturalNote;
   const sourceLang = data.sourceLang;
+
+  // 모달 열릴 때 기존 발음 조회
+  useEffect(() => {
+    if (!word) return;
+    const dialect = sourceLang === 'ko' ? 'vietnamese' : 'korean';
+    fetch('/api/phrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'get-audio', word, dialect }),
+    })
+      .then(r => r.json())
+      .catch(() => null)
+      .then(json => {
+        if (json?.payload?.audio_url) {
+          setAudioUrl(json.payload.audio_url);
+        }
+      });
+  }, [word]);
 
   // 발음 녹음 대상: ko→vi면 베트남어 발음(아내), vi→ko면 한국어 발음(남편)
   const pronunciationTarget = sourceLang === 'ko'

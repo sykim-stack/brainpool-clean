@@ -17,6 +17,7 @@ export class CoreNullLayer {
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
       case 'saveAudio':         return await this.saveAudio(ctx);
+      case 'getAudio':          return await this.getAudio(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
@@ -161,6 +162,40 @@ export class CoreNullLayer {
       .single();
     if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
     return { ...ctx, result: data };
+  }
+  async getAudio(ctx) {
+  const { word, dialect } = ctx.payload;
+  if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+
+  const query = ctx.supabase
+    .from('audio_contributions')
+    .select('audio_url, user_id, created_at')
+    .eq('word', word)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (dialect) query.eq('dialect', dialect);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+  if (!data) return { ...ctx, result: null };
+  return { ...ctx, result: { audio_url: data.audio_url } };
+}
+
+  async getAudio(ctx) {
+    const { word, dialect } = ctx.payload;
+    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+    let query = ctx.supabase
+      .from('audio_contributions')
+      .select('audio_url, user_id, created_at')
+      .eq('word', word)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (dialect) query = query.eq('dialect', dialect);
+    const { data, error } = await query.maybeSingle();
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    if (!data) return { ...ctx, result: null };
+    return { ...ctx, result: { audio_url: data.audio_url } };
   }
 
   async reportConflict(ctx) {

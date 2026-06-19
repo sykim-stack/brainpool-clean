@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import styles from './ShareRoomModal.module.css';
 
@@ -17,20 +17,25 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
   };
 
   const isKakao = () => {
-    const ua = navigator.userAgent.toLowerCase();
-    return ua.includes('kakaotalk');
+    return /KAKAOTALK/i.test(navigator.userAgent);
   };
 
   const handleShare = async () => {
-    // 카카오 인앱이면 외부 브라우저로 강제 열기
-    const shareUrl = 'https://corering.vercel.app?code=' + roomCode;
-    const intentUrl = 'intent://' + shareUrl.replace('https://', '') + '#Intent;scheme=https;package=com.android.chrome;end';
-    
+    const shareUrl = 'https://corering.vercel.app?code=' + encodeURIComponent(roomCode);
+    const shareText = `CoreRing에서 대화해요! 방 코드: ${roomCode}`;
+
+    // 카카오 인앱브라우저 → 외부 브라우저로 강제 탈출
+    if (isKakao()) {
+      window.location.href =
+        'kakaotalk://web/openExternal?url=' + encodeURIComponent(shareUrl);
+      return;
+    }
+
     if (navigator.share) {
       await navigator.share({
         title: 'CoreRing 채팅방 초대',
-        text: `CoreRing에서 대화해요! 방 코드: ${roomCode}`,
-        url: intentUrl,
+        text: shareText,
+        url: shareUrl,
       }).catch(() => null);
     } else {
       handleCopy();
