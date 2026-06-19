@@ -141,6 +141,22 @@ export default function Home() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIOSGuide,   setShowIOSGuide]   = useState(false);
   
+  // 카카오 인앱브라우저 → 외부 브라우저 강제 탈출 (페이지 진입 시)
+  useEffect(() => {
+    if (/KAKAOTALK/i.test(navigator.userAgent)) {
+      window.location.href =
+        'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+    }
+  }, []);
+
+  // 카카오 인앱브라우저 → 외부 브라우저 강제 탈출 (페이지 진입 시)
+  useEffect(() => {
+    if (/KAKAOTALK/i.test(navigator.userAgent)) {
+      window.location.href =
+        'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+    }
+  }, []);
+
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e: any) => {
       e.preventDefault();
