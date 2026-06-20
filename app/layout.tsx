@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   title: 'CORE-RING ENGINE',
   description: '한↔베 방언 번역기 · CoreRing – 한국어 ↔ 베트남어, 사투리까지 번역돼요 🗣️',
   openGraph: {
-    title: '한↔베 방언 번역기 · CoreRing',
-    description: '한국어 ↔ 베트남어, 사투리까지 번역돼요 🗣️ 남북 방언 자동 감지 · 감정 톤 분석',
+    title: 'CoreRing - 한국어 베트남어 번역기',
+    description: '한국어와 베트남어를 번역해드립니다. 방언까지 지원합니다.',
     url: 'https://corering.vercel.app',
     type: 'website',
   },

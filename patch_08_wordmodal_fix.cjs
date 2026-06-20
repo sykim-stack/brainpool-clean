@@ -1,77 +1,27 @@
 const fs = require('fs');
-const path = 'G:\\brainpool-clean\\components\\ShareRoomModal.tsx';
+const path = 'G:\\brainpool-clean\\app\\layout.tsx';
 
-const content = `'use client';
-import { useState } from 'react';
-import styles from './ShareRoomModal.module.css';
+let src = fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 
-interface ShareRoomModalProps {
-  roomCode: string;
-  onClose: () => void;
+const oldOG = `  openGraph: {
+    title: '한↔베 방언 번역기 · CoreRing',
+    description: '한국어 ↔ 베트남어, 사투리까지 번역돼요 🗣️ 남북 방언 자동 감지 · 감정 톤 분석',
+    url: 'https://corering.vercel.app',
+    type: 'website',
+  },`;
+
+const newOG = `  openGraph: {
+    title: 'CoreRing - 한국어 베트남어 번역기',
+    description: '한국어와 베트남어를 번역해드립니다. 방언까지 지원합니다.',
+    url: 'https://corering.vercel.app',
+    type: 'website',
+  },`;
+
+if (!src.includes(oldOG)) {
+  console.error('❌ OG 블록 못 찾음');
+  process.exit(1);
 }
 
-export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(roomCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const isKakao = () => {
-    return /KAKAOTALK/i.test(navigator.userAgent);
-  };
-
-  const handleShare = async () => {
-    const shareUrl = 'https://corering.vercel.app?code=' + encodeURIComponent(roomCode);
-    const shareText = \`CoreRing에서 대화해요! 방 코드: \${roomCode}\`;
-
-    if (isKakao()) {
-      // Android 카카오 인앱 → Chrome으로 강제 열기
-      const intentUrl = 'intent://corering.vercel.app?code='
-        + encodeURIComponent(roomCode)
-        + '#Intent;scheme=https;package=com.android.chrome;end';
-      window.location.href = intentUrl;
-      return;
-    }
-
-    if (navigator.share) {
-      await navigator.share({
-        title: 'CoreRing 채팅방 초대',
-        text: shareText,
-        url: shareUrl,
-      }).catch(() => null);
-    } else {
-      handleCopy();
-    }
-  };
-
-  return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <p className={styles.emoji}>🎉</p>
-        <h2 className={styles.title}>방이 만들어졌어요!</h2>
-        <p className={styles.subtitle}>친구에게 코드를 공유해보세요</p>
-        <div className={styles.codeBox}>
-          <span className={styles.code}>{roomCode}</span>
-        </div>
-        <div className={styles.btnGroup}>
-          <button className={styles.copyBtn} onClick={handleCopy}>
-            {copied ? '✅ 복사됨' : '📋 코드 복사'}
-          </button>
-          <button className={styles.shareBtn} onClick={handleShare}>
-            📤 공유하기
-          </button>
-        </div>
-        <button className={styles.closeBtn} onClick={onClose}>
-          나중에 할게요
-        </button>
-      </div>
-    </div>
-  );
-}
-`;
-
-fs.writeFileSync(path, content, 'utf8');
-console.log('✅ ShareRoomModal.tsx intent URL 방식으로 수정 완료');
+src = src.replace(oldOG, newOG);
+fs.writeFileSync(path, src, 'utf8');
+console.log('✅ OG 태그 특수문자 제거 완료');
