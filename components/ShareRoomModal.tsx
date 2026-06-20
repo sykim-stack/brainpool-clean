@@ -24,7 +24,6 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
     const shareUrl = 'https://corering.vercel.app?code=' + encodeURIComponent(roomCode);
     const shareText = `CoreRing에서 대화해요! 방 코드: ${roomCode}`;
 
-    // 카카오 인앱브라우저 → 외부 브라우저로 강제 탈출
     if (isKakao()) {
       window.location.href =
         'kakaotalk://web/openExternal?url=' + encodeURIComponent(shareUrl);
