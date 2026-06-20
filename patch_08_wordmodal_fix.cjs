@@ -28,8 +28,11 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
     const shareText = \`CoreRing에서 대화해요! 방 코드: \${roomCode}\`;
 
     if (isKakao()) {
-      window.location.href =
-        'kakaotalk://web/openExternal?url=' + encodeURIComponent(shareUrl);
+      // Android 카카오 인앱 → Chrome으로 강제 열기
+      const intentUrl = 'intent://corering.vercel.app?code='
+        + encodeURIComponent(roomCode)
+        + '#Intent;scheme=https;package=com.android.chrome;end';
+      window.location.href = intentUrl;
       return;
     }
 
@@ -71,4 +74,4 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
 `;
 
 fs.writeFileSync(path, content, 'utf8');
-console.log('✅ ShareRoomModal.tsx 재작성 완료');
+console.log('✅ ShareRoomModal.tsx intent URL 방식으로 수정 완료');
