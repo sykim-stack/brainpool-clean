@@ -199,9 +199,11 @@ export default function Home() {
   // ── 푸시 ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!deviceId) return;
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') subscribePush(deviceId);
-    });
+    if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') subscribePush(deviceId);
+        }).catch(() => {});
+      }
   }, [deviceId]);
 
   // ── 폴링: /api/chat POST action=poll ────────────────────────────
