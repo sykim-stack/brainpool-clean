@@ -9,29 +9,13 @@ interface ShareRoomModalProps {
 
 export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProps) {
   const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(roomCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const isKakao = () => {
-    return /KAKAOTALK/i.test(navigator.userAgent);
-  };
+  const isKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
 
   const handleShare = async () => {
     const shareUrl = 'https://corering.vercel.app?code=' + encodeURIComponent(roomCode);
-    const shareText = `CoreRing에서 대화해요! 방 코드: ${roomCode}`;
-
-    if (isKakao()) {
-      // Android 카카오 인앱 → Chrome으로 강제 열기
-      const intentUrl = 'intent://corering.vercel.app?code='
-        + encodeURIComponent(roomCode)
-        + '#Intent;scheme=https;package=com.android.chrome;end';
-      window.location.href = intentUrl;
-      return;
-    }
+    const shareText = `CoreRing 채팅방에 초대합니다!\n방 코드: ${roomCode}\n${shareUrl}`;
 
     if (navigator.share) {
       await navigator.share({
@@ -40,8 +24,16 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
         url: shareUrl,
       }).catch(() => null);
     } else {
-      handleCopy();
+      navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleCodeCopy = () => {
+    navigator.clipboard.writeText(roomCode);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
   };
 
   return (
@@ -49,18 +41,28 @@ export default function ShareRoomModal({ roomCode, onClose }: ShareRoomModalProp
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <p className={styles.emoji}>🎉</p>
         <h2 className={styles.title}>방이 만들어졌어요!</h2>
-        <p className={styles.subtitle}>친구에게 코드를 공유해보세요</p>
+        <p className={styles.subtitle}>친구에게 공유해보세요</p>
+
         <div className={styles.codeBox}>
           <span className={styles.code}>{roomCode}</span>
         </div>
+
         <div className={styles.btnGroup}>
-          <button className={styles.copyBtn} onClick={handleCopy}>
-            {copied ? '✅ 복사됨' : '📋 코드 복사'}
-          </button>
           <button className={styles.shareBtn} onClick={handleShare}>
-            📤 공유하기
+            {copied ? '✅ 복사됨' : '📤 공유하기'}
+          </button>
+          <button className={styles.copyBtn} onClick={handleCodeCopy}>
+            {codeCopied ? '✅ 복사됨' : '📋 코드 복사'}
           </button>
         </div>
+
+        {isKakao() && (
+          <p className={styles.kakaoNotice}>
+            카카오에서 열리지 않으면<br />
+            우측 메뉴 → <strong>다른 브라우저로 열기</strong>
+          </p>
+        )}
+
         <button className={styles.closeBtn} onClick={onClose}>
           나중에 할게요
         </button>
