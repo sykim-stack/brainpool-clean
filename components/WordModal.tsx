@@ -51,23 +51,16 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const audioChunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  if (!data) return null;
-
-  const word = data.sentence;
-  const meaning = data.translated;
-  const emotion = data.emotion;
-  const riskScore = data.riskScore;
-  const culturalNote = data.culturalNote;
-  const sourceLang = data.sourceLang;
-
-  // 모달 열릴 때 기존 발음 조회
+  // 모달 열릴 때 기존 발음 조회 (return null 이전에 위치해야 함 - Hook 규칙)
+  const word_for_effect = data?.sentence || '';
+  const sourceLang_for_effect = data?.sourceLang || '';
   useEffect(() => {
-    if (!word) return;
-    const dialect = sourceLang === 'ko' ? 'vietnamese' : 'korean';
+    if (!word_for_effect) return;
+    const dialect = sourceLang_for_effect === 'ko' ? 'vietnamese' : 'korean';
     fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'get-audio', word, dialect }),
+      body: JSON.stringify({ action: 'get-audio', word: word_for_effect, dialect }),
     })
       .then(r => r.json())
       .catch(() => null)
@@ -76,7 +69,17 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           setAudioUrl(json.payload.audio_url);
         }
       });
-  }, [word]);
+  }, [word_for_effect]);
+
+    if (!data) return null;
+
+  const word = data.sentence;
+  const meaning = data.translated;
+  const emotion = data.emotion;
+  const riskScore = data.riskScore;
+  const culturalNote = data.culturalNote;
+  const sourceLang = data.sourceLang;
+
 
   // 발음 녹음 대상: ko→vi면 베트남어 발음(아내), vi→ko면 한국어 발음(남편)
   const pronunciationTarget = sourceLang === 'ko'
