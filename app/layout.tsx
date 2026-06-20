@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script
           dangerouslySetInnerHTML={{
-            __html: `if ('serviceWorker' in navigator) {
+            __html: `if ('serviceWorker' in navigator && !/KAKAOTALK/i.test(navigator.userAgent)) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js');
               });
