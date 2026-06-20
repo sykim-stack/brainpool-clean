@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from 'next';
+﻿import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './core.css';
 
@@ -13,10 +13,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   manifest: '/manifest.json',
   title: 'CORE-RING ENGINE',
-  description: '한↔베 방언 번역기 · CoreRing – 한국어 ↔ 베트남어, 사투리까지 번역돼요 🗣️',
+  description: '?쒋넄踰?諛⑹뼵 踰덉뿭湲?쨌 CoreRing ???쒓뎅????踰좏듃?⑥뼱, ?ы닾由ш퉴吏 踰덉뿭?쇱슂 ?뿣截?,
   openGraph: {
-    title: 'CoreRing - 한국어 베트남어 번역기',
-    description: '한국어와 베트남어를 번역해드립니다. 방언까지 지원합니다.',
+    title: 'CoreRing - ?쒓뎅??踰좏듃?⑥뼱 踰덉뿭湲?,
+    description: '?쒓뎅?댁? 踰좏듃?⑥뼱瑜?踰덉뿭?대뱶由쎈땲?? 諛⑹뼵源뚯? 吏?먰빀?덈떎.',
     url: 'https://corering.vercel.app',
     type: 'website',
   },
