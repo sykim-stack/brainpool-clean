@@ -587,12 +587,6 @@ export default function Home() {
         />
       )}
 
-      {shareRoomCode && (
-        <ShareRoomModal
-          roomCode={shareRoomCode}
-          onClose={() => setShareRoomCode(null)}
-        />
-      )}
 
       <WordModal
         data={selectedMessage ? {
