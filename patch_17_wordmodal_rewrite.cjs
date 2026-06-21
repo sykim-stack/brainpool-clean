@@ -1,4 +1,7 @@
-'use client';
+const fs = require('fs');
+const path = 'G:\\brainpool-clean\\components\\WordModal.tsx';
+
+const content = `'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import styles from './WordModal.module.css';
@@ -31,7 +34,7 @@ const saveWord = async (payload: { user_id?: string; word: string; meaning_kr?: 
 
 const uploadVoice = async (blob: Blob, mimeType: string, userId: string) => {
   const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-  const fileName = `voice/${userId}/${Date.now()}.${ext}`;
+  const fileName = \`voice/\${userId}/\${Date.now()}.\${ext}\`;
   const formData = new FormData();
   formData.append('file', blob, fileName);
   formData.append('fileName', fileName);
@@ -179,7 +182,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   };
 
   return (
-    <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
+    <div className={\`modal-overlay open \${styles.overlay}\`} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -202,11 +205,11 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             <div className={styles.riskRow}>
               <div className={styles.riskTrack}>
                 <div
-                  className={`${styles.riskBar} ${riskClass(riskScore)}`}
-                  style={{ width: `${Math.round(riskScore * 100)}%` }}
+                  className={\`\${styles.riskBar} \${riskClass(riskScore)}\`}
+                  style={{ width: \`\${Math.round(riskScore * 100)}%\` }}
                 />
               </div>
-              <span className={`${styles.riskValue} ${riskClass(riskScore)}`}>
+              <span className={\`\${styles.riskValue} \${riskClass(riskScore)}\`}>
                 {Math.round(riskScore * 100)}%
               </span>
             </div>
@@ -264,7 +267,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
               onMouseUp={stopRecording}
               style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}
               disabled={isUploading}
-              className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
+              className={\`\${styles.saveBtn} \${isRecording ? styles.recordingBtn : ''}\`}
             >
               {isUploading ? '⏳ 저장 중...' : isRecording ? '🔴 녹음 중... (떼면 완료)' : '🎤 누르고 말하세요'}
             </button>
@@ -275,7 +278,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           <button
             onClick={handleSave}
             disabled={isSaved || isSaving}
-            className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
+            className={\`\${styles.saveBtn} \${isSaved ? styles.savedBtn : ''}\`}
           >
             {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
           </button>
@@ -304,3 +307,7 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync(path, content, 'utf8');
+console.log('✅ WordModal.tsx 재작성 완료 (TTS fallback + 인코딩 복구)');
