@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // 남부(south) 어휘 사전 -- 아내 실사용 패턴 + 남부 베트남어 일반 특성
 const SOUTH_LEXICON = [
@@ -67,14 +67,20 @@ JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason":
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 150, responseMimeType: 'application/json' },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 400, responseMimeType: 'application/json' },
     }),
   });
 
-  if (!res.ok) throw new Error(`Gemini dialect error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '(본문 읽기 실패)');
+    throw new Error(`Gemini dialect error: ${res.status} body=${errBody.slice(0, 300)}`);
+  }
   const data = await res.json();
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Gemini dialect 응답 비어있음');
+  const finishReason = data?.candidates?.[0]?.finishReason;
+  if (!raw) {
+    throw new Error(`Gemini dialect 응답 비어있음 finishReason=${finishReason}`);
+  }
 
   const clean = raw.replace(/```json|```/g, '').trim();
   const parsed = JSON.parse(clean);

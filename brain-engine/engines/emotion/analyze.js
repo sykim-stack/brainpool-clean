@@ -12,7 +12,7 @@
 // -----------------------------------------------------------------
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // ---------------------------------------------------------------
 // Fallback: 기존 키워드 사전 (Gemini 실패/키 없을 때 안전망)
@@ -80,19 +80,23 @@ async function callGemini(prompt, apiKey) {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 400,
+        maxOutputTokens: 800,
         responseMimeType: 'application/json',
       },
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`Gemini API error: ${res.status}`);
+    const errBody = await res.text().catch(() => '(본문 읽기 실패)');
+    throw new Error(`Gemini API error: ${res.status} body=${errBody.slice(0, 300)}`);
   }
 
   const data = await res.json();
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Gemini 응답 비어있음');
+  const finishReason = data?.candidates?.[0]?.finishReason;
+  if (!raw) {
+    throw new Error(`Gemini 응답 비어있음 finishReason=${finishReason} raw=${JSON.stringify(data).slice(0, 300)}`);
+  }
 
   const clean = raw.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);

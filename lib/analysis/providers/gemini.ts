@@ -31,7 +31,7 @@ import {
 // ─────────────────────────────────────────────
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // ─────────────────────────────────────────────
 // 분석 프롬프트 생성
@@ -107,7 +107,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,        // 분석 태스크 → 낮은 온도
-        maxOutputTokens: 512,
+        maxOutputTokens: 1000,
         responseMimeType: 'application/json',
       },
     }),
