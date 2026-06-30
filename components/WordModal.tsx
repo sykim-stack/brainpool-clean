@@ -10,6 +10,7 @@ interface WordModalProps {
     sourceLang?: string;
     emotion?: string;
     riskScore?: number;
+    intent?: string;
     culturalNote?: string;
     sessionId?: string;
     wordDetail?: any;
@@ -79,15 +80,21 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const emotion = data.emotion;
   const riskScore = data.riskScore;
   const culturalNote = data.culturalNote;
+  const intent = data.intent;
   const sourceLang = data.sourceLang;
 
   const pronunciationTarget = sourceLang === 'ko'
     ? '🇻🇳 베트남어 발음을 알려주세요'
     : '🇰🇷 한국어 발음을 알려주세요';
 
-  const usage = sourceLang === 'ko'
-    ? '한국어에서 베트남어로 번역된 표현입니다.'
-    : '베트남어에서 한국어로 번역된 표현입니다.';
+  const intentLabel: Record<string, string> = {
+    NEUTRAL: '일반적인 표현',
+    COMPLAINT: '불만/불평이 담긴 표현',
+    THREAT: '경고성 표현 (주의 필요)',
+    AFFECTION: '애정이 담긴 표현',
+    REQUEST: '요청/부탁의 표현',
+  };
+  const usage = intent ? (intentLabel[intent] || null) : null;
 
   const handlePlayAudio = () => {
     if (audioUrl) {
@@ -194,7 +201,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
         <Section title="💡 뜻과 쓰임새">
           <Row label="뜻"     value={meaning || '아직 데이터가 없습니다'} />
-          <Row label="쓰임새" value={usage} />
+          {usage && <Row label="쓰임새" value={usage} />}
         </Section>
 
         {riskScore !== undefined && riskScore > 0 && (
@@ -222,14 +229,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         {emotion && (
           <Section title="🎭 감정">
             <span className={styles.emotionTag}>{emotion}</span>
-          </Section>
-        )}
-
-        {meaning && (
-          <Section title="🔗 관련 표현">
-            <div className={styles.relatedList}>
-              <span className={styles.relatedTag}>{meaning}</span>
-            </div>
           </Section>
         )}
 

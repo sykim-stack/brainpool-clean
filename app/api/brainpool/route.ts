@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
     let ctx = createCtx({ text, author: body.author || 'anonymous' }, traceId);
     ctx = await route('translate', ctx);
     if (!ctx._error) ctx = await route('emotion', ctx);
+    if (!ctx._error) ctx = await route('dialect', ctx);
 
     const p = ctx.payload;
     const sourceLang = p.sourceLang || null;
@@ -110,7 +111,12 @@ export async function POST(request: NextRequest) {
           translationSource: p.translationSource || 'unknown',
           emotionScore: p.emotionScore ?? null,
           emotion: p.emotion || null,
-          culturalNote: p.culturalNote || '중립',
+          riskScore: p.riskScore ?? 0,
+          intent: p.intent || null,
+          meaningScore: p.meaningScore ?? null,
+          detectedDialect: p.detectedDialect || 'unknown',
+          isSouthern: p.isSouthern ?? false,
+          culturalNote: p.culturalNote || null,
         },
         _error: null,
         traceId,

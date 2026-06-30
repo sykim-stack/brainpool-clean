@@ -16,7 +16,12 @@ export async function POST(request: NextRequest) {
       if (!roomId || !userId || !original) {
         return NextResponse.json({ payload: null, _error: 'roomId, userId, original required', traceId }, { status: 400 });
       }
-      let translationMeta: any = { translations: {}, detectedLanguage: null, emotion: null, cultureHints: [], translatedText: null, targetLang: null };
+      let translationMeta: any = {
+        translations: {}, detectedLanguage: null, emotion: null, cultureHints: [],
+        translatedText: null, targetLang: null,
+        riskScore: 0, intent: null, meaningScore: null,
+        detectedDialect: 'unknown', isSouthern: false, culturalNote: null,
+      };
       if (analyze) {
         try {
           const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
@@ -24,6 +29,7 @@ export async function POST(request: NextRequest) {
           let ctx = createCtx({ text: original, author: userId }, traceId);
           ctx = await engineRoute('translate', ctx);
           if (!ctx._error) ctx = await engineRoute('emotion', ctx);
+          if (!ctx._error) ctx = await engineRoute('dialect', ctx);
           const p = ctx.payload;
           const sourceLang = p.sourceLang || null;
           const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
@@ -32,9 +38,15 @@ export async function POST(request: NextRequest) {
             translations: translated ? { [targetLang]: translated } : {},
             detectedLanguage: sourceLang,
             emotion: p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
-            cultureHints: p.culturalNote && p.culturalNote !== 'neutral' ? [p.culturalNote] : [],
+            cultureHints: p.culturalNote ? [p.culturalNote] : [],
             translatedText: translated,
             targetLang,
+            riskScore: p.riskScore ?? 0,
+            intent: p.intent || null,
+            meaningScore: p.meaningScore ?? null,
+            detectedDialect: p.detectedDialect || 'unknown',
+            isSouthern: p.isSouthern ?? false,
+            culturalNote: p.culturalNote || null,
           };
 
           // 푸시 알림
@@ -50,8 +62,14 @@ export async function POST(request: NextRequest) {
           console.warn('[chat/send] translate failed:', e.message);
         }
       }
+      // emotion 필드는 ChatMessageEngine 내부 meta.emotion이 문자열을 기대하므로
+      // translationMeta.emotion(primary/intensity 객체)에서 primary만 풀어서 전달
+      const flatMeta = {
+        ...translationMeta,
+        emotion: translationMeta.emotion?.primary || null,
+      };
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: translationMeta }, traceId, _error: null });
+      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: flatMeta }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
       return NextResponse.json({ payload: { message: result.message }, _error: null, traceId });
     }

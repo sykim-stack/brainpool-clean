@@ -20,6 +20,20 @@ async function sendMessage(ctx) {
     device_id:     userId,
     type:          'chat',
     content:       original,
+    // meta jsonb 컬럼에 분석 결과 전체 저장
+    // (이전에는 meta가 insert에서 누락되어 emotion/riskScore/intent가 항상 비어있었음)
+    meta: {
+      emotion: meta.emotion || null,
+      riskScore: meta.riskScore ?? 0,
+      intent: meta.intent || null,
+      meaningScore: meta.meaningScore ?? null,
+      detectedDialect: meta.detectedDialect || 'unknown',
+      isSouthern: meta.isSouthern ?? false,
+      culturalNote: meta.culturalNote || null,
+      cultureHints: meta.cultureHints || [],
+      detectedLanguage: meta.detectedLanguage || null,
+      targetLang: meta.targetLang || null,
+    },
   });
   if (insertError) {
     console.error('[message] insert error:', insertError.message);
@@ -35,6 +49,9 @@ async function sendMessage(ctx) {
       ko: meta.translations?.ko || null,
       vi: meta.translations?.vi || null,
     },
+    emotion: meta.emotion || null,
+    riskScore: meta.riskScore ?? 0,
+    intent: meta.intent || null,
     timestamp: new Date().toISOString(),
   }};
 }
@@ -58,6 +75,12 @@ async function getHistory(ctx) {
     translated:   m.translated_ko || m.translated_vi || null,
     translations: { ko: m.translated_ko, vi: m.translated_vi },
     emotion:      m.meta?.emotion || null,
+    riskScore:    m.meta?.riskScore ?? 0,
+    intent:       m.meta?.intent || null,
+    meaningScore: m.meta?.meaningScore ?? null,
+    detectedDialect: m.meta?.detectedDialect || 'unknown',
+    isSouthern:   m.meta?.isSouthern ?? false,
+    culturalNote: m.meta?.culturalNote || null,
     timestamp:    m.created_at,
   }))};
 }

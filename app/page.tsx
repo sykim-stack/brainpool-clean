@@ -20,6 +20,7 @@ interface Message {
   targetLang?: string;
   emotion?: string;
   riskScore?: number;
+  intent?: string;
   culturalNote?: string;
   timestamp: string;
   userId?: string;
@@ -238,7 +239,9 @@ export default function Home() {
           sourceLang: srcLang,
           targetLang: tgtLang,
           emotion:    typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
-          riskScore:  0,
+          riskScore:  m.riskScore ?? 0,
+          intent:     m.intent || undefined,
+          culturalNote: m.culturalNote || undefined,
           timestamp:  m.timestamp || m.createdAt,
           userId:     m.userId || '',
           audioUrl:   m.audioUrl || undefined,
@@ -290,7 +293,9 @@ export default function Home() {
             sourceLang: srcLang,
             targetLang: tgtLang,
             emotion: p.emotion || 'neutral',
-            riskScore: 0,
+            riskScore: p.riskScore ?? 0,
+            intent: p.intent || undefined,
+            culturalNote: p.culturalNote || undefined,
             timestamp: new Date().toISOString(),
             userId: deviceId,
           }]);
@@ -595,6 +600,7 @@ export default function Home() {
           sourceLang:  selectedMessage.sourceLang,
           emotion:     selectedMessage.emotion,
           riskScore:   selectedMessage.riskScore,
+          intent:      selectedMessage.intent,
           culturalNote:selectedMessage.culturalNote,
           sessionId:   currentRoomId || undefined,
           wordDetail:  selectedWord || undefined,
@@ -623,7 +629,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-
-
