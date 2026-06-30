@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /api/translate/route.ts
  *
  * CoreRing 번역 + 분석 파이프라인
@@ -19,19 +19,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase } from '@/lib/supabase';
 import { GeminiAnalysisProvider } from '@/lib/analysis/providers/gemini';
 import { toTransLogPayload } from '@/lib/analysis/interface';
 import type { TranslationDirection } from '@/lib/analysis/interface';
 
 // ─────────────────────────────────────────────
-// Supabase / 환경변수
+// Supabase
 // ─────────────────────────────────────────────
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+//
+// 클라이언트 생성은 lib/supabase.ts의 공용 lazy 헬퍼를 그대로 사용한다.
+// (모듈 최상단에서 즉시 createClient()를 호출하면 Next.js 빌드의
+//  "Collecting page data" 단계에서 "supabaseKey is required" 에러가 난다.)
 
 // ─────────────────────────────────────────────
 // DeepL 번역 (기존 로직 — 수정 없음)
@@ -166,11 +165,14 @@ export async function POST(req: NextRequest) {
     ...analysisPayload,
   };
 
-  const { data: logData, error: logError } = await supabase
-    .from('tb_trans_logs')
-    .insert(logPayload)
-    .select('id')
-    .single();
+  const { data: logData, error: logError } = await (async () => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      console.error('[translate] Supabase 클라이언트 없음 — 로그 저장 건너뜀');
+      return { data: null, error: null };
+    }
+    return supabase.from('tb_trans_logs').insert(logPayload).select('id').single();
+  })();
 
   if (logError) {
     console.error('[translate] 로그 저장 실패:', logError);
