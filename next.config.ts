@@ -2,12 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ['@supabase/supabase-js', 'cloudinary', 'brainpool-os'],
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: 'https://grlfocvlfatuvphkyivd.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdybGZvY3ZsZmF0dXZwaGt5aXZkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM0MzUzOSwiZXhwIjoyMDg1OTE5NTM5fQ.GRfwTmoSIluOWqfaFG093uM776V77h6NaEFhrl9eHr8',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdybGZvY3ZsZmF0dXZwaGt5aXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNDM1MzksImV4cCI6MjA4NTkxOTUzOX0.4dLzD1AYSuigxU_Q5ZZwZ6XDGejMvbuoYIjmB4D7dxo',
-    DEEPL_API_KEY: 'b7d91801-1316-448a-9896-dea29a271183:fx',
-  },
+  // 환경변수는 Vercel 프로젝트 설정(Environment Variables)에서 관리합니다.
+  // NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  // SUPABASE_SERVICE_ROLE_KEY, DEEPL_API_KEY, GEMINI_API_KEY 모두 Vercel에 등록됨.
+  // 여기에 평문으로 다시 적지 않습니다 (git 히스토리 노출 위험).
 };
 
 module.exports = nextConfig;
