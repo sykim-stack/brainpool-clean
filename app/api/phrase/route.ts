@@ -47,6 +47,9 @@ export async function POST(req: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseAnonKey) {
+      console.error(
+        `[phrase] MISSING_ENV url=${supabaseUrl ? 'OK' : 'MISSING'} anonKey=${supabaseAnonKey ? 'OK' : 'MISSING'}`
+      );
       return new Response(
         JSON.stringify({ error: { code: 'MISSING_ENV', message: 'Missing Supabase env vars' }, traceId }),
         { status: 500, headers: responseHeaders }
@@ -59,6 +62,7 @@ export async function POST(req: Request) {
     const result = await layer.handle(ctx);
 
     if (result._error) {
+      console.error('[phrase] action error:', action, JSON.stringify(result._error));
       const status = result._error.code === 'NOT_FOUND' ? 404 : 500;
       return new Response(
         JSON.stringify({ error: result._error, traceId, debug: { action, word: payload.word } }),
