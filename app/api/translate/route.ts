@@ -165,19 +165,23 @@ export async function POST(req: NextRequest) {
     ...analysisPayload,
   };
 
-  const { data: logData, error: logError } = await (async () => {
+  const { data: logData, error: logError } = await (async (): Promise<{
+    data: { id: string } | null;
+    error: any;
+  }> => {
     const supabase = getSupabase();
     if (!supabase) {
       console.error('[translate] Supabase 클라이언트 없음 — 로그 저장 건너뜀');
       return { data: null, error: null };
     }
-    // getSupabase()가 Database 제네릭 없이 생성되어 insert() 인자가
-    // never[]로 좁게 추론되는 문제 우회 (배열 형태 + as any)
-    return supabase
+    // getSupabase()가 Database 제네릭 없이 생성되어 insert()/select() 체이닝의
+    // 반환 타입이 never로 좁게 추론되는 문제 우회 (배열 형태 + as any + 명시적 반환 타입)
+    const result = await supabase
       .from('tb_trans_logs')
       .insert([logPayload] as any)
       .select('id')
       .single();
+    return result as { data: { id: string } | null; error: any };
   })();
 
   if (logError) {
