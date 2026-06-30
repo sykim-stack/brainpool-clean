@@ -67,7 +67,12 @@ JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason":
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 400, responseMimeType: 'application/json' },
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 400,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
   });
 

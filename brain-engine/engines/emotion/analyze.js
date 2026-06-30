@@ -82,6 +82,7 @@ async function callGemini(prompt, apiKey) {
         temperature: 0.2,
         maxOutputTokens: 800,
         responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });

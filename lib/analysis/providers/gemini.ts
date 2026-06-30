@@ -109,6 +109,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
         temperature: 0.2,        // 분석 태스크 → 낮은 온도
         maxOutputTokens: 1000,
         responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });
