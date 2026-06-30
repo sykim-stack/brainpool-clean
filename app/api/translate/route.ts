@@ -171,7 +171,13 @@ export async function POST(req: NextRequest) {
       console.error('[translate] Supabase 클라이언트 없음 — 로그 저장 건너뜀');
       return { data: null, error: null };
     }
-    return supabase.from('tb_trans_logs').insert(logPayload).select('id').single();
+    // getSupabase()가 Database 제네릭 없이 생성되어 insert() 인자가
+    // never[]로 좁게 추론되는 문제 우회 (배열 형태 + as any)
+    return supabase
+      .from('tb_trans_logs')
+      .insert([logPayload] as any)
+      .select('id')
+      .single();
   })();
 
   if (logError) {
