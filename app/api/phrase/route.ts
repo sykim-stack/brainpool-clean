@@ -1,5 +1,4 @@
-﻿import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+﻿import { createClient } from '@supabase/supabase-js';
 import { CoreNullLayer } from '@/brain-engine/layers/CoreNullLayer.js';
 
 const layer = new CoreNullLayer();
@@ -54,22 +53,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value; },
-        set: () => {},
-        remove: () => {},
-      },
-    });
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     const ctx = { traceId, payload, supabase, _error: null, result: null };
     const result = await layer.handle(ctx);
 
     if (result._error) {
+      const status = result._error.code === 'NOT_FOUND' ? 404 : 500;
       return new Response(
         JSON.stringify({ error: result._error, traceId, debug: { action, word: payload.word } }),
-        { status: result._error.code === 404 ? 404 : 500, headers: responseHeaders }
+        { status, headers: responseHeaders }
       );
     }
 
@@ -85,5 +78,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
