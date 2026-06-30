@@ -52,7 +52,11 @@ async function translateWithDeepL(
     }),
   });
 
-  if (!res.ok) throw new Error(`DeepL error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '(본문 읽기 실패)');
+    console.error(`[translate] DeepL 실패 status=${res.status} body=${errBody}`);
+    throw new Error(`DeepL error: ${res.status}`);
+  }
   const data = await res.json();
   return data.translations?.[0]?.text ?? '';
 }
