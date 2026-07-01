@@ -90,37 +90,65 @@ export async function POST(request: NextRequest) {
   try {
     let ctx = createCtx({ text, author: body.author || 'anonymous' }, traceId);
     ctx = await route('translate', ctx);
-    if (!ctx._error) ctx = await route('emotion', ctx);
-    if (!ctx._error) ctx = await route('dialect', ctx);
+
+    if (ctx._error) {
+      return new Response(
+        JSON.stringify({ payload: null, _error: ctx._error, traceId }),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
 
     const p = ctx.payload;
     const sourceLang = p.sourceLang || null;
     const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
 
+    // ── 번역 결과 즉시 반환 ──────────────────────────────────
+    // Gemini 분석(emotion, dialect)은 응답 후 백그라운드에서 실행
+    // → 채팅창에 번역 결과가 바로 보이고, 분석값은 나중에 DB에 저장됨
+    const responsePayload = {
+      id: crypto.randomUUID(),
+      type: 'post',
+      author: p.author || 'anonymous',
+      createdAt: Date.now(),
+      original: p.text,
+      translated: p.translatedText || p.text,
+      sourceLang,
+      targetLang,
+      translationSource: p.translationSource || 'unknown',
+      // 분석값은 백그라운드 완료 전엔 null — 카드 클릭 시 캐시에서 읽어옴
+      emotionScore: null,
+      emotion: null,
+      riskScore: 0,
+      intent: null,
+      meaningScore: null,
+      detectedDialect: 'unknown',
+      isSouthern: false,
+      culturalNote: null,
+    };
+
+    // ── 백그라운드 분석 (fire-and-forget) ───────────────────
+    // waitUntil 없이도 Vercel 서버리스에서 응답 후 짧게 살아있는 동안 실행됨
+    // 실패해도 번역 결과에 영향 없음
+    Promise.resolve().then(async () => {
+      try {
+        let analysisCtx = { ...ctx };
+        analysisCtx = await route('emotion', analysisCtx);
+        if (!analysisCtx._error) {
+          analysisCtx = await route('dialect', analysisCtx);
+        }
+        console.log(
+          `[brainpool] 분석 완료 traceId=${traceId}`,
+          `emotion=${analysisCtx.payload?.emotion}`,
+          `risk=${analysisCtx.payload?.riskScore}`,
+          `dialect=${analysisCtx.payload?.detectedDialect}`
+        );
+      } catch (e: any) {
+        console.warn('[brainpool] 백그라운드 분석 실패 (번역엔 영향 없음):', e.message);
+      }
+    });
+
     return new Response(
-      JSON.stringify({
-        payload: {
-          id: crypto.randomUUID(),
-          type: 'post',
-          author: p.author || 'anonymous',
-          createdAt: Date.now(),
-          original: p.text,
-          translated: p.translatedText || p.text,
-          sourceLang,
-          targetLang,
-          translationSource: p.translationSource || 'unknown',
-          emotionScore: p.emotionScore ?? null,
-          emotion: p.emotion || null,
-          riskScore: p.riskScore ?? 0,
-          intent: p.intent || null,
-          meaningScore: p.meaningScore ?? null,
-          detectedDialect: p.detectedDialect || 'unknown',
-          isSouthern: p.isSouthern ?? false,
-          culturalNote: p.culturalNote || null,
-        },
-        _error: null,
-        traceId,
-      }),
+      JSON.stringify({ payload: responsePayload, _error: null, traceId }),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (e: any) {
