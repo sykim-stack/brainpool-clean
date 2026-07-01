@@ -33,23 +33,25 @@ export class CoreNullLayer {
       'pronunciation_diff, conversion_rule, frequency, formality_level, ' +
       'emotion_score, conflict_weight';
 
-    // 1차: meaning_ko 검색
+    // 1차: meaning_ko 부분일치 검색 (단어가 의미 문장 안에 포함된 경우도 찾음)
     const result1 = await ctx.supabase
       .from('tp_translations')
       .select(SELECT_COLS)
-      .eq('meaning_ko', word)
+      .ilike('meaning_ko', `%${word}%`)
+      .limit(1)
       .maybeSingle();
 
     if (result1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result1.error.message } };
 
     let data = result1.data;
 
-    // 2차: standard_word fallback
+    // 2차: standard_word(베트남어) 부분일치 fallback
     if (!data) {
       const result2 = await ctx.supabase
         .from('tp_translations')
         .select(SELECT_COLS)
-        .eq('standard_word', word)
+        .ilike('standard_word', `%${word}%`)
+        .limit(1)
         .maybeSingle();
       if (result2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result2.error.message } };
       data = result2.data;

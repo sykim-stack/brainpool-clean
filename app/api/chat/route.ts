@@ -16,54 +16,70 @@ export async function POST(request: NextRequest) {
       if (!roomId || !userId || !original) {
         return NextResponse.json({ payload: null, _error: 'roomId, userId, original required', traceId }, { status: 400 });
       }
+
+      // ── Step 1: 번역만 먼저 (동기) ──────────────────────────
       let translationMeta: any = {
         translations: {}, detectedLanguage: null, emotion: null, cultureHints: [],
         translatedText: null, targetLang: null,
         riskScore: 0, intent: null, meaningScore: null,
         detectedDialect: 'unknown', isSouthern: false, culturalNote: null,
       };
+
       if (analyze) {
         try {
           const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
           const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
           let ctx = createCtx({ text: original, author: userId }, traceId);
-          ctx = await engineRoute('translate', ctx);
-          if (!ctx._error) ctx = await engineRoute('emotion', ctx);
-          if (!ctx._error) ctx = await engineRoute('dialect', ctx);
+          ctx = await engineRoute('translate', ctx);  // DeepL만 기다림
+
           const p = ctx.payload;
           const sourceLang = p.sourceLang || null;
           const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
           const translated = p.translatedText || null;
+
           translationMeta = {
             translations: translated ? { [targetLang]: translated } : {},
             detectedLanguage: sourceLang,
-            emotion: p.emotion ? { primary: p.emotion, intensity: p.emotionScore ?? 0.5 } : null,
-            cultureHints: p.culturalNote ? [p.culturalNote] : [],
+            emotion: null,
+            cultureHints: [],
             translatedText: translated,
             targetLang,
-            riskScore: p.riskScore ?? 0,
-            intent: p.intent || null,
-            meaningScore: p.meaningScore ?? null,
-            detectedDialect: p.detectedDialect || 'unknown',
-            isSouthern: p.isSouthern ?? false,
-            culturalNote: p.culturalNote || null,
+            riskScore: 0,
+            intent: null,
+            meaningScore: null,
+            detectedDialect: 'unknown',
+            isSouthern: false,
+            culturalNote: null,
           };
 
-          // 푸시 알림
-          try {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://corering.vercel.app';
-            await fetch(appUrl + '/api/push/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ room_id: roomId, sender_id: userId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: '/' }),
-            }).catch(() => null);
-          } catch (e) {}
+          // ── Step 2: Gemini 분석 + 푸시 알림 (백그라운드) ────
+          Promise.resolve().then(async () => {
+            try {
+              let analysisCtx = { ...ctx };
+              analysisCtx = await engineRoute('emotion', analysisCtx);
+              if (!analysisCtx._error) analysisCtx = await engineRoute('dialect', analysisCtx);
+              console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${analysisCtx.payload?.emotion}`);
+            } catch (e: any) {
+              console.warn('[chat/send] 백그라운드 분석 실패:', e.message);
+            }
+
+            // 푸시 알림도 백그라운드
+            try {
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://corering.vercel.app';
+              await fetch(appUrl + '/api/push/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ room_id: roomId, sender_id: userId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: '/' }),
+              }).catch(() => null);
+            } catch (e) {}
+          });
+
         } catch (e: any) {
           console.warn('[chat/send] translate failed:', e.message);
         }
       }
-      // emotion 필드는 ChatMessageEngine 내부 meta.emotion이 문자열을 기대하므로
-      // translationMeta.emotion(primary/intensity 객체)에서 primary만 풀어서 전달
+
+      // ── Step 3: DB 저장 + 즉시 응답 ─────────────────────────
       const flatMeta = {
         ...translationMeta,
         emotion: translationMeta.emotion?.primary || null,
