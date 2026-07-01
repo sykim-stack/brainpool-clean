@@ -1,150 +1,213 @@
-import { NextRequest, NextResponse } from 'next/server';
+// brain-engine/layers/CoreNullLayer.js
+// DB 스키마: id, standard_word, southern_word, hue_word, mekong_word, meaning_ko, meaning_en,
+// part_of_speech, category_main, category_sub, pronunciation_diff, conversion_rule,
+// frequency, formality_level, generation, region, example_northern, example_southern,
+// notes, created_at, entry_type, dialect, status, source, emotion_score, conflict_weight
 
-export async function POST(request: NextRequest) {
-  const traceId = crypto.randomUUID();
-  try {
-    const body = JSON.parse(await request.text());
-    const { action } = body;
+export class CoreNullLayer {
+  async handle(ctx) {
+    const action = ctx.payload?.action || ctx.action;
+    switch (action) {
+      case 'getWordData':        return await this.getWordData(ctx);
+      case 'saveWord':           return await this.saveWord(ctx);
+      case 'getUserVocabulary':  return await this.getUserVocabulary(ctx);
+      case 'updateVocabulary':   return await this.updateVocabulary(ctx);
+      case 'deleteVocabulary':   return await this.deleteVocabulary(ctx);
+      case 'reportConflict':     return await this.reportConflict(ctx);
+      case 'resolveConflict':    return await this.resolveConflict(ctx);
+      case 'getRandomWord':      return await this.getRandomWord(ctx);
+      case 'saveAudio':         return await this.saveAudio(ctx);
+      case 'getAudio':          return await this.getAudio(ctx);
+      default:
+        return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
+    }
+  }
 
-    console.log(`[chat] action=${action} traceId=${traceId}`);
+  async getWordData(ctx) {
+    const { word, dialect = 'standard' } = ctx.payload;
+    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
 
-    if (!action) {
-      return NextResponse.json({ payload: null, _error: 'action required', traceId }, { status: 400 });
+    const SELECT_COLS =
+      'standard_word, southern_word, hue_word, mekong_word, meaning_ko, ' +
+      'example_northern, example_southern, notes, part_of_speech, ' +
+      'pronunciation_diff, conversion_rule, frequency, formality_level, ' +
+      'emotion_score, conflict_weight';
+
+    // 1차: meaning_ko 부분일치 검색 (단어가 의미 문장 안에 포함된 경우도 찾음)
+    const result1 = await ctx.supabase
+      .from('tp_translations')
+      .select(SELECT_COLS)
+      .ilike('meaning_ko', `%${word}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (result1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result1.error.message } };
+
+    let data = result1.data;
+
+    // 2차: standard_word(베트남어) 부분일치 fallback
+    if (!data) {
+      const result2 = await ctx.supabase
+        .from('tp_translations')
+        .select(SELECT_COLS)
+        .ilike('standard_word', `%${word}%`)
+        .limit(1)
+        .maybeSingle();
+      if (result2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result2.error.message } };
+      data = result2.data;
     }
 
-    // ── send ──
-    if (action === 'send') {
-      const { roomId, userId, original, analyze = true } = body;
-      if (!roomId || !userId || !original) {
-        return NextResponse.json({ payload: null, _error: 'roomId, userId, original required', traceId }, { status: 400 });
-      }
+    if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
 
-      // ── Step 1: 번역만 먼저 (동기) ──────────────────────────
-      let translationMeta: any = {
-        translations: {}, detectedLanguage: null, emotion: null, cultureHints: [],
-        translatedText: null, targetLang: null,
-        riskScore: 0, intent: null, meaningScore: null,
-        detectedDialect: 'unknown', isSouthern: false, culturalNote: null,
-      };
+    const example = (dialect === 'southern')
+      ? data.example_southern
+      : data.example_northern;
 
-      if (analyze) {
-        try {
-          const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
-          const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
-          let ctx = createCtx({ text: original, author: userId }, traceId);
-          ctx = await engineRoute('translate', ctx);  // DeepL만 기다림
+    return { ...ctx, result: {
+      word,
+      standard:    data.standard_word,
+      southern:    data.southern_word,
+      hue:         data.hue_word,
+      mekong:      data.mekong_word,
+      meaning:     data.meaning_ko,
+      examples:    example ? [example] : [],
+      culturalNote: data.notes || null,
+      riskScore:   data.conflict_weight || 0,
+      emotion:     (data.emotion_score || 0) > 0.5 ? '긍정' : '중립',
+      partOfSpeech: data.part_of_speech,
+    }};
+  }
 
-          const p = ctx.payload;
-          const sourceLang = p.sourceLang || null;
-          const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
-          const translated = p.translatedText || null;
+  async getRandomWord(ctx) {
+    const { data, error } = await ctx.supabase
+      .from('tp_translations')
+      .select('standard_word, meaning_ko, example_northern, notes')
+      .not('meaning_ko', 'is', null)
+      .limit(50);
+    if (error || !data?.length)
+      return { ...ctx, _error: { code: 'NOT_FOUND', message: 'No words found' } };
+    const random = data[Math.floor(Math.random() * data.length)];
+    return { ...ctx, result: {
+      word:         random.standard_word,
+      meaning:      random.meaning_ko,
+      usage:        random.example_northern || null,
+      culturalNote: random.notes || null,
+    }};
+  }
 
-          translationMeta = {
-            translations: translated ? { [targetLang]: translated } : {},
-            detectedLanguage: sourceLang,
-            emotion: null,
-            cultureHints: [],
-            translatedText: translated,
-            targetLang,
-            riskScore: 0,
-            intent: null,
-            meaningScore: null,
-            detectedDialect: 'unknown',
-            isSouthern: false,
-            culturalNote: null,
-          };
+  async saveWord(ctx) {
+    const { user_id, trans_id, word, meaning_kr, source_session_id } = ctx.payload;
+    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+    if (!user_id) return { ...ctx, _error: { code: 'MISSING_USER', message: 'user_id is required' } };
+    const insertData = { user_id, word, meaning_kr, source_session_id };
+    if (trans_id) insertData.trans_id = trans_id;
+    const { data, error } = await ctx.supabase
+      .from('user_vocabulary')
+      .insert([insertData])
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
 
-          // ── Step 2: Gemini 분석 + 푸시 알림 (백그라운드) ────
-          Promise.resolve().then(async () => {
-            try {
-              let analysisCtx = { ...ctx };
-              analysisCtx = await engineRoute('emotion', analysisCtx);
-              if (!analysisCtx._error) analysisCtx = await engineRoute('dialect', analysisCtx);
-              console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${analysisCtx.payload?.emotion}`);
-            } catch (e: any) {
-              console.warn('[chat/send] 백그라운드 분석 실패:', e.message);
-            }
+  async getUserVocabulary(ctx) {
+    const { user_id } = ctx.payload;
+    if (!user_id) return { ...ctx, _error: { code: 'MISSING_USER', message: 'user_id is required' } };
+    const { data, error } = await ctx.supabase
+      .from('user_vocabulary')
+      .select('*')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false });
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
 
-            // 푸시 알림도 백그라운드
-            try {
-              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://corering.vercel.app';
-              await fetch(appUrl + '/api/push/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: roomId, sender_id: userId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: '/' }),
-              }).catch(() => null);
-            } catch (e) {}
-          });
+  async updateVocabulary(ctx) {
+    const { id, user_id, ...fields } = ctx.payload;
+    if (!id || !user_id) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'id and user_id are required' } };
+    const allowed = ['is_bookmarked', 'learn_status', 'memo', 'review_at', 'meaning_kr'];
+    const update = Object.fromEntries(
+      Object.entries(fields).filter(([k]) => allowed.includes(k))
+    );
+    if (!Object.keys(update).length) return { ...ctx, _error: { code: 'NO_FIELDS', message: 'No valid fields to update' } };
+    const { data, error } = await ctx.supabase
+      .from('user_vocabulary')
+      .update(update)
+      .eq('id', id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
 
-        } catch (e: any) {
-          console.warn('[chat/send] translate failed:', e.message);
-        }
-      }
+  async deleteVocabulary(ctx) {
+    const { id, user_id } = ctx.payload;
+    if (!id || !user_id) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'id and user_id are required' } };
+    const { error } = await ctx.supabase
+      .from('user_vocabulary')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user_id);
+    if (error) return { ...ctx, _error: { code: 'DB_DELETE_ERROR', message: error.message } };
+    return { ...ctx, result: { success: true, id } };
+  }
 
-      // ── Step 3: DB 저장 + 즉시 응답 ─────────────────────────
-      const flatMeta = {
-        ...translationMeta,
-        emotion: translationMeta.emotion?.primary || null,
-      };
-      const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: flatMeta }, traceId, _error: null });
-      if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
-      return NextResponse.json({ payload: { message: result.message }, _error: null, traceId });
+
+  async saveAudio(ctx) {
+    const { user_id, word, dialect, audio_url, session_id, trans_id } = ctx.payload;
+    if (!user_id || !audio_url) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'user_id and audio_url required' } };
+    const { data, error } = await ctx.supabase
+      .from('audio_contributions')
+      .insert([{ user_id, word: word || '', dialect: dialect || 'standard', audio_url, session_id: session_id || null, trans_id: trans_id || null }])
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
+  async getAudio(ctx) {
+    const { word, dialect } = ctx.payload;
+    if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+    let query = ctx.supabase
+      .from('audio_contributions')
+      .select('audio_url, user_id, created_at')
+      .eq('word', word)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (dialect) query = query.eq('dialect', dialect);
+    const { data, error } = await query.maybeSingle();
+    if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
+    if (!data) return { ...ctx, result: null };
+    return { ...ctx, result: { audio_url: data.audio_url } };
+  }
+
+  async reportConflict(ctx) {
+    const { source_word, target_word, dialect, description, reporter_id } = ctx.payload;
+    const { data, error } = await ctx.supabase
+      .from('tp_conflicts')
+      .insert([{ source_word, target_word, dialect, description, reporter_id, status: 'pending' }])
+      .select()
+      .single();
+    if (error) return { ...ctx, _error: { code: 'DB_CONFLICT_ERROR', message: error.message } };
+    return { ...ctx, result: data };
+  }
+
+  async resolveConflict(ctx) {
+    const { conflict_id, resolution_note, new_translation, original_word } = ctx.payload;
+    const { error: updateError } = await ctx.supabase
+      .from('tp_conflicts')
+      .update({ status: 'resolved', resolution_note, resolved_at: new Date() })
+      .eq('id', conflict_id);
+    if (updateError) return { ...ctx, _error: { code: 'DB_UPDATE_ERROR', message: updateError.message } };
+    if (new_translation && original_word) {
+      const { error: transError } = await ctx.supabase
+        .from('tp_translations')
+        .update({ standard_word: new_translation })
+        .eq('meaning_ko', original_word);
+      if (transError) return { ...ctx, _error: { code: 'DB_TRANS_UPDATE_ERROR', message: transError.message } };
     }
-
-    // ── poll ──
-    if (action === 'poll') {
-      const { roomId, limit = 50 } = body;
-      if (!roomId) return NextResponse.json({ payload: null, _error: 'roomId required', traceId }, { status: 400 });
-      console.log(`[chat/poll] roomId=${roomId}`);
-      const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-      console.log(`[chat/poll] ChatMessageEngine imported`);
-      const result: any = await ChatMessageEngine({ type: 'GET_HISTORY', payload: { roomId, limit }, traceId, _error: null });
-      console.log(`[chat/poll] GET_HISTORY done error=${result._error}`);
-      if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
-      return NextResponse.json({ payload: { messages: result.messages ?? [] }, _error: null, traceId });
-    }
-
-    // ── join ──
-    if (action === 'join') {
-      const { inviteCode } = body;
-      if (!inviteCode) return NextResponse.json({ payload: null, _error: 'inviteCode required', traceId }, { status: 400 });
-      const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
-      const result: any = await ChatRoomEngine({ type: 'FIND_BY_CODE', payload: { inviteCode }, traceId, _error: null });
-      if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 404 });
-      return NextResponse.json({ payload: { room: result.payload.room }, _error: null, traceId });
-    }
-
-    // ── create ──
-    if (action === 'create') {
-      const { title, createdBy, tags, maxParticipants, isPublic = true } = body;
-      if (!title) return NextResponse.json({ payload: null, _error: 'title required', traceId }, { status: 400 });
-      const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
-      const result: any = await ChatRoomEngine({ type: 'CREATE_ROOM', payload: { title, createdBy: createdBy || 'anonymous', tags: tags || [], maxParticipants: maxParticipants || 100, isPublic }, traceId, _error: null });
-      if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
-      return NextResponse.json({ payload: { room: result.room }, _error: null, traceId }, { status: 201 });
-    }
-
-    return NextResponse.json({ payload: null, _error: 'unknown action: ' + action, traceId }, { status: 400 });
-  } catch (err: any) {
-    return NextResponse.json({ payload: null, _error: err.message, traceId }, { status: 500 });
+    return { ...ctx, result: { success: true, conflict_id } };
   }
 }
 
-export async function GET(request: NextRequest) {
-  const traceId = crypto.randomUUID();
-  const { searchParams } = new URL(request.url);
-  const roomId = searchParams.get('roomId');
-  const limit = parseInt(searchParams.get('limit') || '50');
-
-  if (!roomId) return NextResponse.json({ payload: null, _error: 'roomId required', traceId }, { status: 400 });
-
-  try {
-    const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-    const result: any = await ChatMessageEngine({ type: 'GET_HISTORY', payload: { roomId, limit }, traceId, _error: null });
-    if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
-    return NextResponse.json({ payload: { messages: result.messages ?? [] }, _error: null, traceId });
-  } catch (err: any) {
-    return NextResponse.json({ payload: null, _error: err.message, traceId }, { status: 500 });
-  }
-}
+export default CoreNullLayer;
