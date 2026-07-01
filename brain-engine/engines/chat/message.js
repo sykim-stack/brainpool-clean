@@ -13,15 +13,11 @@ async function sendMessage(ctx) {
   const { error: insertError } = await db.from('messages').insert({
     room_id:       roomId,
     user_id:       isUUID(userId) ? userId : null,
-    message:       original,
-    translated_ko: meta.translations?.ko || null,
-    translated_vi: meta.translations?.vi || null,
-    nickname:      userId,
     device_id:     userId,
     type:          'chat',
     content:       original,
-    // meta jsonb 컬럼에 분석 결과 전체 저장
-    // (이전에는 meta가 insert에서 누락되어 emotion/riskScore/intent가 항상 비어있었음)
+    translated_ko: meta.translatedText && meta.targetLang === 'ko' ? meta.translatedText : null,
+    language:      meta.detectedLanguage || null,
     meta: {
       emotion: meta.emotion || null,
       riskScore: meta.riskScore ?? 0,
