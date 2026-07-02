@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
     const body = JSON.parse(await request.text());
     const { action } = body;
 
+    console.log(`[chat] action=${action} traceId=${traceId}`);
+
     if (!action) {
       return NextResponse.json({ payload: null, _error: 'action required', traceId }, { status: 400 });
     }
@@ -94,8 +96,10 @@ export async function POST(request: NextRequest) {
     if (action === 'poll') {
       const { roomId, limit = 50 } = body;
       if (!roomId) return NextResponse.json({ payload: null, _error: 'roomId required', traceId }, { status: 400 });
+      console.log(`[chat/poll] roomId=${roomId}`);
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
       const result: any = await ChatMessageEngine({ type: 'GET_HISTORY', payload: { roomId, limit }, traceId, _error: null });
+      console.log(`[chat/poll] done error=${result._error}`);
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
       return NextResponse.json({ payload: { messages: result.messages ?? [] }, _error: null, traceId });
     }
