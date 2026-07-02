@@ -136,12 +136,39 @@ export async function POST(request: NextRequest) {
         if (!analysisCtx._error) {
           analysisCtx = await route('dialect', analysisCtx);
         }
+
+        const ap = analysisCtx.payload;
+        const logId = ctx.payload?.logId;
+
         console.log(
           `[brainpool] 분석 완료 traceId=${traceId}`,
-          `emotion=${analysisCtx.payload?.emotion}`,
-          `risk=${analysisCtx.payload?.riskScore}`,
-          `dialect=${analysisCtx.payload?.detectedDialect}`
+          `emotion=${ap?.emotion} risk=${ap?.riskScore}`,
+          `dialect=${ap?.detectedDialect} logId=${logId}`
         );
+
+        // tb_trans_logs에 분석 결과 UPDATE
+        if (logId) {
+          const { getStorage } = await import('@/brain-engine/connectors/storage.js');
+          const db = await getStorage();
+          if (db) {
+            const { error } = await db.from('tb_trans_logs').update({
+              emotion:          ap?.emotion || 'neutral',
+              emotion_score:    ap?.emotionScore ?? 0.5,
+              risk_score:       ap?.riskScore ?? 0,
+              conflict_count:   ap?.conflictCount ?? 0,
+              intent:           ap?.intent || null,
+              intent_conf:      ap?.intentConf || null,
+              meaning_score:    ap?.meaningScore ?? null,
+              detected_dialect: ap?.detectedDialect || 'unknown',
+              final_dialect:    ap?.finalDialect || null,
+              is_southern:      ap?.isSouthern ?? false,
+              cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
+              is_cultural_adjusted: !!ap?.culturalNote,
+            }).eq('id', logId);
+            if (error) console.warn('[brainpool] 분석값 UPDATE 실패:', error.message);
+            else console.log(`[brainpool] 분석값 저장 완료 logId=${logId}`);
+          }
+        }
       } catch (e: any) {
         console.warn('[brainpool] 백그라운드 분석 실패 (번역엔 영향 없음):', e.message);
       }

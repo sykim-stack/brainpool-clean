@@ -57,7 +57,7 @@ export async function saveCache(ctx) {
   const db = await getStorage();
   if (!db) return ctx;
 
-  const { error } = await db.from('tb_trans_logs').insert({
+  const { data, error } = await db.from('tb_trans_logs').insert({
     source_text: text,
     standard_vi: translatedText,
     direction,
@@ -73,10 +73,14 @@ export async function saveCache(ctx) {
     cultural_notes: ctx.payload.culturalNote ? { warning: ctx.payload.culturalNote } : null,
     is_cultural_adjusted: !!ctx.payload.culturalNote,
     trace_id: ctx.traceId || null,
-  });
+  }).select('id').single();
 
   if (error) {
     console.warn('[TranslationCache] 저장 실패:', error.message);
+  } else if (data?.id) {
+    // 백그라운드 분석이 완료된 후 이 id로 UPDATE할 수 있도록 ctx에 보존
+    ctx.payload.logId = data.id;
+    console.log(`[TranslationCache] 저장 완료 id=${data.id}`);
   }
 
   return ctx;
