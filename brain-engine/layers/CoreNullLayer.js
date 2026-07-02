@@ -33,31 +33,54 @@ export class CoreNullLayer {
       'pronunciation_diff, conversion_rule, frequency, formality_level, ' +
       'emotion_score, conflict_weight';
 
-    // 1차: meaning_ko 부분일치 검색 (단어가 의미 문장 안에 포함된 경우도 찾음)
-    const result1 = await ctx.supabase
-      .from('tp_translations')
-      .select(SELECT_COLS)
-      .ilike('meaning_ko', `%${word}%`)
-      .limit(1)
-      .maybeSingle();
+    const isKorean = /[가-힣]/.test(word);
+    let data = null;
 
-    if (result1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result1.error.message } };
+    if (isKorean) {
+      // 한국어 입력 → meaning_ko 정확 일치 우선, 없으면 부분 일치
+      const r1 = await ctx.supabase.from('tp_translations')
+        .select(SELECT_COLS).eq('meaning_ko', word).maybeSingle();
+      if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
+      data = r1.data;
 
-    let data = result1.data;
+      if (!data) {
+        const r2 = await ctx.supabase.from('tp_translations')
+          .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1).maybeSingle();
+        if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
+        data = r2.data;
+      }
+    } else {
+      // 베트남어 입력 → standard_word 정확 일치 우선 (대소문자 무시)
+      const r1 = await ctx.supabase.from('tp_translations')
+        .select(SELECT_COLS).ilike('standard_word', word).maybeSingle();
+      if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
+      data = r1.data;
 
-    // 2차: standard_word(베트남어) 부분일치 fallback
-    if (!data) {
-      const result2 = await ctx.supabase
-        .from('tp_translations')
-        .select(SELECT_COLS)
-        .ilike('standard_word', `%${word}%`)
-        .limit(1)
-        .maybeSingle();
-      if (result2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: result2.error.message } };
-      data = result2.data;
+      // 없으면 southern_word / hue_word 등도 체크
+      if (!data) {
+        const r2 = await ctx.supabase.from('tp_translations')
+          .select(SELECT_COLS)
+          .or(`southern_word.ilike.${word},hue_word.ilike.${word},mekong_word.ilike.${word}`)
+          .limit(1).maybeSingle();
+        if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
+        data = r2.data;
+      }
     }
 
     if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
+
+    // tb_trans_logs에서 이 단어의 최근 분석값 가져오기 (위험 점수 등)
+    let analysisData: any = null;
+    try {
+      const { data: logData } = await ctx.supabase
+        .from('tb_trans_logs')
+        .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+        .or(`source_text.eq.${word},standard_vi.eq.${word}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      analysisData = logData;
+    } catch (e) { /* 분석값 없어도 카드는 표시 */ }
 
     const example = (dialect === 'southern')
       ? data.example_southern
@@ -72,7 +95,13 @@ export class CoreNullLayer {
       meaning:     data.meaning_ko,
       examples:    example ? [example] : [],
       culturalNote: data.notes || null,
-      riskScore:   data.conflict_weight || 0,
+      // tp_translations 기본값 + tb_trans_logs 분석값 우선 적용
+      riskScore:   analysisData?.risk_score ?? data.conflict_weight ?? 0,
+      emotion:     analysisData?.emotion || null,
+      emotionScore: analysisData?.emotion_score ?? data.emotion_score ?? null,
+      meaningScore: analysisData?.meaning_score ?? null,
+      intent:      analysisData?.intent || null,
+      detectedDialect: analysisData?.detected_dialect || 'unknown',
       emotion:     (data.emotion_score || 0) > 0.5 ? '긍정' : '중립',
       partOfSpeech: data.part_of_speech,
     }};
