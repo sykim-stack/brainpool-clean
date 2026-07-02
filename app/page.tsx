@@ -424,10 +424,15 @@ export default function Home() {
         }}
         isTyping={isTyping}
         onClear={async () => {
-          setMessages([]);
-          if (currentRoomId) {
-            await fetch(`/api/chat/rooms/${currentRoomId}`, { method: 'PATCH' }).catch(() => null);
+          if (!currentRoomId) {
+            // 번역기 모드: 실수 방지를 위해 확인 후 삭제
+            if (!window.confirm('번역 기록을 모두 지울까요?')) return;
+            setMessages([]);
+            return;
           }
+          // 채팅방 모드: 방 나가기 처리
+          setMessages([]);
+          await fetch(`/api/chat/rooms/${currentRoomId}`, { method: 'PATCH' }).catch(() => null);
         }}
         onShare={async () => {
           await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })

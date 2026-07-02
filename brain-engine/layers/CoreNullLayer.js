@@ -70,7 +70,7 @@ export class CoreNullLayer {
     if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
 
     // tb_trans_logs에서 이 단어의 최근 분석값 가져오기 (위험 점수 등)
-    let analysisData: any = null;
+    let analysisData = null;
     try {
       const { data: logData } = await ctx.supabase
         .from('tb_trans_logs')
