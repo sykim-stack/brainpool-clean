@@ -16,7 +16,7 @@ async function sendMessage(ctx) {
     device_id:     userId,
     type:          'chat',
     content:       original,
-    translated_ko: meta.translatedText && meta.targetLang === 'ko' ? meta.translatedText : null,
+    translated_ko: meta.targetLang === 'ko' ? meta.translatedText || null : null,
     language:      meta.detectedLanguage || null,
     meta: {
       emotion: meta.emotion || null,
@@ -29,6 +29,7 @@ async function sendMessage(ctx) {
       cultureHints: meta.cultureHints || [],
       detectedLanguage: meta.detectedLanguage || null,
       targetLang: meta.targetLang || null,
+      translatedText: meta.translatedText || null,
     },
   });
   if (insertError) {
@@ -63,22 +64,29 @@ async function getHistory(ctx) {
     .order('created_at', { ascending: false })
     .limit(Math.min(limit, 100));
   if (error) return { ...ctx, _error: error.message };
-  return { ...ctx, messages: (data || []).map(m => ({
-    messageId:    m.id,
-    roomId:       m.room_id,
-    userId:       m.device_id || m.nickname || 'unknown',
-    original:     m.message || m.content || '',
-    translated:   m.translated_ko || m.translated_vi || null,
-    translations: { ko: m.translated_ko, vi: m.translated_vi },
-    emotion:      m.meta?.emotion || null,
-    riskScore:    m.meta?.riskScore ?? 0,
-    intent:       m.meta?.intent || null,
-    meaningScore: m.meta?.meaningScore ?? null,
-    detectedDialect: m.meta?.detectedDialect || 'unknown',
-    isSouthern:   m.meta?.isSouthern ?? false,
-    culturalNote: m.meta?.culturalNote || null,
-    timestamp:    m.created_at,
-  }))};
+  return { ...ctx, messages: (data || []).map(m => {
+    const detectedLang = m.meta?.detectedLanguage || m.language || null;
+    const targetLang   = m.meta?.targetLang || (detectedLang === 'ko' ? 'vi' : 'ko');
+    const translatedText = m.meta?.translatedText || m.translated_ko || null;
+    return {
+      messageId:    m.id,
+      roomId:       m.room_id,
+      userId:       m.device_id || 'unknown',
+      original:     m.content || '',
+      translated:   translatedText,
+      translations: { [targetLang]: translatedText },
+      sourceLang:   detectedLang,
+      targetLang,
+      emotion:      m.meta?.emotion || null,
+      riskScore:    m.meta?.riskScore ?? 0,
+      intent:       m.meta?.intent || null,
+      meaningScore: m.meta?.meaningScore ?? null,
+      detectedDialect: m.meta?.detectedDialect || 'unknown',
+      isSouthern:   m.meta?.isSouthern ?? false,
+      culturalNote: m.meta?.culturalNote || null,
+      timestamp:    m.created_at,
+    };
+  })};
 }
 
 const actionMap = { SEND_MESSAGE: sendMessage, GET_HISTORY: getHistory };

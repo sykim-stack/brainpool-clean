@@ -227,24 +227,28 @@ export default function Home() {
 
       const msgs     = [...rawMsgs].reverse();
       const enriched = msgs.map((m: any) => {
-        const hasKorean = /[가-힣]/.test(m.original || '');
-        const srcLang   = hasKorean ? 'ko' : 'vi';
-        const tgtLang   = srcLang === 'ko' ? 'vi' : 'ko';
-        let translated  = m.translations?.[tgtLang] || m.translations?.[srcLang] || m.original;
+        // getHistory가 이미 translated, sourceLang, targetLang을 채워서 반환
+        // fallback: translated 없으면 translations 객체에서 찾고, 그것도 없으면 original
+        const srcLang    = m.sourceLang || (/[가-힣]/.test(m.original || '') ? 'ko' : 'vi');
+        const tgtLang    = m.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
+        const translated = m.translated
+          || m.translations?.[tgtLang]
+          || m.translations?.[srcLang]
+          || m.original;
 
         return {
-          messageId:  m.messageId || m.id,
-          original:   m.original || '',
+          messageId:   m.messageId || m.id,
+          original:    m.original || '',
           translated,
-          sourceLang: srcLang,
-          targetLang: tgtLang,
-          emotion:    typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
-          riskScore:  m.riskScore ?? 0,
-          intent:     m.intent || undefined,
+          sourceLang:  srcLang,
+          targetLang:  tgtLang,
+          emotion:     typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
+          riskScore:   m.riskScore ?? 0,
+          intent:      m.intent || undefined,
           culturalNote: m.culturalNote || undefined,
-          timestamp:  m.timestamp || m.createdAt,
-          userId:     m.userId || '',
-          audioUrl:   m.audioUrl || undefined,
+          timestamp:   m.timestamp || m.createdAt,
+          userId:      m.userId || '',
+          audioUrl:    m.audioUrl || undefined,
         };
       });
 
