@@ -48,6 +48,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [wordDetail, setWordDetail] = useState<any>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -55,6 +56,26 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   // 모달 열릴 때 기존 발음 조회 (return null 이전 — Hook 규칙)
   const word_for_effect = data?.sentence || '';
   const sourceLang_for_effect = data?.sourceLang || '';
+
+  // 마운트 시 getWordData 자동 호출 — 사전 데이터 + 분석값 병합
+  useEffect(() => {
+    if (!word_for_effect) return;
+    setWordDetail(null);
+    // 베트남어 문장이면 translated(한국어)로, 한국어 문장이면 sentence(원문)로 조회
+    const lookupWord = sourceLang_for_effect === 'ko'
+      ? (data?.translated || word_for_effect)
+      : word_for_effect;
+    fetch('/api/phrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordData', word: lookupWord }),
+    })
+      .then(r => r.json())
+      .catch(() => null)
+      .then(json => {
+        if (json?.success && json.payload) setWordDetail(json.payload);
+      });
+  }, [word_for_effect]);
   useEffect(() => {
     if (!word_for_effect) return;
     setAudioUrl(null);
@@ -77,12 +98,12 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   const word = data.sentence;
   const meaning = data.translated;
-  // wordDetail(tb_trans_logs 분석값)을 우선, 없으면 message의 분석값 사용
-  const wordDetail = data.wordDetail;
-  const emotion = wordDetail?.emotion || data.emotion;
-  const riskScore = wordDetail?.riskScore ?? data.riskScore;
-  const intent = wordDetail?.intent || data.intent;
-  const culturalNote = wordDetail?.culturalNote || data.culturalNote;
+  // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
+  const detail = wordDetail || data.wordDetail;
+  const emotion = detail?.emotion || data.emotion;
+  const riskScore = detail?.riskScore ?? data.riskScore;
+  const intent = detail?.intent || data.intent;
+  const culturalNote = detail?.culturalNote || data.culturalNote;
   const sourceLang = data.sourceLang;
 
   const pronunciationTarget = sourceLang === 'ko'
