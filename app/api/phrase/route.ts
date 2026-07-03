@@ -70,6 +70,7 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log(`[phrase] ${action} ok riskScore=${result.result?.riskScore} emotion=${result.result?.emotion} meaning=${result.result?.meaning?.slice(0,20)}`);
     return new Response(
       JSON.stringify({ success: true, payload: result.result, traceId }),
       { status: 200, headers: responseHeaders }
