@@ -80,6 +80,7 @@ export class CoreNullLayer {
         .limit(1)
         .maybeSingle();
       analysisData = logData;
+      console.log(`[getWordData] analysisData riskScore=${logData?.risk_score} emotion=${logData?.emotion}`);
     } catch (e) { /* 분석값 없어도 카드는 표시 */ }
 
     const example = (dialect === 'southern')
