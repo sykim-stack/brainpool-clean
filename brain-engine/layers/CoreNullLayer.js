@@ -16,8 +16,8 @@ export class CoreNullLayer {
       case 'reportConflict':     return await this.reportConflict(ctx);
       case 'resolveConflict':    return await this.resolveConflict(ctx);
       case 'getRandomWord':      return await this.getRandomWord(ctx);
-      case 'saveAudio':         return await this.saveAudio(ctx);
-      case 'getAudio':          return await this.getAudio(ctx);
+      case 'saveAudio':          return await this.saveAudio(ctx);
+      case 'getAudio':           return await this.getAudio(ctx);
       default:
         return { ...ctx, _error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } };
     }
@@ -69,13 +69,14 @@ export class CoreNullLayer {
 
     if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
 
-    // tb_trans_logs에서 이 단어의 최근 분석값 가져오기 (위험 점수 등)
+    // tb_trans_logs에서 이 단어의 최근 분석값 가져오기
+    // 수정: .or() 안에 값을 따옴표로 감싸서 Supabase 파싱 오류 방지
     let analysisData = null;
     try {
       const { data: logData } = await ctx.supabase
         .from('tb_trans_logs')
         .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
-        .or(`source_text.eq.${word},standard_vi.eq.${word}`)
+        .or(`source_text.eq."${word}",standard_vi.eq."${word}"`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -89,22 +90,21 @@ export class CoreNullLayer {
 
     return { ...ctx, result: {
       word,
-      standard:    data.standard_word,
-      southern:    data.southern_word,
-      hue:         data.hue_word,
-      mekong:      data.mekong_word,
-      meaning:     data.meaning_ko,
-      examples:    example ? [example] : [],
-      culturalNote: data.notes || null,
-      // tp_translations 기본값 + tb_trans_logs 분석값 우선 적용
-      riskScore:   analysisData?.risk_score ?? data.conflict_weight ?? 0,
-      emotion:     analysisData?.emotion || null,
-      emotionScore: analysisData?.emotion_score ?? data.emotion_score ?? null,
-      meaningScore: analysisData?.meaning_score ?? null,
-      intent:      analysisData?.intent || null,
+      standard:        data.standard_word,
+      southern:        data.southern_word,
+      hue:             data.hue_word,
+      mekong:          data.mekong_word,
+      meaning:         data.meaning_ko,
+      examples:        example ? [example] : [],
+      culturalNote:    data.notes || null,
+      // tb_trans_logs 분석값 우선, 없으면 tp_translations 기본값
+      riskScore:       analysisData?.risk_score ?? data.conflict_weight ?? 0,
+      emotion:         analysisData?.emotion || ((data.emotion_score || 0) > 0.5 ? '긍정' : '중립'),
+      emotionScore:    analysisData?.emotion_score ?? data.emotion_score ?? null,
+      meaningScore:    analysisData?.meaning_score ?? null,
+      intent:          analysisData?.intent || null,
       detectedDialect: analysisData?.detected_dialect || 'unknown',
-      emotion:     (data.emotion_score || 0) > 0.5 ? '긍정' : '중립',
-      partOfSpeech: data.part_of_speech,
+      partOfSpeech:    data.part_of_speech,
     }};
   }
 
@@ -183,7 +183,6 @@ export class CoreNullLayer {
     return { ...ctx, result: { success: true, id } };
   }
 
-
   async saveAudio(ctx) {
     const { user_id, word, dialect, audio_url, session_id, trans_id } = ctx.payload;
     if (!user_id || !audio_url) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'user_id and audio_url required' } };
@@ -195,6 +194,7 @@ export class CoreNullLayer {
     if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
     return { ...ctx, result: data };
   }
+
   async getAudio(ctx) {
     const { word, dialect } = ctx.payload;
     if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
