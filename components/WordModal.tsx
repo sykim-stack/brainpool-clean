@@ -96,11 +96,10 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   if (!data) return null;
 
   const word = data.sentence;
-  // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
-  // data.translated는 DeepL 결과라 문맥 없이 틀릴 수 있음
-  const meaning = detail?.meaning || data.translated;
   // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
   const detail = wordDetail || data.wordDetail;
+  // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
+  const meaning = detail?.meaning || data.translated;
   const emotion = detail?.emotion || data.emotion;
   const riskScore = detail?.riskScore ?? data.riskScore;
   const intent = detail?.intent || data.intent;
