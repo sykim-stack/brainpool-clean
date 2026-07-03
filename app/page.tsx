@@ -520,7 +520,7 @@ export default function Home() {
               deviceId={deviceId}
               messageId={msg.messageId}
               isFirstLang={isFirstLang}
-              onClick={() => handleBubbleClick(msg)}
+              onClick={() => handleWordClick(msg, msg.original)}
               audioUrl={msg.audioUrl}
               onWordClick={(word) => handleWordClick(msg, word)}
             />
