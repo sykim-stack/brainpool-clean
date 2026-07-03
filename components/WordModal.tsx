@@ -77,10 +77,12 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   const word = data.sentence;
   const meaning = data.translated;
-  const emotion = data.emotion;
-  const riskScore = data.riskScore;
-  const culturalNote = data.culturalNote;
-  const intent = data.intent;
+  // wordDetail(tb_trans_logs 분석값)을 우선, 없으면 message의 분석값 사용
+  const wordDetail = data.wordDetail;
+  const emotion = wordDetail?.emotion || data.emotion;
+  const riskScore = wordDetail?.riskScore ?? data.riskScore;
+  const intent = wordDetail?.intent || data.intent;
+  const culturalNote = wordDetail?.culturalNote || data.culturalNote;
   const sourceLang = data.sourceLang;
 
   const pronunciationTarget = sourceLang === 'ko'
