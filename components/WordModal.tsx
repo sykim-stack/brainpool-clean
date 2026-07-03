@@ -61,14 +61,13 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   useEffect(() => {
     if (!word_for_effect) return;
     setWordDetail(null);
-    // 베트남어 문장이면 translated(한국어)로, 한국어 문장이면 sentence(원문)로 조회
-    const lookupWord = sourceLang_for_effect === 'ko'
-      ? (data?.translated || word_for_effect)
-      : word_for_effect;
+    // 항상 원문(sentence)으로 사전 조회
+    // VI→KO: 베트남어 원문으로 standard_word 조회
+    // KO→VI: 한국어 원문으로 meaning_ko 조회
     fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'getWordData', word: lookupWord }),
+      body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
     })
       .then(r => r.json())
       .catch(() => null)
@@ -97,7 +96,9 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   if (!data) return null;
 
   const word = data.sentence;
-  const meaning = data.translated;
+  // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
+  // data.translated는 DeepL 결과라 문맥 없이 틀릴 수 있음
+  const meaning = detail?.meaning || data.translated;
   // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
   const detail = wordDetail || data.wordDetail;
   const emotion = detail?.emotion || data.emotion;
