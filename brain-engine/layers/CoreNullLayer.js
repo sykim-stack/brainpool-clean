@@ -56,14 +56,20 @@ export class CoreNullLayer {
       if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
       data = r1.data?.[0] ?? null;
 
-      // 없으면 southern_word / hue_word 등도 체크
+      // 없으면 southern_word 정확 일치 (hổng, thiệt 같은 남부 방언 단어)
       if (!data) {
+        const r1b = await ctx.supabase.from('tp_translations')
+          .select(SELECT_COLS).ilike('southern_word', word).limit(1);
+        if (!r1b.error) data = r1b.data?.[0] ?? null;
+      }
+
+      // 없으면 hue_word / mekong_word 등도 체크 (단어만, 공백 있는 문장은 skip)
+      if (!data && !word.includes(' ')) {
         const r2 = await ctx.supabase.from('tp_translations')
           .select(SELECT_COLS)
-          .or(`southern_word.ilike.${word},hue_word.ilike.${word},mekong_word.ilike.${word}`)
+          .or(`hue_word.ilike.${word},mekong_word.ilike.${word}`)
           .limit(1);
-        if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
-        data = r2.data?.[0] ?? null;
+        if (!r2.error) data = r2.data?.[0] ?? null;
       }
     }
 
