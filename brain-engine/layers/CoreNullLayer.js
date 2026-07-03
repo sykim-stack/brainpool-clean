@@ -39,31 +39,31 @@ export class CoreNullLayer {
     if (isKorean) {
       // 한국어 입력 → meaning_ko 정확 일치 우선, 없으면 부분 일치
       const r1 = await ctx.supabase.from('tp_translations')
-        .select(SELECT_COLS).eq('meaning_ko', word).maybeSingle();
+        .select(SELECT_COLS).eq('meaning_ko', word).limit(1);
       if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
-      data = r1.data;
+      data = r1.data?.[0] ?? null;
 
       if (!data) {
         const r2 = await ctx.supabase.from('tp_translations')
-          .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1).maybeSingle();
+          .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1);
         if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
-        data = r2.data;
+        data = r2.data?.[0] ?? null;
       }
     } else {
       // 베트남어 입력 → standard_word 정확 일치 우선 (대소문자 무시)
       const r1 = await ctx.supabase.from('tp_translations')
-        .select(SELECT_COLS).ilike('standard_word', word).maybeSingle();
+        .select(SELECT_COLS).ilike('standard_word', word).limit(1);
       if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
-      data = r1.data;
+      data = r1.data?.[0] ?? null;
 
       // 없으면 southern_word / hue_word 등도 체크
       if (!data) {
         const r2 = await ctx.supabase.from('tp_translations')
           .select(SELECT_COLS)
           .or(`southern_word.ilike.${word},hue_word.ilike.${word},mekong_word.ilike.${word}`)
-          .limit(1).maybeSingle();
+          .limit(1);
         if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
-        data = r2.data;
+        data = r2.data?.[0] ?? null;
       }
     }
 
@@ -78,10 +78,9 @@ export class CoreNullLayer {
         .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
         .or(`source_text.eq."${word}",standard_vi.eq."${word}"`)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      analysisData = logData;
-      console.log(`[getWordData] analysisData riskScore=${logData?.risk_score} emotion=${logData?.emotion}`);
+        .limit(1);
+      analysisData = logData?.[0] ?? null;
+      console.log(`[getWordData] analysisData riskScore=${analysisData?.risk_score} emotion=${analysisData?.emotion}`);
     } catch (e) { /* 분석값 없어도 카드는 표시 */ }
 
     const example = (dialect === 'southern')
