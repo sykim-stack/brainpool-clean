@@ -34,60 +34,84 @@ export class CoreNullLayer {
       'emotion_score, conflict_weight';
 
     const isKorean = /[가-힣]/.test(word);
+    const isSentence = word.includes(' ') || word.length > 15;
     let data = null;
 
-    if (isKorean) {
-      // 한국어 입력 → meaning_ko 정확 일치 우선, 없으면 부분 일치
-      const r1 = await ctx.supabase.from('tp_translations')
-        .select(SELECT_COLS).eq('meaning_ko', word).limit(1);
-      if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
-      data = r1.data?.[0] ?? null;
+    // 문장(공백 포함 또는 긴 텍스트)은 사전 조회 건너뜀 → tb_trans_logs에서만 분석값 조회
+    if (!isSentence) {
+      if (isKorean) {
+        const r1 = await ctx.supabase.from('tp_translations')
+          .select(SELECT_COLS).eq('meaning_ko', word).limit(1);
+        if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
+        data = r1.data?.[0] ?? null;
 
-      if (!data) {
-        const r2 = await ctx.supabase.from('tp_translations')
-          .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1);
-        if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
-        data = r2.data?.[0] ?? null;
-      }
-    } else {
-      // 베트남어 입력 → standard_word 정확 일치 우선 (대소문자 무시)
-      const r1 = await ctx.supabase.from('tp_translations')
-        .select(SELECT_COLS).ilike('standard_word', word).limit(1);
-      if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
-      data = r1.data?.[0] ?? null;
+        if (!data) {
+          const r2 = await ctx.supabase.from('tp_translations')
+            .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1);
+          if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
+          data = r2.data?.[0] ?? null;
+        }
+      } else {
+        const r1 = await ctx.supabase.from('tp_translations')
+          .select(SELECT_COLS).ilike('standard_word', word).limit(1);
+        if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
+        data = r1.data?.[0] ?? null;
 
-      // 없으면 southern_word 정확 일치 (hổng, thiệt 같은 남부 방언 단어)
-      if (!data) {
-        const r1b = await ctx.supabase.from('tp_translations')
-          .select(SELECT_COLS).ilike('southern_word', word).limit(1);
-        if (!r1b.error) data = r1b.data?.[0] ?? null;
-      }
+        if (!data) {
+          const r1b = await ctx.supabase.from('tp_translations')
+            .select(SELECT_COLS).ilike('southern_word', word).limit(1);
+          if (!r1b.error) data = r1b.data?.[0] ?? null;
+        }
 
-      // 없으면 hue_word / mekong_word 등도 체크 (단어만, 공백 있는 문장은 skip)
-      if (!data && !word.includes(' ')) {
-        const r2 = await ctx.supabase.from('tp_translations')
-          .select(SELECT_COLS)
-          .or(`hue_word.ilike.${word},mekong_word.ilike.${word}`)
-          .limit(1);
-        if (!r2.error) data = r2.data?.[0] ?? null;
+        if (!data) {
+          const r2 = await ctx.supabase.from('tp_translations')
+            .select(SELECT_COLS)
+            .or(`hue_word.ilike.${word},mekong_word.ilike.${word}`)
+            .limit(1);
+          if (!r2.error) data = r2.data?.[0] ?? null;
+        }
       }
     }
 
-    if (!data) return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
-
-    // tb_trans_logs에서 이 단어의 최근 분석값 가져오기
-    // 수정: .or() 안에 값을 따옴표로 감싸서 Supabase 파싱 오류 방지
+    // tb_trans_logs에서 분석값 조회 (단어 & 문장 모두)
     let analysisData = null;
     try {
-      const { data: logData } = await ctx.supabase
+      // 공백 있는 문장은 .or() 파싱 에러가 나므로 개별 조회
+      const logQuery = ctx.supabase
         .from('tb_trans_logs')
         .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
-        .or(`source_text.eq."${word}",standard_vi.eq."${word}"`)
         .order('created_at', { ascending: false })
         .limit(1);
-      analysisData = logData?.[0] ?? null;
-      console.log(`[getWordData] analysisData riskScore=${analysisData?.risk_score} emotion=${analysisData?.emotion}`);
+
+      let logResult;
+      if (isSentence) {
+        // 문장: source_text 또는 standard_vi로 각각 조회
+        const r1 = await ctx.supabase.from('tb_trans_logs')
+          .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+          .eq('source_text', word)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        logResult = r1;
+        if (!r1.data?.[0]) {
+          const r2 = await ctx.supabase.from('tb_trans_logs')
+            .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+            .eq('standard_vi', word)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          logResult = r2;
+        }
+      } else {
+        logResult = await logQuery.or(`source_text.eq."${word}",standard_vi.eq."${word}"`);
+      }
+
+      analysisData = logResult?.data?.[0] ?? null;
+      console.log(`[getWordData] word="${word}" isSentence=${isSentence} riskScore=${analysisData?.risk_score} emotion=${analysisData?.emotion}`);
     } catch (e) { /* 분석값 없어도 카드는 표시 */ }
+
+    // 사전에도 없고 분석값도 없으면 NOT_FOUND
+    if (!data && !analysisData) {
+      return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
+    }
 
     const example = (dialect === 'southern')
       ? data.example_southern
