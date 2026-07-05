@@ -211,29 +211,23 @@ export default function Home() {
   useEffect(() => {
     if (!currentRoomId) return;
 
-    let abortController: AbortController | null = null;
     let isPolling = false;
+    let cancelled = false;
 
     const poll = async () => {
-      // 이전 요청이 아직 진행 중이면 건너뜀 (요청 누적 방지)
-      if (isPolling) return;
+      if (isPolling || cancelled) return;
       isPolling = true;
-
-      // 이전 요청 취소
-      abortController?.abort();
-      abortController = new AbortController();
 
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
           body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
-          signal: abortController.signal,
         });
-        if (!res || !res.ok) return;
+        if (cancelled || !res || !res.ok) return;
 
         const data = await res.json().catch(() => null);
-        if (!data) return;
+        if (cancelled || !data) return;
 
         const rawMsgs = data.payload?.messages || [];
         if (!rawMsgs.length) return;
@@ -263,12 +257,9 @@ export default function Home() {
           };
         });
 
-        setMessages(enriched);
+        if (!cancelled) setMessages(enriched);
       } catch (e: any) {
-        // AbortError는 정상 취소 — 로그 불필요
-        if (e.name !== 'AbortError') {
-          console.warn('[poll] 에러:', e.message);
-        }
+        if (!cancelled) console.warn('[poll] 에러:', e.message);
       } finally {
         isPolling = false;
       }
@@ -277,8 +268,8 @@ export default function Home() {
     poll();
     const interval = setInterval(poll, 2000);
     return () => {
+      cancelled = true;
       clearInterval(interval);
-      abortController?.abort();
     };
   }, [currentRoomId]);
 

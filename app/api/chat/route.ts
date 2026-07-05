@@ -60,7 +60,51 @@ export async function POST(request: NextRequest) {
               let analysisCtx = { ...ctx };
               analysisCtx = await engineRoute('emotion', analysisCtx);
               if (!analysisCtx._error) analysisCtx = await engineRoute('dialect', analysisCtx);
-              console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${analysisCtx.payload?.emotion}`);
+
+              const ap = analysisCtx.payload;
+              console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${ap?.emotion} risk=${ap?.riskScore}`);
+
+              // tb_trans_logs에 저장 (getWordData에서 분석값 읽어오기 위해)
+              const { getStorage } = await import('@/brain-engine/connectors/storage.js');
+              const db = await getStorage();
+              if (db) {
+                const sourceLang = ctx.payload?.sourceLang || null;
+                const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
+                // 기존 행 있으면 UPDATE, 없으면 INSERT
+                const { data: existing } = await db
+                  .from('tb_trans_logs')
+                  .select('id')
+                  .eq('source_text', original)
+                  .eq('direction', direction)
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                const existingId = existing?.[0]?.id;
+                if (existingId) {
+                  await db.from('tb_trans_logs').update({
+                    emotion:          ap?.emotion || 'neutral',
+                    emotion_score:    ap?.emotionScore ?? 0.5,
+                    risk_score:       ap?.riskScore ?? 0,
+                    conflict_count:   ap?.conflictCount ?? 0,
+                    intent:           ap?.intent || null,
+                    meaning_score:    ap?.meaningScore ?? null,
+                    detected_dialect: ap?.detectedDialect || 'unknown',
+                    is_southern:      ap?.isSouthern ?? false,
+                    cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
+                  }).eq('id', existingId);
+                } else {
+                  await db.from('tb_trans_logs').insert({
+                    source_text:      original,
+                    standard_vi:      ctx.payload?.translatedText || original,
+                    direction,
+                    emotion:          ap?.emotion || 'neutral',
+                    emotion_score:    ap?.emotionScore ?? 0.5,
+                    risk_score:       ap?.riskScore ?? 0,
+                    intent:           ap?.intent || null,
+                    detected_dialect: ap?.detectedDialect || 'unknown',
+                    is_southern:      ap?.isSouthern ?? false,
+                  });
+                }
+              }
             } catch (e: any) {
               console.warn('[chat/send] 백그라운드 분석 실패:', e.message);
             }
