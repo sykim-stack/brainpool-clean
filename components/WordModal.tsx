@@ -61,19 +61,34 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   useEffect(() => {
     if (!word_for_effect) return;
     setWordDetail(null);
-    // 항상 원문(sentence)으로 사전 조회
-    // VI→KO: 베트남어 원문으로 standard_word 조회
-    // KO→VI: 한국어 원문으로 meaning_ko 조회
-    fetch('/api/phrase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
-    })
-      .then(r => r.json())
-      .catch(() => null)
-      .then(json => {
-        if (json?.success && json.payload) setWordDetail(json.payload);
-      });
+
+    const fetchWordData = async () => {
+      const res = await fetch('/api/phrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
+      }).catch(() => null);
+      const json = res ? await res.json().catch(() => null) : null;
+      if (json?.success && json.payload) {
+        setWordDetail(json.payload);
+        // 분석값(riskScore)이 아직 없으면 Gemini 백그라운드 완료 후 재조회
+        if (!json.payload.riskScore || json.payload.riskScore === 0) {
+          setTimeout(async () => {
+            const res2 = await fetch('/api/phrase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json; charset=utf-8' },
+              body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
+            }).catch(() => null);
+            const json2 = res2 ? await res2.json().catch(() => null) : null;
+            if (json2?.success && json2.payload?.riskScore) {
+              setWordDetail(json2.payload);
+            }
+          }, 2500); // Gemini 분석 완료 대기
+        }
+      }
+    };
+
+    fetchWordData();
   }, [word_for_effect]);
   useEffect(() => {
     if (!word_for_effect) return;

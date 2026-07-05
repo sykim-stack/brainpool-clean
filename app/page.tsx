@@ -211,53 +211,75 @@ export default function Home() {
   useEffect(() => {
     if (!currentRoomId) return;
 
+    let abortController: AbortController | null = null;
+    let isPolling = false;
+
     const poll = async () => {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
-      }).catch(() => null);
-      if (!res || !res.ok) return;
+      // 이전 요청이 아직 진행 중이면 건너뜀 (요청 누적 방지)
+      if (isPolling) return;
+      isPolling = true;
 
-      const data = await res.json().catch(() => null);
-      if (!data) return;
+      // 이전 요청 취소
+      abortController?.abort();
+      abortController = new AbortController();
 
-      const rawMsgs = data.payload?.messages || [];
-      if (!rawMsgs.length) return;
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
+          signal: abortController.signal,
+        });
+        if (!res || !res.ok) return;
 
-      const msgs     = [...rawMsgs].reverse();
-      const enriched = msgs.map((m: any) => {
-        // getHistory가 이미 translated, sourceLang, targetLang을 채워서 반환
-        // fallback: translated 없으면 translations 객체에서 찾고, 그것도 없으면 original
-        const srcLang    = m.sourceLang || (/[가-힣]/.test(m.original || '') ? 'ko' : 'vi');
-        const tgtLang    = m.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
-        const translated = m.translated
-          || m.translations?.[tgtLang]
-          || m.translations?.[srcLang]
-          || m.original;
+        const data = await res.json().catch(() => null);
+        if (!data) return;
 
-        return {
-          messageId:   m.messageId || m.id,
-          original:    m.original || '',
-          translated,
-          sourceLang:  srcLang,
-          targetLang:  tgtLang,
-          emotion:     typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
-          riskScore:   m.riskScore ?? 0,
-          intent:      m.intent || undefined,
-          culturalNote: m.culturalNote || undefined,
-          timestamp:   m.timestamp || m.createdAt,
-          userId:      m.userId || '',
-          audioUrl:    m.audioUrl || undefined,
-        };
-      });
+        const rawMsgs = data.payload?.messages || [];
+        if (!rawMsgs.length) return;
 
-      setMessages(enriched);
+        const msgs     = [...rawMsgs].reverse();
+        const enriched = msgs.map((m: any) => {
+          const srcLang    = m.sourceLang || (/[가-힣]/.test(m.original || '') ? 'ko' : 'vi');
+          const tgtLang    = m.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
+          const translated = m.translated
+            || m.translations?.[tgtLang]
+            || m.translations?.[srcLang]
+            || m.original;
+
+          return {
+            messageId:   m.messageId || m.id,
+            original:    m.original || '',
+            translated,
+            sourceLang:  srcLang,
+            targetLang:  tgtLang,
+            emotion:     typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
+            riskScore:   m.riskScore ?? 0,
+            intent:      m.intent || undefined,
+            culturalNote: m.culturalNote || undefined,
+            timestamp:   m.timestamp || m.createdAt,
+            userId:      m.userId || '',
+            audioUrl:    m.audioUrl || undefined,
+          };
+        });
+
+        setMessages(enriched);
+      } catch (e: any) {
+        // AbortError는 정상 취소 — 로그 불필요
+        if (e.name !== 'AbortError') {
+          console.warn('[poll] 에러:', e.message);
+        }
+      } finally {
+        isPolling = false;
+      }
     };
 
     poll();
     const interval = setInterval(poll, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      abortController?.abort();
+    };
   }, [currentRoomId]);
 
   useEffect(() => {
