@@ -113,27 +113,26 @@ export class CoreNullLayer {
       return { ...ctx, _error: { code: 'NOT_FOUND', message: `Word "${word}" not found` } };
     }
 
-    const example = (dialect === 'southern')
-      ? data.example_southern
-      : data.example_northern;
+    const example = data
+      ? ((dialect === 'southern') ? data.example_southern : data.example_northern)
+      : null;
 
     return { ...ctx, result: {
       word,
-      standard:        data.standard_word,
-      southern:        data.southern_word,
-      hue:             data.hue_word,
-      mekong:          data.mekong_word,
-      meaning:         data.meaning_ko,
+      standard:        data?.standard_word || null,
+      southern:        data?.southern_word || null,
+      hue:             data?.hue_word || null,
+      mekong:          data?.mekong_word || null,
+      meaning:         data?.meaning_ko || null,
       examples:        example ? [example] : [],
-      culturalNote:    data.notes || null,
-      // tb_trans_logs 분석값 우선, 없으면 tp_translations 기본값
-      riskScore:       analysisData?.risk_score ?? data.conflict_weight ?? 0,
-      emotion:         analysisData?.emotion || ((data.emotion_score || 0) > 0.5 ? '긍정' : '중립'),
-      emotionScore:    analysisData?.emotion_score ?? data.emotion_score ?? null,
+      culturalNote:    data?.notes || null,
+      riskScore:       analysisData?.risk_score ?? data?.conflict_weight ?? 0,
+      emotion:         analysisData?.emotion || ((data?.emotion_score || 0) > 0.5 ? '긍정' : '중립'),
+      emotionScore:    analysisData?.emotion_score ?? data?.emotion_score ?? null,
       meaningScore:    analysisData?.meaning_score ?? null,
       intent:          analysisData?.intent || null,
       detectedDialect: analysisData?.detected_dialect || 'unknown',
-      partOfSpeech:    data.part_of_speech,
+      partOfSpeech:    data?.part_of_speech || null,
     }};
   }
 
