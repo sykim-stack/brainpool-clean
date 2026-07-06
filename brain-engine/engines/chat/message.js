@@ -10,26 +10,38 @@ async function sendMessage(ctx) {
   if (!isUUID(roomId)) return { ...ctx, _error: 'roomId is not UUID: ' + roomId };
   const db = await getStorage();
   if (!db) return { ...ctx, _error: 'DB connection failed' };
+  // translations jsonb 구조: { ko: "...", vi: "...", en: null, ja: null }
+  // ADR-002: messages.translations = 렌더링 편의용 Projection
+  //          Language Knowledge의 Source of Truth = tb_trans_logs
+  const translationsPayload = {};
+  if (meta.translatedText && meta.targetLang) {
+    translationsPayload[meta.targetLang] = meta.translatedText;
+  }
+  if (meta.detectedLanguage) {
+    translationsPayload[meta.detectedLanguage] = original;
+  }
+
   const { error: insertError } = await db.from('messages').insert({
     room_id:       roomId,
     user_id:       isUUID(userId) ? userId : null,
     device_id:     userId,
     type:          'chat',
     content:       original,
-    translated_ko: meta.targetLang === 'ko' ? meta.translatedText || null : null,
     language:      meta.detectedLanguage || null,
+    translations:  translationsPayload,
+    // translated_ko: 기존 컬럼 호환성 유지 (기술 부채 — 추후 제거)
+    translated_ko: meta.targetLang === 'ko' ? meta.translatedText || null : null,
     meta: {
-      emotion: meta.emotion || null,
-      riskScore: meta.riskScore ?? 0,
-      intent: meta.intent || null,
-      meaningScore: meta.meaningScore ?? null,
+      emotion:         meta.emotion || null,
+      riskScore:       meta.riskScore ?? 0,
+      intent:          meta.intent || null,
+      meaningScore:    meta.meaningScore ?? null,
       detectedDialect: meta.detectedDialect || 'unknown',
-      isSouthern: meta.isSouthern ?? false,
-      culturalNote: meta.culturalNote || null,
-      cultureHints: meta.cultureHints || [],
+      isSouthern:      meta.isSouthern ?? false,
+      culturalNote:    meta.culturalNote || null,
       detectedLanguage: meta.detectedLanguage || null,
-      targetLang: meta.targetLang || null,
-      translatedText: meta.translatedText || null,
+      targetLang:      meta.targetLang || null,
+      // translatedText: 제거 (translations 컬럼으로 이전)
     },
   });
   if (insertError) {
@@ -65,16 +77,26 @@ async function getHistory(ctx) {
     .limit(Math.min(limit, 100));
   if (error) return { ...ctx, _error: error.message };
   return { ...ctx, messages: (data || []).map(m => {
-    const detectedLang = m.meta?.detectedLanguage || m.language || null;
+    const detectedLang = m.language || m.meta?.detectedLanguage || null;
     const targetLang   = m.meta?.targetLang || (detectedLang === 'ko' ? 'vi' : 'ko');
-    const translatedText = m.meta?.translatedText || m.translated_ko || null;
+
+    // ADR-002: translations 공식 컬럼 우선 (Projection)
+    // fallback: meta.translatedText(구버전) → translated_ko
+    const translationsCol = m.translations || {};
+    const translatedText  =
+      translationsCol[targetLang] ||
+      m.translated_ko ||
+      null;
+
     return {
       messageId:    m.id,
       roomId:       m.room_id,
       userId:       m.device_id || 'unknown',
       original:     m.content || '',
       translated:   translatedText,
-      translations: { [targetLang]: translatedText },
+      translations: Object.keys(translationsCol).length > 0
+        ? translationsCol
+        : { [targetLang]: translatedText },
       sourceLang:   detectedLang,
       targetLang,
       emotion:      m.meta?.emotion || null,
