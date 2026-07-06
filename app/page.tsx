@@ -102,7 +102,13 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────
 export default function Home() {
-  const [messages,       setMessages]       = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('recentTranslations');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [rooms,          setRooms]          = useState<Room[]>([]);
   const [currentRoomId,  setCurrentRoomId]  = useState<string | null>(null);
   const [currentRoomCode,setCurrentRoomCode]= useState('------');
@@ -169,6 +175,18 @@ export default function Home() {
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
+
+  // ── 번역기 모드 기록 localStorage 저장 (P2: 새로고침 복원) ───────────
+  // 채팅방 모드는 저장 안 함 (폴링으로 복원됨)
+  // Identity Layer 완성 후 owner_key 기반 동기화로 교체 예정 (P3)
+  useEffect(() => {
+    if (currentRoomId) return; // 채팅방 모드 제외
+    try {
+      // 최근 30개만 저장 (localStorage 용량 절약)
+      const toSave = messages.slice(-30);
+      localStorage.setItem('recentTranslations', JSON.stringify(toSave));
+    } catch { /* 저장 실패 무시 */ }
+  }, [messages, currentRoomId]);
 
   // ── 오늘의 단어 로드 ───────────────────────────────────────────────
   useEffect(() => {
@@ -419,7 +437,13 @@ export default function Home() {
   const handleExitRoom = useCallback(() => {
     setCurrentRoomId(null);
     setCurrentRoomCode('------');
-    setMessages([]);
+    // 채팅방 퇴장 시 localStorage의 번역기 기록 복원
+    try {
+      const saved = localStorage.getItem('recentTranslations');
+      setMessages(saved ? JSON.parse(saved) : []);
+    } catch {
+      setMessages([]);
+    }
     setIsRoomMode(false);
     setFirstLanguage(null);
     setShowDaily(true);
@@ -438,12 +462,11 @@ export default function Home() {
         isTyping={isTyping}
         onClear={async () => {
           if (!currentRoomId) {
-            // 번역기 모드: 실수 방지를 위해 확인 후 삭제
             if (!window.confirm('번역 기록을 모두 지울까요?')) return;
             setMessages([]);
+            localStorage.removeItem('recentTranslations');
             return;
           }
-          // 채팅방 모드: 방 나가기 처리
           setMessages([]);
           await fetch(`/api/chat/rooms/${currentRoomId}`, { method: 'PATCH' }).catch(() => null);
         }}
@@ -459,6 +482,7 @@ export default function Home() {
         myRooms={myRooms}
         onSelectRoom={(id) => {
           const room = rooms.find(r => r.roomId === id) || myRooms.find(r => r.roomId === id);
+          setMessages([]); // 채팅방 진입 시 번역기 기록 비움 (localStorage는 유지)
           setCurrentRoomId(id);
           setCurrentRoomCode(room?.inviteCode || '------');
         }}
