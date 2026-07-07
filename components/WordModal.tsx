@@ -238,8 +238,21 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         <p className={styles.subtitle}>단어 학습 카드</p>
 
         <Section title="💡 뜻과 쓰임새">
-          <Row label="뜻"     value={meaning || '아직 데이터가 없습니다'} />
+          <Row label="뜻" value={meaning || '아직 데이터가 없습니다'} />
           {usage && <Row label="쓰임새" value={usage} />}
+          {/* meaning_score UI — Phase 1 */}
+          {detail?.meaningScore != null && (
+            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)' }}>
+              {detail.meaningScore >= 0.8
+                ? '🟢 의미 전달 우수'
+                : detail.meaningScore >= 0.6
+                  ? '🟡 약간의 뉘앙스 손실'
+                  : '🔴 문화적 표현으로 완전한 번역 어려움'}
+              {detail.meaningScore < 0.8 && detail.meaningReason && (
+                <p style={{ marginTop: '4px', opacity: 0.8 }}>{detail.meaningReason}</p>
+              )}
+            </div>
+          )}
         </Section>
 
         {riskScore !== undefined && riskScore > 0 && (
@@ -255,6 +268,14 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
                 {Math.round(riskScore * 100)}%
               </span>
             </div>
+            {/* risk_reason 표시 — Phase 1 */}
+            {detail?.riskReason && Array.isArray(detail.riskReason) && detail.riskReason.length > 0 && (
+              <ul style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)', paddingLeft: '16px' }}>
+                {detail.riskReason.map((r: string, i: number) => (
+                  <li key={i}>✓ {r}</li>
+                ))}
+              </ul>
+            )}
           </Section>
         )}
 

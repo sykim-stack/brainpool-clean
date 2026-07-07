@@ -61,7 +61,9 @@ function buildPrompt(text, translatedText, sourceLang) {
 
 {
   "meaning_score": <0.0~1.0, 원문 의미가 번역에 얼마나 보존됐는가>,
+  "meaning_reason": <meaning_score가 0.8 미만일 때 손실 이유 한 문장, 0.8 이상이면 null>,
   "risk_score": <0.0~1.0, 이 메시지가 부부 갈등/오해를 유발할 가능성>,
+  "risk_reason": <risk_score가 0.3 이상일 때 위험 이유 배열 ["이유1", "이유2"], 0.3 미만이면 null>,
   "conflict_count": <위험 표현 개수, 정수>,
   "emotion": <"joy"|"sad"|"angry"|"neutral"|"loving"|"anxious" 중 하나>,
   "emotion_score": <0.0~1.0, 0=완전부정 0.5=중립 1.0=완전긍정>,
@@ -69,7 +71,11 @@ function buildPrompt(text, translatedText, sourceLang) {
   "intent_confidence": <"high"|"medium"|"inferred">,
   "is_cultural": <문화적 오해 가능성이 있으면 true, 없으면 false>,
   "cultural_note": <문화 맥락 설명 한 문장, 없으면 null>
-}`;
+}
+
+판단 기준:
+- meaning_reason: 번역 시 뉘앙스/감정/맥락이 손실된 구체적 이유 (예: "남부 방언 특성상 동일한 한국어 표현이 없습니다")
+- risk_reason: 갈등 유발 가능한 구체적 요소 (예: ["명령형 표현", "감정 강도 높음"])`;
 }
 
 async function callGemini(prompt, apiKey) {
@@ -139,6 +145,8 @@ export async function analyze(ctx) {
       intent: gemini.intent || 'NEUTRAL',
       intentConf: gemini.intent_confidence || 'inferred',
       meaningScore: clamp(gemini.meaning_score, 0, 1, null),
+      meaningReason: gemini.meaning_reason || null,
+      riskReason: Array.isArray(gemini.risk_reason) ? gemini.risk_reason : null,
       culturalNote: gemini.is_cultural ? (gemini.cultural_note || null) : null,
       isCulturalAdjusted: !!gemini.is_cultural,
     };
@@ -163,6 +171,8 @@ function mergePayload(ctx, result) {
       intent: result.intent,
       intentConf: result.intentConf,
       meaningScore: result.meaningScore,
+      meaningReason: result.meaningReason ?? null,
+      riskReason: result.riskReason ?? null,
       culturalNote: result.culturalNote,
       isCulturalAdjusted: result.isCulturalAdjusted,
     },

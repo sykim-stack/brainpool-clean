@@ -79,7 +79,7 @@ export class CoreNullLayer {
       // 공백 있는 문장은 .or() 파싱 에러가 나므로 개별 조회
       const logQuery = ctx.supabase
         .from('tb_trans_logs')
-        .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+        .select('emotion, emotion_score, risk_score, risk_reason, intent, detected_dialect, meaning_score, meaning_reason')
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -87,14 +87,14 @@ export class CoreNullLayer {
       if (isSentence) {
         // 문장: source_text 또는 standard_vi로 각각 조회
         const r1 = await ctx.supabase.from('tb_trans_logs')
-          .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+          .select('emotion, emotion_score, risk_score, risk_reason, intent, detected_dialect, meaning_score, meaning_reason')
           .eq('source_text', word)
           .order('created_at', { ascending: false })
           .limit(1);
         logResult = r1;
         if (!r1.data?.[0]) {
           const r2 = await ctx.supabase.from('tb_trans_logs')
-            .select('emotion, emotion_score, risk_score, intent, detected_dialect, meaning_score')
+            .select('emotion, emotion_score, risk_score, risk_reason, intent, detected_dialect, meaning_score, meaning_reason')
             .eq('standard_vi', word)
             .order('created_at', { ascending: false })
             .limit(1);
@@ -127,9 +127,11 @@ export class CoreNullLayer {
       examples:        example ? [example] : [],
       culturalNote:    data?.notes || null,
       riskScore:       analysisData?.risk_score ?? data?.conflict_weight ?? 0,
+      riskReason:      analysisData?.risk_reason ?? null,
       emotion:         analysisData?.emotion || ((data?.emotion_score || 0) > 0.5 ? '긍정' : '중립'),
       emotionScore:    analysisData?.emotion_score ?? data?.emotion_score ?? null,
       meaningScore:    analysisData?.meaning_score ?? null,
+      meaningReason:   analysisData?.meaning_reason ?? null,
       intent:          analysisData?.intent || null,
       detectedDialect: analysisData?.detected_dialect || 'unknown',
       partOfSpeech:    data?.part_of_speech || null,

@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
               intent:           ap?.intent || null,
               intent_conf:      ap?.intentConf || null,
               meaning_score:    ap?.meaningScore ?? null,
+              meaning_reason:   ap?.meaningReason ?? null,
+              risk_reason:      ap?.riskReason ?? null,
               detected_dialect: ap?.detectedDialect || 'unknown',
               final_dialect:    ap?.finalDialect || null,
               is_southern:      ap?.isSouthern ?? false,
