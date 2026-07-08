@@ -106,7 +106,9 @@ async function callGemini(prompt, apiKey) {
   }
 
   const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  const parsed = JSON.parse(clean);
+  console.log(`[Gemini] risk_reason type=${typeof parsed.risk_reason} value=${JSON.stringify(parsed.risk_reason)}`);
+  return parsed;
 }
 
 function clamp(val, min, max, fallback) {
@@ -146,7 +148,11 @@ export async function analyze(ctx) {
       intentConf: gemini.intent_confidence || 'inferred',
       meaningScore: clamp(gemini.meaning_score, 0, 1, null),
       meaningReason: gemini.meaning_reason || null,
-      riskReason: Array.isArray(gemini.risk_reason) ? gemini.risk_reason : null,
+      riskReason: Array.isArray(gemini.risk_reason)
+        ? gemini.risk_reason
+        : typeof gemini.risk_reason === 'string'
+          ? [gemini.risk_reason]  // 문자열로 왔을 때도 배열로 변환
+          : null,
       culturalNote: gemini.is_cultural ? (gemini.cultural_note || null) : null,
       isCulturalAdjusted: !!gemini.is_cultural,
     };
