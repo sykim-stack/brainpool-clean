@@ -102,13 +102,7 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('recentTranslations');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [rooms,          setRooms]          = useState<Room[]>([]);
   const [currentRoomId,  setCurrentRoomId]  = useState<string | null>(null);
   const [currentRoomCode,setCurrentRoomCode]= useState('------');
@@ -175,6 +169,16 @@ export default function Home() {
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
+
+  // ── 마운트 시 번역기 기록 복원 (localStorage) ─────────────────────
+  // useState 초기값에서 읽으면 SSR hydration 불일치 에러 발생
+  // useEffect는 클라이언트에서만 실행되므로 안전함
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('recentTranslations');
+      if (saved) setMessages(JSON.parse(saved));
+    } catch { /* 복원 실패 무시 */ }
+  }, []);
 
   // ── 번역기 모드 기록 localStorage 저장 (P2: 새로고침 복원) ───────────
   // 채팅방 모드는 저장 안 함 (폴링으로 복원됨)
