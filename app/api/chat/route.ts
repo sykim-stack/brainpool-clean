@@ -52,7 +52,34 @@ export async function POST(request: NextRequest) {
             detectedDialect: 'unknown',
             isSouthern: false,
             culturalNote: null,
+            tbTransLogId: null, // ADR-002: tb_trans_logs 참조 ID
           };
+
+          // ── Step 1.5: tb_trans_logs에 번역 결과 선제 저장 ────
+          // Gemini 분석 전이라도 번역 결과를 먼저 저장하고 id를 확보
+          // → messages.relations.tb_trans_log_id 연결용
+          try {
+            const { getStorage } = await import('@/brain-engine/connectors/storage.js');
+            const db = await getStorage();
+            if (db && translated) {
+              const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
+              const { data: logData } = await db
+                .from('tb_trans_logs')
+                .insert({
+                  source_text: original,
+                  standard_vi: translated,
+                  direction,
+                  trace_id: traceId,
+                })
+                .select('id')
+                .single();
+              if (logData?.id) {
+                translationMeta.tbTransLogId = logData.id;
+              }
+            }
+          } catch (e: any) {
+            console.warn('[chat/send] tb_trans_logs 선제 저장 실패:', e.message);
+          }
 
           // ── Step 2: Gemini 분석 + 푸시 알림 (백그라운드) ────
           Promise.resolve().then(async () => {
@@ -70,39 +97,40 @@ export async function POST(request: NextRequest) {
               if (db) {
                 const sourceLang = ctx.payload?.sourceLang || null;
                 const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
-                // 기존 행 있으면 UPDATE, 없으면 INSERT
-                const { data: existing } = await db
-                  .from('tb_trans_logs')
-                  .select('id')
-                  .eq('source_text', original)
-                  .eq('direction', direction)
-                  .order('created_at', { ascending: false })
-                  .limit(1);
-                const existingId = existing?.[0]?.id;
-                if (existingId) {
-                  await db.from('tb_trans_logs').update({
-                    emotion:          ap?.emotion || 'neutral',
-                    emotion_score:    ap?.emotionScore ?? 0.5,
-                    risk_score:       ap?.riskScore ?? 0,
-                    conflict_count:   ap?.conflictCount ?? 0,
-                    intent:           ap?.intent || null,
-                    meaning_score:    ap?.meaningScore ?? null,
-                    detected_dialect: ap?.detectedDialect || 'unknown',
-                    is_southern:      ap?.isSouthern ?? false,
-                    cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
-                  }).eq('id', existingId);
+                const updatePayload = {
+                  emotion:          ap?.emotion || 'neutral',
+                  emotion_score:    ap?.emotionScore ?? 0.5,
+                  risk_score:       ap?.riskScore ?? 0,
+                  conflict_count:   ap?.conflictCount ?? 0,
+                  intent:           ap?.intent || null,
+                  meaning_score:    ap?.meaningScore ?? null,
+                  meaning_reason:   ap?.meaningReason ?? null,
+                  risk_reason:      ap?.riskReason ?? null,
+                  detected_dialect: ap?.detectedDialect || 'unknown',
+                  is_southern:      ap?.isSouthern ?? false,
+                  cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
+                };
+                // Step 1.5에서 미리 확보한 id로 바로 UPDATE
+                const logId = translationMeta.tbTransLogId;
+                if (logId) {
+                  await db.from('tb_trans_logs').update(updatePayload).eq('id', logId);
                 } else {
-                  await db.from('tb_trans_logs').insert({
-                    source_text:      original,
-                    standard_vi:      ctx.payload?.translatedText || original,
-                    direction,
-                    emotion:          ap?.emotion || 'neutral',
-                    emotion_score:    ap?.emotionScore ?? 0.5,
-                    risk_score:       ap?.riskScore ?? 0,
-                    intent:           ap?.intent || null,
-                    detected_dialect: ap?.detectedDialect || 'unknown',
-                    is_southern:      ap?.isSouthern ?? false,
-                  });
+                  // fallback: source_text로 기존 행 찾아서 UPDATE 또는 INSERT
+                  const { data: existing } = await db
+                    .from('tb_trans_logs').select('id')
+                    .eq('source_text', original).eq('direction', direction)
+                    .order('created_at', { ascending: false }).limit(1);
+                  const existingId = existing?.[0]?.id;
+                  if (existingId) {
+                    await db.from('tb_trans_logs').update(updatePayload).eq('id', existingId);
+                  } else {
+                    await db.from('tb_trans_logs').insert({
+                      source_text: original,
+                      standard_vi: ctx.payload?.translatedText || original,
+                      direction,
+                      ...updatePayload,
+                    });
+                  }
                 }
               }
             } catch (e: any) {

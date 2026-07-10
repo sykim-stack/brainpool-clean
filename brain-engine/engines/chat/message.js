@@ -29,8 +29,9 @@ async function sendMessage(ctx) {
     content:       original,
     language:      meta.detectedLanguage || null,
     translations:  translationsPayload,
-    // translated_ko: 기존 컬럼 호환성 유지 (기술 부채 — 추후 제거)
     translated_ko: meta.targetLang === 'ko' ? meta.translatedText || null : null,
+    // ADR-002: relations.tb_trans_log_id → Language Knowledge 참조
+    relations: meta.tbTransLogId ? { tb_trans_log_id: meta.tbTransLogId } : {},
     meta: {
       emotion:         meta.emotion || null,
       riskScore:       meta.riskScore ?? 0,
@@ -41,7 +42,6 @@ async function sendMessage(ctx) {
       culturalNote:    meta.culturalNote || null,
       detectedLanguage: meta.detectedLanguage || null,
       targetLang:      meta.targetLang || null,
-      // translatedText: 제거 (translations 컬럼으로 이전)
     },
   });
   if (insertError) {
