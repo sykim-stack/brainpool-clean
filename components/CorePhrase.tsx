@@ -250,8 +250,10 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                 <>
                   <div className={styles.cardTop}>
                     <div className={styles.words}>
-                      <span className={styles.word}>{item.word}</span>
-                      <button onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(item.word); u.lang = 'vi-VN'; u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', opacity: 0.7 }}>🔊</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className={styles.word}>{item.word}</span>
+                        <button onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(item.word); u.lang = 'vi-VN'; u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', opacity: 0.7, flexShrink: 0 }}>🔊</button>
+                      </div>
                       {item.meaning_kr && <span className={styles.meaning}>{item.meaning_kr}</span>}
                       {item.memo && <span className={styles.memo}>✏️ {item.memo}</span>}
                     </div>

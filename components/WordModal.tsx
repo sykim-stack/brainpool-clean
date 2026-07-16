@@ -227,11 +227,11 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
     <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <h2 className={styles.title}>📖 {word}</h2>
           <button
             onClick={handlePlayAudio}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: audioUrl ? 1 : 0.5 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: audioUrl ? 1 : 0.5, minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
           >🔊</button>
         </div>
