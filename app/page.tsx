@@ -360,7 +360,27 @@ export default function Home() {
   }, [currentRoomId, deviceId, loadRooms]);
 
   // ── 초대코드 입장: /api/chat POST action=join ────────────────────
-  const useEffect(() => {
+  const handleJoinByCode = useCallback(async (inviteCode: string) => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'join', inviteCode }),
+    }).catch(() => null);
+
+    const data = res ? await res.json().catch(() => null) : null;
+    if (data && data.payload && data.payload.room) {
+      setCurrentRoomId(data.payload.room.roomId);
+      setCurrentRoomCode(data.payload.room.inviteCode || '------');
+      saveMyRoom(data.payload.room);
+      setShareRoomCode(data.payload.room.inviteCode || null);
+      setIsRoomMode(false);
+    } else {
+      alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
+    }
+  }, []);
+
+  // -- URL 딥링크 처리 (초대링크 ?code=, 알림 ?room=) -----------------
+  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const roomParam = params.get('room');
