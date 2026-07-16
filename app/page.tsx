@@ -372,7 +372,6 @@ export default function Home() {
       setCurrentRoomId(data.payload.room.roomId);
       setCurrentRoomCode(data.payload.room.inviteCode || '------');
       saveMyRoom(data.payload.room);
-      setShareRoomCode(data.payload.room.inviteCode || null);
       setIsRoomMode(false);
     } else {
       alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
@@ -484,8 +483,8 @@ export default function Home() {
   return (
     <div className="app-shell">
       <BrainHeader
-        project={isRoomMode ? 'chat' : 'ring'}
-        isRoomMode={isRoomMode}
+        project={(isRoomMode || currentRoomId) ? 'chat' : 'ring'}
+        isRoomMode={isRoomMode || !!currentRoomId}
         onRoomToggle={() => {
           if (currentRoomId) handleExitRoom();
           else setIsRoomMode(prev => !prev);
