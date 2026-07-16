@@ -167,7 +167,10 @@ export default function Home() {
   }, [deferredPrompt]);
   // ── 스크롤 ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    const el = chatRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (isNearBottom) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // ── 마운트 시 번역기 기록 복원 (localStorage) ─────────────────────
@@ -357,24 +360,28 @@ export default function Home() {
   }, [currentRoomId, deviceId, loadRooms]);
 
   // ── 초대코드 입장: /api/chat POST action=join ────────────────────
-  const handleJoinByCode = useCallback(async (inviteCode: string) => {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'join', inviteCode }),
-    }).catch(() => null);
+  const useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const roomParam = params.get('room');
 
-    const data = res ? await res.json().catch(() => null) : null;
-    if (data?.payload?.room) {
-      setCurrentRoomId(data.payload.room.roomId);
-      setCurrentRoomCode(data.payload.room.inviteCode || '------');
-      saveMyRoom(data.payload.room);
-            setShareRoomCode(data.payload.room.inviteCode || null);
-      setIsRoomMode(false);
-    } else {
-      alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
-    }
-  }, []);
+  if (code) {
+    handleJoinByCode(code.toUpperCase());
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (roomParam) {
+    (async () => {
+      const res = await fetch(`/api/chat/rooms/${roomParam}`).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      if (data?.payload?.room) {
+        setMessages([]);
+        setCurrentRoomId(data.payload.room.roomId);
+        setCurrentRoomCode(data.payload.room.inviteCode || '------');
+        saveMyRoom(data.payload.room);
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    })();
+  }
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 방 삭제 ───────────────────────────────────────────────────────
   const handleDeleteRoom = useCallback(async (roomId: string) => {
