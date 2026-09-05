@@ -111,6 +111,8 @@ export default function Home() {
   const [nickname,       setNickname]       = useState('익명');
   const [selectedMessage,setSelectedMessage]= useState<Message | null>(null);
   const [selectedWord,   setSelectedWord]   = useState<any>(null);
+  // [BRAINPOOL-CHANGE][MINIMAL-WORD-1] 클릭한 번역 토큰만 단어 모달에 전달합니다.
+  const [selectedWordText, setSelectedWordText] = useState<string | null>(null);
   const [isLoading,      setIsLoading]      = useState(false);
   const [deviceId]                          = useState(getDeviceId);
   const chatRef                             = useRef<HTMLDivElement>(null);
@@ -450,11 +452,14 @@ export default function Home() {
   const handleBubbleClick = useCallback((msg: Message) => {
     setSelectedMessage(msg);
     setSelectedWord(null);
+    setSelectedWordText(null);
   }, []);
 
   const handleWordClick = useCallback(async (msg: Message, word: string) => {
     setSelectedMessage(msg);
     setSelectedWord(null);
+    // [BRAINPOOL-CHANGE][MINIMAL-WORD-2] API 조회와 모달 표시 기준을 클릭 단어로 통일합니다.
+    setSelectedWordText(word);
     const res = await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -671,8 +676,9 @@ export default function Home() {
 
       <WordModal
         data={selectedMessage ? {
-          sentence:    selectedMessage.original,
-          translated:  selectedMessage.translated,
+          // [BRAINPOOL-CHANGE][MINIMAL-WORD-3] 선택 단어가 있으면 문장 전체 대신 단어를 표시합니다.
+          sentence:    selectedWordText || selectedMessage.original,
+          translated:  selectedWordText ? '' : selectedMessage.translated,
           sourceLang:  selectedMessage.sourceLang,
           emotion:     selectedMessage.emotion,
           riskScore:   selectedMessage.riskScore,
@@ -682,7 +688,7 @@ export default function Home() {
           wordDetail:  selectedWord || undefined,
         } : null}
         userId={deviceId}
-        onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
+        onClose={() => { setSelectedMessage(null); setSelectedWord(null); setSelectedWordText(null); }}
       />
       {showIOSGuide && (
   <div style={{
