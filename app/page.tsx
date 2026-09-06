@@ -680,6 +680,8 @@ export default function Home() {
           sentence:    selectedWordText || selectedMessage.original,
           translated:  selectedWordText ? '' : selectedMessage.translated,
           sourceLang:  selectedMessage.sourceLang,
+          // [BRAINPOOL-CHANGE][GLOBAL-LEARN-1] 학습·발음 대상을 양방향 번역의 targetLang으로 전달합니다.
+          targetLang:  selectedMessage.targetLang,
           emotion:     selectedMessage.emotion,
           riskScore:   selectedMessage.riskScore,
           intent:      selectedMessage.intent,

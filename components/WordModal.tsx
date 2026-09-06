@@ -8,6 +8,7 @@ interface WordModalProps {
     sentence: string;
     translated?: string;
     sourceLang?: string;
+    targetLang?: string;
     emotion?: string;
     riskScore?: number;
     intent?: string;
@@ -56,6 +57,8 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   // 모달 열릴 때 기존 발음 조회 (return null 이전 — Hook 규칙)
   const word_for_effect = data?.sentence || '';
   const sourceLang_for_effect = data?.sourceLang || '';
+  // [BRAINPOOL-CHANGE][GLOBAL-LEARN-2] 음성은 원문이 아니라 사용자가 학습하는 번역 대상 언어를 기준으로 조회합니다.
+  const targetLang_for_effect = data?.targetLang || (sourceLang_for_effect === 'ko' ? 'vi' : 'ko');
 
   // 마운트 시 getWordData 자동 호출 — 사전 데이터 + 분석값 병합
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   useEffect(() => {
     if (!word_for_effect) return;
     setAudioUrl(null);
-    const dialect = sourceLang_for_effect === 'ko' ? 'vietnamese' : 'korean';
+    const dialect = targetLang_for_effect === 'vi' ? 'vietnamese' : 'korean';
     fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -106,7 +109,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           setAudioUrl(json.payload.audio_url);
         }
       });
-  }, [word_for_effect]);
+  }, [word_for_effect, targetLang_for_effect]);
 
   if (!data) return null;
 
@@ -121,7 +124,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const culturalNote = detail?.culturalNote || data.culturalNote;
   const sourceLang = data.sourceLang;
 
-  const pronunciationTarget = sourceLang === 'ko'
+  const pronunciationTarget = data.targetLang === 'vi'
     ? '🇻🇳 베트남어 발음을 알려주세요'
     : '🇰🇷 한국어 발음을 알려주세요';
 
@@ -140,7 +143,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
       audio.play().catch(() => { window.open(audioUrl, '_blank'); });
     } else if (typeof window !== 'undefined' && window.speechSynthesis && meaning) {
       const utterance = new SpeechSynthesisUtterance(meaning);
-      utterance.lang = sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
+      utterance.lang = data.targetLang === 'vi' ? 'vi-VN' : 'ko-KR';
       utterance.rate = 0.9;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
