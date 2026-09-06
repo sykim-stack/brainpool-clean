@@ -142,7 +142,8 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
       const audio = new Audio(audioUrl);
       audio.play().catch(() => { window.open(audioUrl, '_blank'); });
     } else if (typeof window !== 'undefined' && window.speechSynthesis && meaning) {
-      const utterance = new SpeechSynthesisUtterance(meaning);
+      // [BRAINPOOL-CHANGE][WORD-AUDIO-1] fallback TTS는 번역 뜻이 아니라 선택한 학습 단어를 읽습니다.
+      const utterance = new SpeechSynthesisUtterance(word);
       utterance.lang = data.targetLang === 'vi' ? 'vi-VN' : 'ko-KR';
       utterance.rate = 0.9;
       window.speechSynthesis.cancel();
