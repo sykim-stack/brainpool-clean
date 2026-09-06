@@ -129,6 +129,8 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const studyItems = filteredItems.filter(i => i.learn_status !== 'done');
   const currentCard = studyItems[studyIndex];
   const isDone = studyIndex >= studyItems.length;
+  // [BRAINPOOL-CHANGE][LEARN-VOICE-2] 기존 저장 데이터까지 고려해 한글 단어는 한국어 TTS로 읽습니다.
+  const getWordVoiceLang = (word: string) => /[가-힣]/.test(word) ? 'ko-KR' : 'vi-VN';
 
   const statusLabel: Record<string, string> = {
     new: '🆕 새로운', learning: '📖 학습중', done: '✅ 완료',
@@ -161,7 +163,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               <p className={styles.flipWord}>{currentCard?.word}</p>
               <p className={styles.flipHint}>탭해서 한국어 확인</p>
               <button
-                onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(currentCard?.word || ''); u.lang = 'vi-VN'; u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }}
+                onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(currentCard?.word || ''); u.lang = getWordVoiceLang(currentCard?.word || ''); u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', marginTop: '8px' }}
               >🔊</button>
             </div>
@@ -252,7 +254,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     <div className={styles.words}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span className={styles.word}>{item.word}</span>
-                        <button onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(item.word); u.lang = 'vi-VN'; u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', opacity: 0.7, flexShrink: 0 }}>🔊</button>
+                        <button onClick={(e) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.speechSynthesis) { const u = new SpeechSynthesisUtterance(item.word); u.lang = getWordVoiceLang(item.word); u.rate = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', opacity: 0.7, flexShrink: 0 }}>🔊</button>
                       </div>
                       {item.meaning_kr && <span className={styles.meaning}>{item.meaning_kr}</span>}
                       {item.memo && <span className={styles.memo}>✏️ {item.memo}</span>}

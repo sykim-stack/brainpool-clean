@@ -108,7 +108,8 @@ export default function ChatBubble({
 
   const alignClass = isFirstLang ? styles.wrapperMine : styles.wrapperOther;
   const langLabelClass = sourceLang === 'ko' ? styles.langKo : styles.langVi;
-  const isTokenizable = targetLang === 'vi' || sourceLang === 'vi';
+  // [BRAINPOOL-CHANGE][LEARN-VOICE-1] 학습 카드는 베트남어 단어만 저장해야 하므로 한국어 번역 토큰은 학습 단어로 저장하지 않습니다.
+  const isTokenizable = targetLang === 'vi';
 
   return (
     <div
