@@ -162,11 +162,15 @@
 
 /* ── 학습 모드 ── */
 .studyWrap {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 헤더가 큰 화면에서도 학습 카드와 답변 버튼을 함께 배치합니다. */
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: var(--space-4) var(--space-3);
+  min-height: 0;
   height: calc(100vh - 180px);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .studyHeader {
@@ -211,12 +215,15 @@
 
 /* ── 플립 카드 ── */
 .flipCard {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 카드가 좁거나 낮은 화면에서 답변 영역을 밀어내지 않게 합니다. */
   width: 100%;
   max-width: 340px;
-  height: 220px;
+  height: min(220px, 38vh);
+  min-height: 160px;
   perspective: 1000px;
   cursor: pointer;
   margin-bottom: var(--space-5);
+  flex: 0 0 auto;
 }
 
 .flipInner {
@@ -255,7 +262,7 @@
 
 .flipLabel {
   font-size: var(--font-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-sub);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -279,16 +286,18 @@
 
 .flipHint {
   font-size: var(--font-xs);
-  color: var(--color-text-muted);
-  opacity: 0.6;
+  color: var(--color-text-sub);
+  opacity: 0.85;
 }
 
 /* ── 알아요/몰라요 버튼 ── */
 .studyBtns {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 답변 버튼이 카드 아래에서 항상 보이도록 고정된 폭을 유지합니다. */
   display: flex;
   gap: var(--space-3);
   width: 100%;
   max-width: 340px;
+  flex: 0 0 auto;
 }
 
 .knowBtn,

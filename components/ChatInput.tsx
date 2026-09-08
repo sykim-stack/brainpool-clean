@@ -93,16 +93,13 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
         rows={1}
       />
       <button
-        onPointerDown={startRecording}
-        onPointerUp={stopRecording}
-        onPointerLeave={stopRecording}
-        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); startRecording(); }}
-        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); stopRecording(); }}
-        onContextMenu={(e) => e.preventDefault()}
+        // [BRAINPOOL-CHANGE][VOICE-TOGGLE-1] 음성 메시지도 한 번 눌러 시작하고 다시 눌러 종료합니다.
+        onClick={() => { isRecording ? stopRecording() : startRecording(); }}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
         type="button"
+        aria-label={isRecording ? '음성 녹음 종료' : '음성 녹음 시작'}
       >
-        {isRecording ? '🔴' : '🎤'}
+        {isRecording ? '⏹️' : '🎤'}
       </button>
       <button
         onClick={handleSend}
