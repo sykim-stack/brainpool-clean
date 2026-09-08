@@ -471,3 +471,50 @@
 .editBtn:hover {
   background: var(--color-surface);
 }
+
+/* [BRAINPOOL-CHANGE][LEARN-MODAL-2] 짧은 화면에서 학습 카드와 답변 버튼이 잘리지 않도록 밀도를 조정합니다. */
+@media (max-height: 600px) {
+  .studyWrap {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .studyHeader {
+    margin-bottom: var(--space-1);
+  }
+
+  .progressBar {
+    margin-bottom: var(--space-2);
+  }
+
+  .flipCard {
+    height: 120px;
+    min-height: 120px;
+    margin-bottom: var(--space-2);
+  }
+
+  .flipFront,
+  .flipBack {
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+
+  .flipWord {
+    font-size: var(--font-md);
+  }
+
+  .studyBtns button {
+    min-height: 40px;
+    padding: var(--space-2);
+    font-size: var(--font-sm);
+  }
+}
+
+@media (max-width: 420px) {
+  .studyBtns {
+    gap: var(--space-2);
+  }
+
+  .flipCard {
+    max-width: 100%;
+  }
+}
