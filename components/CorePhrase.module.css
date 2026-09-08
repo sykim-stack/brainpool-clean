@@ -218,7 +218,8 @@
   /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 카드가 좁거나 낮은 화면에서 답변 영역을 밀어내지 않게 합니다. */
   width: 100%;
   max-width: 340px;
-  height: min(220px, 38vh);
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-3] PC에서는 뷰포트 높이에 따라 카드가 과도하게 축소되지 않도록 고정합니다. */
+  height: 220px;
   min-height: 160px;
   perspective: 1000px;
   cursor: pointer;
@@ -473,7 +474,7 @@
 }
 
 /* [BRAINPOOL-CHANGE][LEARN-MODAL-2] 짧은 화면에서 학습 카드와 답변 버튼이 잘리지 않도록 밀도를 조정합니다. */
-@media (max-height: 600px) {
+@media (max-height: 600px) and (max-width: 767px) {
   .studyWrap {
     padding: var(--space-2) var(--space-3);
   }
