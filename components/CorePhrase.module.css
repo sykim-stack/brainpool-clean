@@ -216,7 +216,7 @@
   height: 220px;
   perspective: 1000px;
   cursor: pointer;
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-1);
 }
 
 .flipInner {
