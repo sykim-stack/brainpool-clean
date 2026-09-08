@@ -319,16 +319,12 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             </div>
           ) : (
             <button
-              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); startRecording(); }}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); stopRecording(); }}
-              onContextMenu={(e) => e.preventDefault()}
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}
+              // [BRAINPOOL-CHANGE][RECORD-TOGGLE-1] 한 번 눌러 시작하고 다시 눌러 종료합니다.
+              onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
               disabled={isUploading}
               className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
             >
-              {isUploading ? '⏳ 저장 중...' : isRecording ? '🔴 녹음 중... (떼면 완료)' : '🎤 누르고 말하세요'}
+              {isUploading ? '⏳ 저장 중...' : isRecording ? '⏹️ 녹음 종료' : '🎤 녹음 시작'}
             </button>
           )}
         </Section>
