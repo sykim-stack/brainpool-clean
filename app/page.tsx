@@ -536,7 +536,10 @@ export default function Home() {
                 {dailyWord.culturalNote && <div className={styles.dailyNote}>{dailyWord.culturalNote}</div>}
               </div>
             )}
-            {messages.map((msg) => (
+            {messages.map((msg) => {
+              // [FIX] ChatBubble 필수 props 복구 (deviceId/messageId/isFirstLang/riskScore)
+              const isFirstLang = msg.sourceLang === firstLanguage;
+              return (
               <ChatBubble
                 key={msg.messageId}
                 original={msg.original}
@@ -544,12 +547,17 @@ export default function Home() {
                 sourceLang={msg.sourceLang}
                 targetLang={msg.targetLang}
                 emotion={msg.emotion}
+                riskScore={msg.riskScore}
                 timestamp={msg.timestamp}
+                deviceId={deviceId}
+                messageId={msg.messageId}
+                isFirstLang={isFirstLang}
                 audioUrl={msg.audioUrl}
                 onClick={() => handleBubbleClick(msg)}
                 onWordClick={(word: string) => handleWordClick(msg, word)}
               />
-            ))}
+              );
+            })}
             {isLoading && <div className={styles.typing}>번역 중…</div>}
           </div>
           <ChatInput onSend={handleSend} onVoiceSend={handleVoiceSend} disabled={isLoading} />
