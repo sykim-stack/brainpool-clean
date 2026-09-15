@@ -7,9 +7,10 @@ interface ChatInputProps {
   onTypingChange?: (isTyping: boolean) => void;
   userId?: string;
   onVoiceSend?: (audioUrl: string) => void;
+  disabled?: boolean;
 }
 
-export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingChange, disabled = false }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -104,7 +105,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
       <button
         onClick={handleSend}
         className={styles.button}
-        disabled={!text.trim()}
+        disabled={!text.trim() || disabled}
         aria-label="전송"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
