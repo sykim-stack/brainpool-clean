@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useRef } from 'react';
 import styles from './ChatInput.module.css';
 
@@ -7,9 +7,11 @@ interface ChatInputProps {
   onTypingChange?: (isTyping: boolean) => void;
   userId?: string;
   onVoiceSend?: (audioUrl: string) => void;
+  // [FIX] page.tsx가 isLoading 시 전달 — 타입 오류로 빌드 실패 방지
+  disabled?: boolean;
 }
 
-export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingChange, disabled = false }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -18,7 +20,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   const transcriptRef = useRef<string>('');
 
   const handleSend = () => {
-    if (!text.trim()) return;
+    if (disabled || !text.trim()) return;
     onSend(text.trim());
     setText('');
     if (onTypingChange) onTypingChange(false);
@@ -42,6 +44,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   };
 
   const startRecording = async () => {
+    if (disabled) return;
     try {
       transcriptRef.current = '';
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -91,12 +94,14 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
         placeholder="메시지를 입력하세요..."
         className={styles.textarea}
         rows={1}
+        disabled={disabled}
       />
       <button
         // [BRAINPOOL-CHANGE][VOICE-TOGGLE-1] 음성 메시지도 한 번 눌러 시작하고 다시 눌러 종료합니다.
         onClick={() => { isRecording ? stopRecording() : startRecording(); }}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
         type="button"
+        disabled={disabled}
         aria-label={isRecording ? '음성 녹음 종료' : '음성 녹음 시작'}
       >
         {isRecording ? '⏹️' : '🎤'}
@@ -104,7 +109,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
       <button
         onClick={handleSend}
         className={styles.button}
-        disabled={!text.trim()}
+        disabled={disabled || !text.trim()}
         aria-label="전송"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -115,4 +120,3 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
     </div>
   );
 }
-
