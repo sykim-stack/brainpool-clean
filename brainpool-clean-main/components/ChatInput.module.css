@@ -1,0 +1,76 @@
+﻿.wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-size: var(--font-md);
+  color: var(--color-text);
+  background: var(--color-bg);
+  outline: none;
+  min-height: var(--touch-min-height);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-min-height);
+  height: var(--touch-min-height);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.button:disabled {
+  background: var(--color-border);
+  cursor: not-allowed;
+}
+
+.button svg {
+  width: 20px;
+  height: 20px;
+}
+.voiceBtn {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 18px;
+  transition: var(--transition-fast);
+  min-height: var(--touch-min-height);
+  min-width: var(--touch-min-height);
+}
+
+.voiceBtn:hover {
+  background: var(--color-surface);
+}
+
+.recording {
+  background: var(--color-warn);
+  border-color: var(--color-warn);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+

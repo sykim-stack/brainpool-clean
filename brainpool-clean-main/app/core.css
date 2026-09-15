@@ -1,0 +1,199 @@
+/* ============================================================
+   app/core.css — CoreRing / CoreChat 전용 단순 버전
+   기존 globals.css, *.module.css는 그대로 유지
+   ============================================================ */
+
+:root {
+  /* Spacing */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+
+  /* Typography - 시니어 최적화 */
+  --font-xl: 28px;
+  --font-lg: 22px;   /* 번역문 (주인공) */
+  --font-md: 16px;   /* 원문 (조연) */
+  --font-sm: 14px;
+  --font-xs: 12px;
+  --weight-bold: 700;
+  --weight-normal: 400;
+  --line-height: 1.6;
+
+  /* Color - Deep Dark */
+  --color-bg: #0A0F1E;
+  --color-surface: #161E2E;
+  --color-border: #2D3748;
+  --color-text: #F8FAFC;
+  --color-text-sub: #94A3B8;
+  --color-text-muted: #64748B;
+  --color-accent: #38BDF8;
+  --color-success: #3FB950;
+  --color-warn: #F78166;
+  --color-lang-ko: #5c7c9e;
+  --color-lang-vi: #5c9e5c;
+
+  /* Bubble */
+  --bubble-offset: 20%;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Touch */
+  --touch-min: 44px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+  font-family: 'Noto Sans KR', sans-serif;
+  line-height: var(--line-height);
+}
+
+/* App Shell */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-bg);
+}
+
+/* Header */
+.core-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* Chat Container */
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+/* Bubble */
+.bubble-wrap {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+.bubble-left {
+  justify-content: flex-start;
+  padding-right: var(--bubble-offset);
+}
+.bubble-right {
+  justify-content: flex-end;
+  padding-left: var(--bubble-offset);
+}
+.bubble {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.bubble-trans {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+.bubble-orig {
+  font-size: var(--font-md);
+  color: var(--color-text-sub);
+  margin-top: var(--space-1);
+}
+
+/* Input */
+.chat-input-wrap {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+.chat-input {
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-md);
+  resize: none;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* Buttons */
+.icon-btn {
+  width: var(--touch-min);
+  height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--color-text-sub);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+.icon-btn:hover { color: var(--color-text); }
+
+/* Empty State */
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-top: var(--space-5);
+}
+
+.wrapper {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.mine {
+  justify-content: flex-start;
+  padding-right: var(--bubble-offset);
+}
+
+.other {
+  justify-content: flex-end;
+  padding-left: var(--bubble-offset);
+}
+
+.bubble {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.translated {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.original {
+  font-size: var(--font-md);
+  color: var(--color-text-sub);
+  margin-top: var(--space-1);
+}

@@ -1,0 +1,93 @@
+﻿.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  width: 90%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.emoji {
+  font-size: 48px;
+  margin: 0;
+}
+
+.title {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.codeBox {
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  width: 100%;
+  text-align: center;
+}
+
+.code {
+  font-size: 32px;
+  font-weight: var(--weight-bold);
+  color: var(--color-accent);
+  letter-spacing: 6px;
+}
+
+.btnGroup {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.copyBtn,
+.shareBtn {
+  flex: 1;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-sm);
+  min-height: var(--touch-min-height);
+}
+
+.copyBtn {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.shareBtn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  cursor: pointer;
+  padding: var(--space-2);
+}

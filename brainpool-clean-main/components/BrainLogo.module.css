@@ -1,0 +1,62 @@
+/* BrainLogo.module.css — 토큰 완전 적용 */
+
+/* ── 래퍼 ── */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  user-select: none;
+}
+
+/* ── 타이틀 행 ── */
+.title {
+  font-weight: var(--weight-bold);
+  font-size: 1.1em;
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: 1;
+}
+
+.core {
+  color: var(--color-text-muted);
+}
+
+.project {
+  color: var(--color-text);
+}
+
+/* ── 모스 부호 행 ── */
+.morseRow {
+  margin-top: var(--space-1);
+  display: flex;
+  gap: var(--space-1);
+  padding-left: 40px; /* 기능적 고정값 — 타이틀 들여쓰기 정렬 */
+}
+
+/* ── 모스 부호 공통 (고정 픽셀: 기능적 예외 인정) ── */
+.morseDot {
+  background: var(--color-gold);
+  height: 3px;
+  border-radius: 2px;
+}
+
+.morseDash {
+  width: 13px;
+}
+
+.morseShort {
+  width: 3px;
+}
+
+/* ── 타이핑 애니메이션 (기능적 예외 인정) ── */
+.typing {
+  animation: heartBeat 1.2s infinite;
+}
+
+@keyframes heartBeat {
+  0%   { transform: scale(1);   filter: drop-shadow(0 0 1px var(--color-gold)); }
+  14%  { transform: scale(1.3); filter: drop-shadow(0 0 8px var(--color-gold)); }
+  28%  { transform: scale(1);   filter: drop-shadow(0 0 1px var(--color-gold)); }
+  42%  { transform: scale(1.3); filter: drop-shadow(0 0 8px var(--color-gold)); }
+  70%  { transform: scale(1);   filter: drop-shadow(0 0 1px var(--color-gold)); }
+  100% { transform: scale(1);   filter: drop-shadow(0 0 1px var(--color-gold)); }
+}

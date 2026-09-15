@@ -1,0 +1,248 @@
+/* RoomList.module.css */
+
+.inner {
+  padding: calc(var(--space-5) + 68px) var(--space-5) var(--space-5);
+}
+
+.joinSection {
+  margin-bottom: var(--space-4);
+}
+
+.joinRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.joinInput {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  letter-spacing: 2px;
+  min-height: var(--touch-min-height);
+}
+
+.joinBtn {
+  padding: 0 var(--space-4);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  min-height: var(--touch-min-height);
+}
+
+.joinError {
+  color: var(--color-warn);
+  font-size: var(--font-xs);
+  margin-top: var(--space-1);
+}
+
+.divider {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  margin: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.createBtn {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  margin-bottom: var(--space-4);
+  min-height: var(--touch-min-height);
+  transition: var(--transition-fast);
+}
+
+.createBtn:hover {
+  background: var(--color-border);
+}
+
+.createForm {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.createInput {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  min-height: var(--touch-min-height);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toggleLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+}
+
+.createActions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.confirmBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.confirmBtn:disabled {
+  background: var(--color-border);
+  cursor: not-allowed;
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-top: var(--space-6);
+}
+
+.roomItem {
+  cursor: pointer;
+}
+
+.inviteCode {
+  margin-top: var(--space-1);
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-2);
+  font-size: var(--font-sm);
+  min-width: var(--touch-min-height);
+  min-height: var(--touch-min-height);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-warn);
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-2);
+  font-size: var(--font-sm);
+  min-width: var(--touch-min-height);
+  min-height: var(--touch-min-height);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-warn);
+}
+.deleteBtn {
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+  color: var(--color-warn);
+  font-size: var(--font-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.deleteBtn:hover {
+  background: var(--color-warn);
+  color: #000;
+}
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.createInput {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  outline: none;
+}
+.createInput:focus {
+  border-color: var(--color-gold);
+}
+.privateCheck {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+  cursor: pointer;
+}
+.createActions {
+  display: flex;
+  gap: var(--space-2);
+}
+.cancelBtn {
+  flex: 1;
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.confirmBtn {
+  flex: 1;
+  padding: var(--space-2);
+  background: var(--color-gold);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #000;
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+.confirmBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

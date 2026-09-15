@@ -1,0 +1,521 @@
+﻿.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  overflow-y: auto;
+  height: calc(100vh - 180px);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.word {
+  font-size: var(--font-md);
+  color: var(--color-text);
+  font-weight: var(--weight-bold);
+}
+
+.meaning {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.bookmark {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+}
+
+.bookmarked {
+  filter: none;
+}
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statusBtn {
+  font-size: var(--font-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-sub);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.statusBtn:hover {
+  background: var(--color-surface);
+}
+
+.deleteBtn {
+  font-size: var(--font-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-warn);
+  border-color: var(--color-warn);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 180px);
+  color: var(--color-text-muted);
+  font-size: var(--font-md);
+  gap: var(--space-2);
+}
+
+.emptySub {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+/* ── 전체 래퍼 ── */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+}
+
+/* ── 툴바 ── */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2);
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.filterBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.filterActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.studyStartBtn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.studyStartBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── 학습 모드 ── */
+.studyWrap {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 헤더가 큰 화면에서도 학습 카드와 답변 버튼을 함께 배치합니다. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4) var(--space-3);
+  min-height: 0;
+  height: calc(100vh - 180px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.studyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.studyProgress {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.studyBackBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+/* ── 진행 바 ── */
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-5);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease;
+}
+
+/* ── 플립 카드 ── */
+.flipCard {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 카드가 좁거나 낮은 화면에서 답변 영역을 밀어내지 않게 합니다. */
+  width: 100%;
+  max-width: 340px;
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-3] PC에서는 뷰포트 높이에 따라 카드가 과도하게 축소되지 않도록 고정합니다. */
+  height: 220px;
+  min-height: 160px;
+  perspective: 1000px;
+  cursor: pointer;
+  margin-bottom: var(--space-5);
+  flex: 0 0 auto;
+}
+
+.flipInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s ease;
+  transform-style: preserve-3d;
+}
+
+.flipped .flipInner {
+  transform: rotateY(180deg);
+}
+
+.flipFront,
+.flipBack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  backface-visibility: hidden;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.flipBack {
+  transform: rotateY(180deg);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.flipLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-sub);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.flipBack .flipLabel {
+  color: var(--color-bg);
+  opacity: 0.7;
+}
+
+.flipWord {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  text-align: center;
+  line-height: var(--line-height);
+}
+
+.flipBack .flipWord {
+  color: var(--color-bg);
+}
+
+.flipHint {
+  font-size: var(--font-xs);
+  color: var(--color-text-sub);
+  opacity: 0.85;
+}
+
+/* ── 알아요/몰라요 버튼 ── */
+.studyBtns {
+  /* [BRAINPOOL-CHANGE][LEARN-MODAL-1] 답변 버튼이 카드 아래에서 항상 보이도록 고정된 폭을 유지합니다. */
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 340px;
+  flex: 0 0 auto;
+}
+
+.knowBtn,
+.dontKnowBtn {
+  flex: 1;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: var(--touch-min-height);
+}
+
+.knowBtn {
+  background: var(--color-success);
+  color: var(--color-bg);
+  border-color: var(--color-success);
+}
+
+.dontKnowBtn {
+  background: var(--color-surface);
+  color: var(--color-text-sub);
+}
+
+/* ── 학습 완료 ── */
+.studyDone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 180px);
+  gap: var(--space-2);
+}
+
+.studyDoneEmoji {
+  font-size: 48px;
+}
+
+.studyDoneText {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.studyDoneSub {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* ── 통계 카드 ── */
+.stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.statNum {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+}
+
+.statDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border);
+}
+
+/* ── 편집 모드 ── */
+.editBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.editWord {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.editInput {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  width: 100%;
+}
+
+.editTextarea {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  width: 100%;
+  resize: none;
+  font-family: inherit;
+}
+
+.editBtns {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.editSaveBtn {
+  flex: 1;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.editCancelBtn {
+  flex: 1;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.memo {
+  font-size: var(--font-xs);
+  color: var(--color-accent);
+  font-style: italic;
+}
+
+.cardActions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.editBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.editBtn:hover {
+  background: var(--color-surface);
+}
+
+/* [BRAINPOOL-CHANGE][LEARN-MODAL-2] 짧은 화면에서 학습 카드와 답변 버튼이 잘리지 않도록 밀도를 조정합니다. */
+@media (max-height: 600px) and (max-width: 767px) {
+  .studyWrap {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .studyHeader {
+    margin-bottom: var(--space-1);
+  }
+
+  .progressBar {
+    margin-bottom: var(--space-2);
+  }
+
+  .flipCard {
+    height: 120px;
+    min-height: 120px;
+    margin-bottom: var(--space-2);
+  }
+
+  .flipFront,
+  .flipBack {
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+
+  .flipWord {
+    font-size: var(--font-md);
+  }
+
+  .studyBtns button {
+    min-height: 40px;
+    padding: var(--space-2);
+    font-size: var(--font-sm);
+  }
+}
+
+@media (max-width: 420px) {
+  .studyBtns {
+    gap: var(--space-2);
+  }
+
+  .flipCard {
+    max-width: 100%;
+  }
+}

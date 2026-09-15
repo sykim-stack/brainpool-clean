@@ -1,0 +1,52 @@
+/* BrainHeader.module.css — 아이콘 정렬 완벽화, 다크 테마 확정 */
+
+/* ── header ── */
+.header {
+  padding: var(--space-3) var(--space-5) var(--space-1);
+  background: var(--color-bg);
+  border-bottom: var(--border-width) solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* ── 상단 행 ── */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--touch-min-height);
+}
+
+/* ── 우측 버튼 묶음 ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--touch-min-height);
+}
+
+/* ── ROOM 토글 묶음 ── */
+.roomToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--touch-min-height);
+}
+
+/* ── ROOM 라벨 ── */
+.roomLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  letter-spacing: var(--letter-spacing-sm);
+  font-family: monospace;
+  line-height: 1;
+}
+
+/* ── 구분선 ── */
+.divider {
+  display: block;
+  width: var(--border-width);
+  height: var(--space-4);
+  background: var(--color-border);
+}

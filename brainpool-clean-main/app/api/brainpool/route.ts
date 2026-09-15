@@ -1,0 +1,188 @@
+// app/api/brainpool/route.ts
+import type { NextRequest } from 'next/server';
+import { route } from '@/brain-engine/hajun/router.js';
+import { createCtx } from '@/brain-engine/contracts/ctx.js';
+
+export async function POST(request: NextRequest) {
+  const traceId = crypto.randomUUID();
+  let body: {
+    action?: string;
+    text?: string;
+    sourceText?: string;
+    author?: string;
+    device_id?: string;
+    targetLang?: string;
+    context_category?: string;
+    payload?: { text?: string };
+  };
+
+  try {
+    const raw = await request.text();
+    body = JSON.parse(raw);
+  } catch {
+    return new Response(
+      JSON.stringify({ payload: null, _error: 'PARSE_FAIL', traceId }),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  const action = body.action || 'translate';
+
+  // ── action: learn ──────────────────────────────────────────
+  if (action === 'learn') {
+    const device_id =
+      body.device_id ||
+      request.headers.get('x-device-id') ||
+      `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    const text = body.text || body.sourceText || '';
+    if (!text) {
+      return new Response(
+        JSON.stringify({ payload: null, _error: 'text required', traceId }),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    const ctx = {
+      device_id,
+      payload: {
+        sourceText: text,
+        targetLang: body.targetLang || 'vi',
+        context_category: body.context_category || 'daily',
+      },
+      traceId,
+      _error: null,
+    };
+
+    const resultCtx = await route('translate', ctx);
+
+    if (resultCtx._error) {
+      return new Response(
+        JSON.stringify({ payload: null, _error: resultCtx._error, traceId }),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        payload: {
+          translated: resultCtx.payload.translated || resultCtx.payload.translatedText,
+          asset_id: resultCtx.payload.asset_id || null,
+          fromCache: resultCtx.payload.fromCache || false,
+          device_id,
+        },
+        _error: null,
+        traceId,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  // ── action: translate (기본) ───────────────────────────────
+  const text = body.text || body.payload?.text || '';
+  if (!text) {
+    return new Response(
+      JSON.stringify({ payload: null, _error: 'text required', traceId }),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  try {
+    let ctx = createCtx({ text, author: body.author || 'anonymous' }, traceId);
+    ctx = await route('translate', ctx);
+
+    // brainpool Primary = 번역 결과 자체 → translate 실패는 요청 실패
+    if (ctx._error) {
+      return new Response(
+        JSON.stringify({ payload: null, _error: ctx._error, traceId }),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    const p = ctx.payload;
+    const sourceLang = p.sourceLang || null;
+    const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
+
+    // [PATCH-A] brainpool Primary=번역. Derived(분석) 실패는 응답 후 traceId 로그.
+    const warnings: { code: string; message: string }[] = [];
+    const responsePayload = {
+      id: crypto.randomUUID(),
+      type: 'post',
+      author: p.author || 'anonymous',
+      createdAt: Date.now(),
+      original: p.text,
+      translated: p.translatedText || p.text,
+      sourceLang,
+      targetLang,
+      translationSource: p.translationSource || 'unknown',
+      emotionScore: null,
+      emotion: null,
+      riskScore: 0,
+      intent: null,
+      meaningScore: null,
+      detectedDialect: 'unknown',
+      isSouthern: false,
+      culturalNote: null,
+      partial: false,
+      warnings,
+    };
+
+    // ── 백그라운드 분석 (fire-and-forget, Derived) ───────────────────
+    Promise.resolve().then(async () => {
+      try {
+        let analysisCtx = { ...ctx };
+        analysisCtx = await route('emotion', analysisCtx);
+        if (!analysisCtx._error) {
+          analysisCtx = await route('dialect', analysisCtx);
+        }
+
+        const ap = analysisCtx.payload;
+        const logId = ctx.payload?.logId;
+
+        console.log(
+          `[brainpool] 분석 완료 traceId=${traceId}`,
+          `emotion=${ap?.emotion} risk=${ap?.riskScore}`,
+          `dialect=${ap?.detectedDialect} logId=${logId}`
+        );
+
+        if (logId) {
+          const { getStorage } = await import('@/brain-engine/connectors/storage.js');
+          const db = await getStorage();
+          if (db) {
+            const { error } = await db.from('tb_trans_logs').update({
+              emotion:          ap?.emotion || 'neutral',
+              emotion_score:    ap?.emotionScore ?? 0.5,
+              risk_score:       ap?.riskScore ?? 0,
+              conflict_count:   ap?.conflictCount ?? 0,
+              intent:           ap?.intent || null,
+              intent_conf:      ap?.intentConf || null,
+              meaning_score:    ap?.meaningScore ?? null,
+              meaning_reason:   ap?.meaningReason ?? null,
+              risk_reason:      ap?.riskReason ?? null,
+              detected_dialect: ap?.detectedDialect || 'unknown',
+              final_dialect:    ap?.finalDialect || null,
+              is_southern:      ap?.isSouthern ?? false,
+              cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
+              is_cultural_adjusted: !!ap?.culturalNote,
+            }).eq('id', logId);
+            if (error) console.warn(`[brainpool] 분석값 UPDATE 실패 traceId=${traceId}:`, error.message);
+            else console.log(`[brainpool] 분석값 저장 완료 traceId=${traceId} logId=${logId}`);
+          }
+        }
+      } catch (e: any) {
+        console.warn(`[brainpool] 백그라운드 분석 실패 traceId=${traceId}:`, e.message);
+      }
+    });
+
+    responsePayload.partial = warnings.length > 0;
+    return new Response(
+      JSON.stringify({ payload: responsePayload, _error: null, traceId }),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({ payload: null, _error: e.message, traceId }),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
