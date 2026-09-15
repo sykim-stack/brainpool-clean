@@ -13,11 +13,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ── send ──
+    // [PATCH-A] Primary=messages 성공이 요청 성공. Derived 실패는 partial+warnings (500 아님)
     if (action === 'send') {
       const { roomId, userId, original, analyze = true } = body;
       if (!roomId || !userId || !original) {
         return NextResponse.json({ payload: null, _error: 'roomId, userId, original required', traceId }, { status: 400 });
       }
+
+      const warnings: { code: string; message: string }[] = [];
 
       // ── Step 1: 번역만 먼저 (동기) ──────────────────────────
       let translationMeta: any = {
@@ -32,9 +35,15 @@ export async function POST(request: NextRequest) {
           const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
           const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
           let ctx = createCtx({ text: original, author: userId }, traceId);
-          ctx = await engineRoute('translate', ctx);  // DeepL만 기다림
+          ctx = await engineRoute('translate', ctx);
 
-          const p = ctx.payload;
+          if (ctx._error) {
+            const msg = typeof ctx._error === 'string' ? ctx._error : (ctx._error as any)?.message || 'translate failed';
+            warnings.push({ code: 'TRANSLATE', message: msg });
+            console.warn(`[chat/send] translate _error traceId=${traceId}`, msg);
+          }
+
+          const p = ctx.payload || {};
           const sourceLang = p.sourceLang || null;
           const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
           const translated = p.translatedText || null;
@@ -52,18 +61,16 @@ export async function POST(request: NextRequest) {
             detectedDialect: 'unknown',
             isSouthern: false,
             culturalNote: null,
-            tbTransLogId: null, // ADR-002: tb_trans_logs 참조 ID
+            tbTransLogId: null,
           };
 
-          // ── Step 1.5: tb_trans_logs에 번역 결과 선제 저장 ────
-          // Gemini 분석 전이라도 번역 결과를 먼저 저장하고 id를 확보
-          // → messages.relations.tb_trans_log_id 연결용
+          // ── Step 1.5: tb_trans_logs 선제 저장 (Derived) ────
           try {
             const { getStorage } = await import('@/brain-engine/connectors/storage.js');
             const db = await getStorage();
             if (db && translated) {
               const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
-              const { data: logData } = await db
+              const { data: logData, error: logErr } = await db
                 .from('tb_trans_logs')
                 .insert({
                   source_text: original,
@@ -73,30 +80,41 @@ export async function POST(request: NextRequest) {
                 })
                 .select('id')
                 .single();
-              if (logData?.id) {
+              if (logErr) {
+                warnings.push({ code: 'TB_TRANS_LOGS_PRESAVE', message: logErr.message });
+                console.warn(`[chat/send] tb_trans_logs 선제 저장 실패 traceId=${traceId}:`, logErr.message);
+              } else if (logData?.id) {
                 translationMeta.tbTransLogId = logData.id;
               }
+            } else if (!translated) {
+              warnings.push({ code: 'TRANSLATE_EMPTY', message: 'translatedText empty' });
             }
           } catch (e: any) {
-            console.warn('[chat/send] tb_trans_logs 선제 저장 실패:', e.message);
+            warnings.push({ code: 'TB_TRANS_LOGS_PRESAVE', message: e.message || 'presave failed' });
+            console.warn(`[chat/send] tb_trans_logs 선제 저장 실패 traceId=${traceId}:`, e.message);
           }
 
-          // ── Step 2: Gemini 분석 + 푸시 알림 (백그라운드) ────
+          // ── Step 2: 분석+푸시 (백그라운드, Derived) — 응답 후 실패는 traceId 로그로만 관측 ────
           Promise.resolve().then(async () => {
             try {
               let analysisCtx = { ...ctx };
               analysisCtx = await engineRoute('emotion', analysisCtx);
+              if (analysisCtx._error) {
+                console.warn(`[chat/send] emotion derived fail traceId=${traceId}`, analysisCtx._error);
+              }
               if (!analysisCtx._error) analysisCtx = await engineRoute('dialect', analysisCtx);
+              if (analysisCtx._error) {
+                console.warn(`[chat/send] dialect derived fail traceId=${traceId}`, analysisCtx._error);
+              }
 
               const ap = analysisCtx.payload;
               console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${ap?.emotion} risk=${ap?.riskScore}`);
 
-              // tb_trans_logs에 저장 (getWordData에서 분석값 읽어오기 위해)
               const { getStorage } = await import('@/brain-engine/connectors/storage.js');
               const db = await getStorage();
               if (db) {
-                const sourceLang = ctx.payload?.sourceLang || null;
-                const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
+                const sourceLangBg = ctx.payload?.sourceLang || null;
+                const direction = sourceLangBg === 'ko' ? 'KO_VI' : 'VI_KO';
                 const updatePayload = {
                   emotion:          ap?.emotion || 'neutral',
                   emotion_score:    ap?.emotionScore ?? 0.5,
@@ -110,50 +128,56 @@ export async function POST(request: NextRequest) {
                   is_southern:      ap?.isSouthern ?? false,
                   cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
                 };
-                // Step 1.5에서 미리 확보한 id로 바로 UPDATE
                 const logId = translationMeta.tbTransLogId;
                 if (logId) {
-                  await db.from('tb_trans_logs').update(updatePayload).eq('id', logId);
+                  const { error: upErr } = await db.from('tb_trans_logs').update(updatePayload).eq('id', logId);
+                  if (upErr) console.warn(`[chat/send] tb_trans_logs UPDATE fail traceId=${traceId}:`, upErr.message);
                 } else {
-                  // fallback: source_text로 기존 행 찾아서 UPDATE 또는 INSERT
                   const { data: existing } = await db
                     .from('tb_trans_logs').select('id')
                     .eq('source_text', original).eq('direction', direction)
                     .order('created_at', { ascending: false }).limit(1);
                   const existingId = existing?.[0]?.id;
                   if (existingId) {
-                    await db.from('tb_trans_logs').update(updatePayload).eq('id', existingId);
+                    const { error: upErr } = await db.from('tb_trans_logs').update(updatePayload).eq('id', existingId);
+                    if (upErr) console.warn(`[chat/send] tb_trans_logs UPDATE fail traceId=${traceId}:`, upErr.message);
                   } else {
-                    await db.from('tb_trans_logs').insert({
+                    const { error: inErr } = await db.from('tb_trans_logs').insert({
                       source_text: original,
                       standard_vi: ctx.payload?.translatedText || original,
                       direction,
                       ...updatePayload,
                     });
+                    if (inErr) console.warn(`[chat/send] tb_trans_logs INSERT fail traceId=${traceId}:`, inErr.message);
                   }
                 }
               }
             } catch (e: any) {
-              console.warn('[chat/send] 백그라운드 분석 실패:', e.message);
+              console.warn(`[chat/send] 백그라운드 분석 실패 traceId=${traceId}:`, e.message);
             }
 
-            // 푸시 알림도 백그라운드
             try {
               const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://corering.vercel.app';
-              await fetch(appUrl + '/api/push/send', {
+              const pushRes = await fetch(appUrl + '/api/push/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ room_id: roomId, sender_id: userId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: `/?room=${roomId}` }),
-              }).catch(() => null);
-            } catch (e) {}
+              });
+              if (!pushRes.ok) {
+                console.warn(`[chat/send] push fail traceId=${traceId} status=${pushRes.status}`);
+              }
+            } catch (e: any) {
+              console.warn(`[chat/send] push fail traceId=${traceId}:`, e?.message || e);
+            }
           });
 
         } catch (e: any) {
-          console.warn('[chat/send] translate failed:', e.message);
+          warnings.push({ code: 'TRANSLATE', message: e.message || 'translate failed' });
+          console.warn(`[chat/send] translate failed traceId=${traceId}:`, e.message);
         }
       }
 
-      // ── Step 3: DB 저장 + 즉시 응답 ─────────────────────────
+      // ── Step 3: Primary Message 저장 + 응답 ─────────────────────────
       const flatMeta = {
         ...translationMeta,
         emotion: translationMeta.emotion?.primary || null,
@@ -161,7 +185,12 @@ export async function POST(request: NextRequest) {
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
       const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: flatMeta }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
-      return NextResponse.json({ payload: { message: result.message }, _error: null, traceId });
+      const partial = warnings.length > 0;
+      return NextResponse.json({
+        payload: { message: result.message, partial, warnings },
+        _error: null,
+        traceId,
+      });
     }
 
     // ── poll ──
