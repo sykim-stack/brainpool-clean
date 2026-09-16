@@ -63,7 +63,6 @@ const validateContract = (ctx) => {
 
     rules.forEach(rule => {
         let match;
-        // global flag가 있는 regex를 위해 exec 반복 사용
         while ((match = rule.pattern.exec(ctx.content)) !== null) {
             const lineNo = ctx.content.substring(0, match.index).split('\n').length;
             ctx.violations.push({
@@ -96,26 +95,25 @@ const reportResult = (ctx) => {
         console.log(`✅ All rules passed! (${ctx.stats.checks} rules checked)`);
     } else {
         console.log(`⚠️  Found ${ctx.violations.length} violations:`);
-        
-        // 라인 번호 순으로 정렬하여 출력
+
         ctx.violations.sort((a, b) => a.line - b.line).forEach(v => {
             console.log(`\n[Line ${v.line}] ${v.ruleId}`);
             console.log(`  Message: ${v.message}`);
-            console.log(`  Code:    \x1b[31m${v.snippet}\x1b[0m`); // 위반 코드를 빨간색으로 표시
+            console.log(`  Code:    \x1b[31m${v.snippet}\x1b[0m`);
         });
     }
-    
+
     console.log(`\n--------------------------------------------------`);
     console.log(`Summary: ${ctx.stats.violations} issues found in ${ctx.stats.checks} rules.`);
     console.log(`==================================================\n`);
-    
+
     return ctx;
 };
 
 // 실행 파이프라인
 const runValidator = (filePath) => {
     const pipeline = [readFile, validateContract, reportResult];
-    pipeline.reduce((ctx, fn) => fn(ctx), initCtx(filePath));
+    return pipeline.reduce((ctx, fn) => fn(ctx), initCtx(filePath));
 };
 
 module.exports = { runValidator };
