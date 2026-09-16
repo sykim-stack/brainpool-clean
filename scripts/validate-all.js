@@ -23,13 +23,25 @@ function walkDir(dir) {
 console.log('🛡️ BRAINPOOL 계약서 전수 검사 시작...\n');
 let totalViolations = 0;
 let totalFiles = 0;
+let totalFatalErrors = 0;
 
 targetDirs.forEach(dir => {
   const files = walkDir(dir);
   files.forEach(file => {
-    runValidator(file);
+    const result = runValidator(file);
     totalFiles++;
+    totalViolations += result?.stats?.violations || 0;
+    if (result?._error) totalFatalErrors++;
   });
 });
 
 console.log(`\n📊 전체 검사 완료: ${totalFiles}개 파일 검사됨.`);
+console.log(`⚠️ 전체 위반: ${totalViolations}건`);
+console.log(`❌ 치명적 오류: ${totalFatalErrors}건`);
+
+if (totalViolations > 0 || totalFatalErrors > 0) {
+  console.error('❌ 계약서 검증 실패');
+  process.exit(1);
+}
+
+console.log('✅ 계약서 검증 통과');
