@@ -40,7 +40,8 @@ async function clearMessages(ctx) {
   if (!roomId) return { ...ctx, _error: 'roomId required' };
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
-  const { error } = await supabase.from('chat_messages').delete().eq('room_id', roomId);
+  // ChatMessageEngine writes canonical chat records to messages; clear the same table.
+  const { error } = await supabase.from('messages').delete().eq('room_id', roomId);
   if (error) return { ...ctx, _error: error.message };
   return { ...ctx, cleared: true };
 }
