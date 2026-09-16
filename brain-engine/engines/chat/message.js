@@ -25,7 +25,7 @@ async function sendMessage(ctx) {
     translationsPayload[meta.detectedLanguage] = original;
   }
 
-  const { error: insertError } = await db.from('messages').insert({
+  const { data: insertedMessage, error: insertError } = await db.from('messages').insert({
     room_id:       roomId,
     user_id:       isUUID(userId) ? userId : null,
     device_id:     userId,
@@ -47,12 +47,12 @@ async function sendMessage(ctx) {
       detectedLanguage: meta.detectedLanguage || null,
       targetLang:      meta.targetLang || null,
     },
-  });
+  }).select('id').single();
   if (insertError) {
     console.error('[message] insert error:', insertError.message);
     return { ...ctx, _error: insertError.message };
   }
-  const messageId = crypto.randomUUID();
+  const messageId = insertedMessage.id;
   return { ...ctx, message: {
     messageId,
     roomId,
