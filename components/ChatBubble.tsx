@@ -36,11 +36,11 @@ export default function ChatBubble({
 }: ChatBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showWordBreakdown, setShowWordBreakdown] = useState(false);
   const [editedText, setEditedText] = useState(translated);
   const inputRef = useRef<HTMLInputElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 번역 결과 자동 클립보드 복사
   useEffect(() => {
     if (translated && translated !== original) {
       navigator.clipboard.writeText(translated)
@@ -109,12 +109,10 @@ export default function ChatBubble({
   const alignClass = isFirstLang ? styles.wrapperMine : styles.wrapperOther;
   const langLabelClass = sourceLang === 'ko' ? styles.langKo : styles.langVi;
   const isTokenizable = targetLang === 'vi' || sourceLang === 'vi';
+  const words = isTokenizable ? tokenize(translated) : [];
 
   return (
-    <div
-      className={`${styles.bubble} ${alignClass}`}
-      onClick={onClick}
-    >
+    <div className={`${styles.bubble} ${alignClass}`} onClick={onClick}>
       <div className={styles.meta}>
         <span className={`${styles.langLabel} ${langLabelClass}`}>{langLabel}</span>
         {copied && <span className={styles.copied}>📋 복사됨</span>}
@@ -140,12 +138,8 @@ export default function ChatBubble({
           title="단어 클릭: 사전 | 길게 누르기: 번역 수정"
         >
           {isTokenizable ? (
-            tokenize(translated).map((word, i) => (
-              <span
-                key={i}
-                className={styles.word}
-                onClick={(e) => handleWordClick(e, word)}
-              >
+            words.map((word, i) => (
+              <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, word)}>
                 {word}{' '}
               </span>
             ))
@@ -155,12 +149,37 @@ export default function ChatBubble({
         </div>
       )}
 
+      {isTokenizable && words.length > 1 && !isEditing && (
+        <div className={styles.wordBreakdown} onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className={styles.wordBreakdownToggle}
+            onClick={() => setShowWordBreakdown(prev => !prev)}
+            aria-expanded={showWordBreakdown}
+          >
+            🔎 단어별 보기 {showWordBreakdown ? '▲' : '▼'}
+          </button>
+          {showWordBreakdown && (
+            <div className={styles.wordBreakdownList}>
+              {words.map((word, i) => (
+                <button
+                  key={`${word}-${i}`}
+                  type="button"
+                  className={styles.wordBreakdownWord}
+                  onClick={() => onWordClick?.(word)}
+                >
+                  {word}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={`bubble-original ${styles.original}`}>{original}</div>
 
       <div className={`bubble-meta ${styles.metaRow}`}>
-        {emotion && (
-          <span className={`bubble-emotion emotion-${emotion}`}>{emotion}</span>
-        )}
+        {emotion && <span className={`bubble-emotion emotion-${emotion}`}>{emotion}</span>}
         {riskScore !== undefined && riskScore > 0.3 && (
           <span className={`bubble-risk ${riskScore >= 0.7 ? 'risk-high' : 'risk-mid'}`}>
             ⚠{Math.round(riskScore * 100)}
@@ -188,11 +207,7 @@ export default function ChatBubble({
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", opacity: audioUrl ? 1 : 0.5 }}
           title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
         >🔊</button>
-        <span>
-          {new Date(timestamp).toLocaleTimeString('ko-KR', {
-            hour: '2-digit', minute: '2-digit',
-          })}
-        </span>
+        <span>{new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
   );
