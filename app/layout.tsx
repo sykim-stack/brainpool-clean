@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import './core.css';
 import { getAppJsonLd } from '@/lib/seo/shared';
 
 export const viewport: Viewport = {
