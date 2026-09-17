@@ -10,13 +10,14 @@
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .textarea {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
-  width: auto;
-  max-width: none;
+  width: 0;
+  max-width: 100%;
   resize: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
