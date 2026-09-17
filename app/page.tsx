@@ -44,7 +44,7 @@ interface DailyWord {
 
 const subscribePush = async (deviceId: string) => {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!(('serviceWorker' in navigator)) || !(('PushManager' in window))) return;
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     if (existing) return;
@@ -97,10 +97,10 @@ const fetchDailyWord = async (): Promise<DailyWord & { _error?: string }> => {
   };
 };
 
-export default function Home() {
+export default function Home({ initialRoomId }: { initialRoomId?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(initialRoomId ?? null);
   const [currentRoomCode, setCurrentRoomCode] = useState('------');
   const [isRoomMode, setIsRoomMode] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -201,6 +201,18 @@ export default function Home() {
   }, [deviceId]);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
+
+  useEffect(() => {
+    if (!initialRoomId) return;
+    (async () => {
+      const res = await fetch(`/api/chat/rooms/${initialRoomId}`).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      if (data?.payload?.room) {
+        setCurrentRoomCode(data.payload.room.inviteCode || '------');
+        saveMyRoom(data.payload.room);
+      }
+    })();
+  }, [initialRoomId]);
 
   useEffect(() => {
     if (!deviceId) return;
