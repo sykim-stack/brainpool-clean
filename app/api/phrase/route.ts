@@ -63,6 +63,22 @@ export async function POST(req: Request) {
 
     if (result._error) {
       console.error('[phrase] action error:', action, JSON.stringify(result._error));
+
+      // 단어 단위 조회에서 사전에 없는 경우에도 클릭한 단어를 유지할 수 있도록
+      // 정상 응답(payload)으로 전달한다. 문장 조회의 NOT_FOUND 동작은 그대로 유지한다.
+      const word = typeof payload.word === 'string' ? payload.word.trim() : '';
+      const isWordLookup = !!word && !word.includes(' ') && word.length <= 15;
+      if (result._error.code === 'NOT_FOUND' && isWordLookup) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            payload: { word, meaning: null, source: 'not_found' },
+            traceId,
+          }),
+          { status: 200, headers: responseHeaders }
+        );
+      }
+
       const status = result._error.code === 'NOT_FOUND' ? 404 : 500;
       return new Response(
         JSON.stringify({ error: result._error, traceId, debug: { action, word: payload.word } }),
