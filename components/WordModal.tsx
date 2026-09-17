@@ -7,8 +7,10 @@ import { speakNow } from '@/lib/tts';
 interface WordModalProps {
   data: {
     sentence: string;
+    word?: string;
     translated?: string;
     sourceLang?: string;
+    targetLang?: string;
     emotion?: string;
     riskScore?: number;
     intent?: string;
@@ -55,67 +57,60 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const audioChunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // 모달 열릴 때 기존 발음 조회 (return null 이전 — Hook 규칙)
-  const word_for_effect = data?.sentence || '';
+  // 단어 클릭이면 선택 단어, 일반 버블 클릭이면 문장 전체를 조회한다.
+  const lookupWord = data?.word || data?.sentence || '';
   const sourceLang_for_effect = data?.sourceLang || '';
 
-  // 마운트 시 getWordData 자동 호출 — 사전 데이터 + 분석값 병합
   useEffect(() => {
-    if (!word_for_effect) return;
+    if (!lookupWord) return;
     setWordDetail(null);
 
     const fetchWordData = async () => {
       const res = await fetch('/api/phrase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
+        body: JSON.stringify({ action: 'getWordData', word: lookupWord }),
       }).catch(() => null);
       const json = res ? await res.json().catch(() => null) : null;
       if (json?.success && json.payload) {
         setWordDetail(json.payload);
-        // 분석값(riskScore)이 아직 없으면 Gemini 백그라운드 완료 후 재조회
         if (!json.payload.riskScore || json.payload.riskScore === 0) {
           setTimeout(async () => {
             const res2 = await fetch('/api/phrase', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json; charset=utf-8' },
-              body: JSON.stringify({ action: 'getWordData', word: word_for_effect }),
+              body: JSON.stringify({ action: 'getWordData', word: lookupWord }),
             }).catch(() => null);
             const json2 = res2 ? await res2.json().catch(() => null) : null;
-            if (json2?.success && json2.payload?.riskScore) {
-              setWordDetail(json2.payload);
-            }
-          }, 2500); // Gemini 분석 완료 대기
+            if (json2?.success && json2.payload?.riskScore) setWordDetail(json2.payload);
+          }, 2500);
         }
       }
     };
 
     fetchWordData();
-  }, [word_for_effect]);
+  }, [lookupWord]);
+
   useEffect(() => {
-    if (!word_for_effect) return;
+    if (!lookupWord) return;
     setAudioUrl(null);
     const dialect = sourceLang_for_effect === 'ko' ? 'vietnamese' : 'korean';
     fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'get-audio', word: word_for_effect, dialect }),
+      body: JSON.stringify({ action: 'get-audio', word: lookupWord, dialect }),
     })
       .then(r => r.json())
       .catch(() => null)
       .then(json => {
-        if (json?.payload?.audio_url) {
-          setAudioUrl(json.payload.audio_url);
-        }
+        if (json?.payload?.audio_url) setAudioUrl(json.payload.audio_url);
       });
-  }, [word_for_effect]);
+  }, [lookupWord, sourceLang_for_effect]);
 
   if (!data) return null;
 
-  const word = data.sentence;
-  // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
+  const word = data.word || data.sentence;
   const detail = wordDetail || data.wordDetail;
-  // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
   const meaning = detail?.meaning || data.translated;
   const emotion = detail?.emotion || data.emotion;
   const riskScore = detail?.riskScore ?? data.riskScore;
@@ -138,7 +133,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   const handlePlayAudio = () => {
     if (audioUrl) {
-      // iOS 호환: new Audio() 직접 재생이 실패하는 경우가 있어 playsInline 적용
       const audio = document.createElement('audio');
       audio.src = audioUrl;
       audio.controls = false;
@@ -186,9 +180,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         try {
           const mType = recorder.mimeType || mimeType;
           const blob = new Blob(audioChunks.current, { type: mType });
-          if (blob.size <= 1000) {
-            alert('녹음이 제대로 저장되지 않았어요. 이 기기에서는 녹음 기능이 원활하지 않을 수 있습니다.');
-          }
+          if (blob.size <= 1000) alert('녹음이 제대로 저장되지 않았어요. 이 기기에서는 녹음 기능이 원활하지 않을 수 있습니다.');
           if (blob.size > 1000) {
             const url = await uploadVoice(blob, mType, userId || 'anon');
             if (url) {
@@ -199,7 +191,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
                 body: JSON.stringify({
                   action: 'save-audio',
                   user_id: userId,
-                  word: word,
+                  word,
                   dialect: sourceLang === 'ko' ? 'korean' : 'vietnamese',
                   audio_url: url,
                   session_id: data.sessionId || null,
@@ -240,36 +232,20 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   return (
     <div className={`modal-overlay open ${styles.overlay}`} onClick={onClose}>
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <h2 className={styles.title}>📖 {word}</h2>
-          <button
-            onClick={handlePlayAudio}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: audioUrl ? 1 : 0.5, minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '5px' }}
-            title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
-          >🔊</button>
+          <button onClick={handlePlayAudio} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: audioUrl ? 1 : 0.5, minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '5px' }} title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}>🔊</button>
         </div>
-        <p className={styles.subtitle}>단어 학습 카드</p>
-        {ttsUnavailable && (
-          <p className={styles.subtitle} style={{ color: 'var(--color-warn)', marginTop: '-8px' }}>
-            🔇 이 기기에 발음 음성팩이 없어요
-          </p>
-        )}
+        <p className={styles.subtitle}>{data.word ? '단어 학습 카드' : '단어 학습 카드'}</p>
+        {ttsUnavailable && <p className={styles.subtitle} style={{ color: 'var(--color-warn)', marginTop: '-8px' }}>🔇 이 기기에 발음 음성팩이 없어요</p>}
 
         <Section title="💡 뜻과 쓰임새">
           <Row label="뜻" value={meaning || '아직 데이터가 없습니다'} />
           {usage && <Row label="쓰임새" value={usage} />}
-          {/* meaning_score UI — Phase 1 */}
           {detail?.meaningScore != null && (
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)' }}>
-              {detail.meaningScore >= 0.8
-                ? '🟢 의미 전달 우수'
-                : detail.meaningScore >= 0.6
-                  ? '🟡 약간의 뉘앙스 손실'
-                  : '🔴 문화적 표현으로 완전한 번역 어려움'}
-              {detail.meaningScore < 0.8 && detail.meaningReason && (
-                <p style={{ marginTop: '4px', opacity: 0.8 }}>{detail.meaningReason}</p>
-              )}
+              {detail.meaningScore >= 0.8 ? '🟢 의미 전달 우수' : detail.meaningScore >= 0.6 ? '🟡 약간의 뉘앙스 손실' : '🔴 문화적 표현으로 완전한 번역 어려움'}
+              {detail.meaningScore < 0.8 && detail.meaningReason && <p style={{ marginTop: '4px', opacity: 0.8 }}>{detail.meaningReason}</p>}
             </div>
           )}
         </Section>
@@ -277,84 +253,40 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         {riskScore !== undefined && riskScore > 0 && (
           <Section title="⚠ 위험 분석">
             <div className={styles.riskRow}>
-              <div className={styles.riskTrack}>
-                <div
-                  className={`${styles.riskBar} ${riskClass(riskScore)}`}
-                  style={{ width: `${Math.round(riskScore * 100)}%` }}
-                />
-              </div>
-              <span className={`${styles.riskValue} ${riskClass(riskScore)}`}>
-                {Math.round(riskScore * 100)}%
-              </span>
+              <div className={styles.riskTrack}><div className={`${styles.riskBar} ${riskClass(riskScore)}`} style={{ width: `${Math.round(riskScore * 100)}%` }} /></div>
+              <span className={`${styles.riskValue} ${riskClass(riskScore)}`}>{Math.round(riskScore * 100)}%</span>
             </div>
-            {/* risk_reason 표시 — Phase 1 */}
             {detail?.riskReason && Array.isArray(detail.riskReason) && detail.riskReason.length > 0 && (
               <ul style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)', paddingLeft: '16px' }}>
-                {detail.riskReason.map((r: string, i: number) => (
-                  <li key={i}>✓ {r}</li>
-                ))}
+                {detail.riskReason.map((r: string, i: number) => <li key={i}>✓ {r}</li>)}
               </ul>
             )}
           </Section>
         )}
 
-        {culturalNote && (
-          <Section title="🔍 문화 메모">
-            <p className={styles.culturalNote}>{culturalNote}</p>
-          </Section>
-        )}
+        {culturalNote && <Section title="🔍 문화 메모"><p className={styles.culturalNote}>{culturalNote}</p></Section>}
+        {emotion && <Section title="🎭 감정"><span className={styles.emotionTag}>{emotion}</span></Section>}
 
-        {emotion && (
-          <Section title="🎭 감정">
-            <span className={styles.emotionTag}>{emotion}</span>
-          </Section>
-        )}
-
-        {/* 발음 녹음 섹션 */}
         <Section title="🎤 친구에게 발음을 알려주세요">
-          <p className={styles.culturalNote} style={{ marginBottom: '8px' }}>
-            {pronunciationTarget}
-          </p>
+          <p className={styles.culturalNote} style={{ marginBottom: '8px' }}>{pronunciationTarget}</p>
           {audioUrl ? (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button
-                onClick={handlePlayAudio}
-                className={styles.saveBtn}
-                style={{ flex: 1 }}
-              >
-                🔊 발음 듣기
-              </button>
-              <button
-                onClick={() => { setAudioUrl(null); }}
-                className={styles.closeBtn}
-                style={{ flex: 1, marginTop: 0 }}
-              >
-                다시 녹음
-              </button>
+              <button onClick={handlePlayAudio} className={styles.saveBtn} style={{ flex: 1 }}>🔊 발음 듣기</button>
+              <button onClick={() => { setAudioUrl(null); }} className={styles.closeBtn} style={{ flex: 1, marginTop: 0 }}>다시 녹음</button>
             </div>
           ) : (
-            <button
-              onClick={() => { if (isRecording) stopRecording(); else startRecording(); }}
-              style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}
-              disabled={isUploading}
-              className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
-            >
+            <button onClick={() => { if (isRecording) stopRecording(); else startRecording(); }} style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }} disabled={isUploading} className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}>
               {isUploading ? '⏳ 저장 중...' : isRecording ? '🔴 녹음 중... (다시 눌러 종료)' : '🎤 눌러서 녹음 시작'}
             </button>
           )}
         </Section>
 
         <div className={styles.btnRow}>
-          <button
-            onClick={handleSave}
-            disabled={isSaved || isSaving}
-            className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
-          >
+          <button onClick={handleSave} disabled={isSaved || isSaving} className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}>
             {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
           </button>
           <button onClick={onClose} className={styles.closeBtn}>확인</button>
         </div>
-
       </div>
     </div>
   );
