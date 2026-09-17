@@ -119,13 +119,19 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   if (!data) return null;
 
-  const word = detailWord(data, wordDetail);
-  // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
+  // 문장 클릭은 번역문을 제목, 원문을 뜻으로 표시한다.
+  // 단어 클릭은 선택된 번역 단어를 제목으로 유지하고 반대 언어를 뜻으로 표시한다.
+  const isWordSelection = !!data.wordDetail?.word;
   const detail = wordDetail || data.wordDetail;
-  const isUnknownWord = data.wordDetail?.source === 'not_found';
-  // 뜻: 사전 데이터 우선. 사용자가 입력한 개인 뜻이 있으면 그것을 사용.
-  // 단어를 직접 선택한 경우에는 전체 문장 번역으로 fallback하지 않는다.
-  const meaning = detail?.meaning || (isUnknownWord ? userMeaning.trim() : data.translated);
+  const isUnknownWord = isWordSelection && data.wordDetail?.source === 'not_found';
+  const word = isWordSelection
+    ? detailWord(data, wordDetail)
+    : (data.translated || data.sentence);
+  const meaning = isWordSelection
+    ? (data.sourceLang === 'vi'
+      ? (detail?.standard || detail?.meaning || (isUnknownWord ? userMeaning.trim() : ''))
+      : (detail?.meaning || (isUnknownWord ? userMeaning.trim() : '')))
+    : data.sentence;
   const emotion = detail?.emotion || data.emotion;
   const riskScore = detail?.riskScore ?? data.riskScore;
   const intent = detail?.intent || data.intent;
@@ -157,9 +163,9 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
       audio.onended = () => document.body.removeChild(audio);
       return;
     }
-    if (!meaning) return;
+    if (!word) return;
     const lang = sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
-    const played = speakNow(meaning, lang);
+    const played = speakNow(word, lang);
     if (!played) {
       setTtsUnavailable(true);
       setTimeout(() => setTtsUnavailable(false), 2500);
