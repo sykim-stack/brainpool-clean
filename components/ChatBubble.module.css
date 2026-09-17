@@ -1,20 +1,17 @@
 /* ChatBubble.module.css — 말풍선 정렬 최종 확정, 토큰 완전 적용 */
 
-/* ── 정렬: 첫 번째 언어 → 왼쪽 ── */
 .wrapperMine {
   align-self: flex-start;
   margin-right: var(--bubble-offset);
   margin-left: 0;
 }
 
-/* ── 정렬: 두 번째 언어 → 오른쪽 ── */
 .wrapperOther {
   align-self: flex-end;
   margin-left: var(--bubble-offset);
   margin-right: 0;
 }
 
-/* ── 공통 버블 ── */
 .bubble {
   max-width: var(--bubble-max-width);
   padding: var(--space-3) var(--space-4);
@@ -25,7 +22,6 @@
   cursor: pointer;
 }
 
-/* ── 상단 메타 행 (언어 라벨 + 복사 알림) ── */
 .meta {
   display: flex;
   align-items: center;
@@ -33,7 +29,6 @@
   margin-bottom: var(--space-2);
 }
 
-/* ── 언어 라벨 ── */
 .langLabel {
   font-size: var(--font-xs);
   letter-spacing: var(--letter-spacing-sm);
@@ -41,21 +36,14 @@
   color: var(--color-text-muted);
 }
 
-.langKo {
-  color: var(--color-lang-ko);
-}
+.langKo { color: var(--color-lang-ko); }
+.langVi { color: var(--color-lang-vi); }
 
-.langVi {
-  color: var(--color-lang-vi);
-}
-
-/* ── 복사 알림 ── */
 .copied {
   font-size: var(--font-xs);
   color: var(--color-success);
 }
 
-/* ── 번역 결과 (주인공) ── */
 .translated {
   font-size: var(--font-lg);
   font-weight: var(--weight-bold);
@@ -64,7 +52,6 @@
   line-height: var(--line-height);
 }
 
-/* ── 원문 (조연) ── */
 .original {
   font-size: var(--font-md);
   font-weight: var(--weight-normal);
@@ -72,7 +59,6 @@
   line-height: var(--line-height);
 }
 
-/* ── 하단 메타 행 (감정·위험도·시간) ── */
 .metaRow {
   display: flex;
   align-items: center;
@@ -82,7 +68,6 @@
   color: var(--color-text-muted);
 }
 
-/* ── 편집 입력창 ── */
 .editInput {
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
@@ -96,7 +81,6 @@
   line-height: var(--line-height);
 }
 
-/* 단어 클릭 스타일 */
 .word {
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -107,5 +91,50 @@
 
 .word:hover {
   background: var(--color-border);
+  color: var(--color-accent);
+}
+
+.wordBreakdown {
+  margin-top: var(--space-1);
+}
+
+.wordBreakdownToggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.wordBreakdownToggle:hover {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.wordBreakdownList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.wordBreakdownWord {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-xs);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.wordBreakdownWord:hover {
+  border-color: var(--color-accent);
   color: var(--color-accent);
 }
