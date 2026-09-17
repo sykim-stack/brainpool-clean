@@ -7,11 +7,12 @@ interface ChatInputProps {
   onTypingChange?: (isTyping: boolean) => void;
   userId?: string;
   onVoiceSend?: (audioUrl: string) => void;
+  disabled?: boolean;
 }
 
 const SILENCE_TIMEOUT_MS = 5000;
 
-export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingChange, disabled = false }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -25,7 +26,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   const recordingGuardRef = useRef(false);
 
   const handleSend = () => {
-    if (!text.trim()) return;
+    if (disabled || !text.trim()) return;
     onSend(text.trim());
     setText('');
     if (onTypingChange) onTypingChange(false);
@@ -33,6 +34,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (disabled) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -40,6 +42,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (disabled) return;
     setText(e.target.value);
     if (onTypingChange) {
       onTypingChange(true);
@@ -64,7 +67,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
   };
 
   const startRecording = async () => {
-    if (recordingGuardRef.current) return;
+    if (disabled || recordingGuardRef.current) return;
     recordingGuardRef.current = true;
 
     try {
@@ -115,7 +118,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
     setIsRecording(false);
     try { recognitionRef.current?.stop(); } catch (e) {}
     setTimeout(() => {
-      if (transcriptRef.current) {
+      if (transcriptRef.current && !disabled) {
         onSend(transcriptRef.current);
         transcriptRef.current = '';
       }
@@ -124,6 +127,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
 
   // tap-to-toggle: 녹음 중이 아니면 시작, 녹음 중이면 종료
   const handleMicTap = () => {
+    if (disabled) return;
     if (recordingGuardRef.current) {
       stopRecording();
     } else {
@@ -141,11 +145,13 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
         placeholder="메시지를 입력하세요..."
         className={styles.textarea}
         rows={1}
+        disabled={disabled}
       />
       <button
         onClick={handleMicTap}
         className={`${styles.voiceBtn} ${isRecording ? styles.recording : ''}`}
         type="button"
+        disabled={disabled}
         aria-label={isRecording ? '녹음 종료' : '음성 입력 시작'}
       >
         {isRecording ? '🔴' : '🎙️'}
@@ -153,7 +159,7 @@ export default function ChatInput({ onSend, onTypingChange }: ChatInputProps) {
       <button
         onClick={handleSend}
         className={styles.button}
-        disabled={!text.trim()}
+        disabled={disabled || !text.trim()}
         aria-label="전송"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
