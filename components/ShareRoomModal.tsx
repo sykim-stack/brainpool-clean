@@ -3,7 +3,7 @@ import { useState } from 'react';
 import styles from './ShareRoomModal.module.css';
 
 interface ShareRoomModalProps {
-  roomId: string;
+  roomId?: string;
   roomCode: string;
   onClose: () => void;
 }
@@ -15,7 +15,9 @@ export default function ShareRoomModal({ roomId, roomCode, onClose }: ShareRoomM
   const isKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
 
   const handleShare = async () => {
-    const shareUrl = 'https://corering.vercel.app/rooms/' + roomId;
+    const shareUrl = roomId
+      ? 'https://corering.vercel.app/rooms/' + roomId
+      : 'https://corering.vercel.app/?code=' + encodeURIComponent(roomCode);
     const shareText = `CoreRing 채팅방에 초대합니다!\n방 코드: ${roomCode}\n${shareUrl}`;
 
     if (navigator.share) {
