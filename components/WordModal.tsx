@@ -56,7 +56,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 모달 열릴 때 기존 발음 조회 (return null 이전 — Hook 규칙)
-  const word_for_effect = data?.sentence || '';
+  const word_for_effect = data?.wordDetail?.word || data?.sentence || '';
   const sourceLang_for_effect = data?.sourceLang || '';
 
   // 마운트 시 getWordData 자동 호출 — 사전 데이터 + 분석값 병합
@@ -112,7 +112,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   if (!data) return null;
 
-  const word = data.sentence;
+  const word = data.wordDetail?.word || data.sentence;
   // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
   const detail = wordDetail || data.wordDetail;
   // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
