@@ -50,6 +50,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [wordDetail, setWordDetail] = useState<any>(null);
+  const [userMeaning, setUserMeaning] = useState('');
   const [ttsUnavailable, setTtsUnavailable] = useState(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
@@ -63,6 +64,8 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   useEffect(() => {
     if (!word_for_effect) return;
     setWordDetail(null);
+    setUserMeaning('');
+    setIsSaved(false);
 
     const fetchWordData = async () => {
       const res = await fetch('/api/phrase', {
@@ -112,11 +115,13 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   if (!data) return null;
 
-  const word = data.wordDetail?.word || data.sentence;
+  const word = detailWord(data, wordDetail);
   // 내부 state wordDetail 우선(마운트 시 자동 조회), 없으면 props wordDetail, 없으면 message 분석값
   const detail = wordDetail || data.wordDetail;
-  // 뜻: tp_translations 사전 우선, 없으면 DeepL 번역 결과 fallback
-  const meaning = detail?.meaning || data.translated;
+  const isUnknownWord = data.wordDetail?.source === 'not_found';
+  // 뜻: 사전 데이터 우선. 사용자가 입력한 개인 뜻이 있으면 그것을 사용.
+  // 단어를 직접 선택한 경우에는 전체 문장 번역으로 fallback하지 않는다.
+  const meaning = detail?.meaning || userMeaning.trim() || (isUnknownWord ? '' : data.translated);
   const emotion = detail?.emotion || data.emotion;
   const riskScore = detail?.riskScore ?? data.riskScore;
   const intent = detail?.intent || data.intent;
@@ -159,11 +164,13 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
   const handleSave = async () => {
     if (isSaved || isSaving) return;
+    const meaningToSave = meaning || undefined;
+    if (isUnknownWord && !userMeaning.trim()) return;
     setIsSaving(true);
     const ok = await saveWord({
       user_id: userId,
       word,
-      meaning_kr: meaning,
+      meaning_kr: meaningToSave,
       source_session_id: data.sessionId,
     });
     setIsSaving(false);
@@ -257,7 +264,31 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         )}
 
         <Section title="💡 뜻과 쓰임새">
-          <Row label="뜻" value={meaning || '아직 데이터가 없습니다'} />
+          <Row label="뜻" value={meaning || (isUnknownWord ? '아직 사전에 등록된 단어가 없습니다' : '아직 데이터가 없습니다')} />
+          {isUnknownWord && (
+            <div style={{ marginTop: '8px' }}>
+              <input
+                type="text"
+                value={userMeaning}
+                onChange={(e) => setUserMeaning(e.target.value)}
+                placeholder="이 단어의 뜻을 입력하세요"
+                aria-label="단어 뜻"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-sm)',
+                }}
+              />
+              <p className={styles.wordLoadingText} style={{ margin: '6px 0 0' }}>
+                입력한 뜻은 내 단어장에 저장됩니다.
+              </p>
+            </div>
+          )}
           {usage && <Row label="쓰임새" value={usage} />}
           {/* meaning_score UI — Phase 1 */}
           {detail?.meaningScore != null && (
@@ -347,7 +378,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         <div className={styles.btnRow}>
           <button
             onClick={handleSave}
-            disabled={isSaved || isSaving}
+            disabled={isSaved || isSaving || (isUnknownWord && !userMeaning.trim())}
             className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
           >
             {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
@@ -358,6 +389,10 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
       </div>
     </div>
   );
+}
+
+function detailWord(data: NonNullable<WordModalProps['data']>, localDetail: any) {
+  return localDetail?.word || data.wordDetail?.word || data.sentence;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
