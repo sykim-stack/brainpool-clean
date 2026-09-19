@@ -392,7 +392,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
 
   return (
-    <div className={styles.page}>
+    <div className="app-shell">
       <BrainHeader
         isRoomMode={isRoomMode || !!currentRoomId}
         onRoomToggle={() => {
@@ -468,6 +468,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             <p className={styles.dailyLabel}>오늘의 단어</p>
             <p className={styles.dailyWord}>{dailyWord.word}</p>
             <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
+            {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
+            {dailyWord.culturalNote && <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>}
           </div>
         )}
         {messages.map((msg, i) => {
