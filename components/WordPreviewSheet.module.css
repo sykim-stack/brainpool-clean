@@ -1,33 +1,28 @@
-/* WordPreviewSheet — 가벼운 하단 시트 (기존 WordModal과 분리) */
+/* WordPreviewSheet — 가벼운 미리보기 카드 (화면 중앙) */
 
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 90;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   background: rgba(15, 23, 42, 0.55);
-  padding: 0;
+  padding: var(--space-5);
 }
 
 .sheet {
   width: 100%;
-  max-width: 420px;
+  max-width: 360px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-bottom: none;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: var(--space-3) var(--space-5) var(--space-5);
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--color-border);
-  margin: 0 auto var(--space-3);
+  display: none;
 }
 
 .header {
