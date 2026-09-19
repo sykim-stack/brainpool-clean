@@ -1,0 +1,127 @@
+/* WordPreviewSheet — 가벼운 하단 시트 (기존 WordModal과 분리) */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  padding: 0;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  margin: 0 auto var(--space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.word {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-gold);
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.speakBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+
+.speakBtn:active {
+  opacity: 0.6;
+}
+
+.context {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meaning {
+  margin: 0 0 var(--space-5);
+  font-size: var(--font-md);
+  color: var(--color-text-sub);
+  line-height: var(--line-height);
+  min-height: 1.5em;
+}
+
+.unknown {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.detailBtn {
+  flex: 1.4;
+  padding: var(--space-3);
+  min-height: var(--touch-min-height);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: var(--font-md);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.detailBtn:active {
+  opacity: 0.85;
+}
+
+.closeBtn {
+  flex: 1;
+  padding: var(--space-3);
+  min-height: var(--touch-min-height);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-sub);
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+
+.closeBtn:active {
+  background: var(--color-border);
+}
