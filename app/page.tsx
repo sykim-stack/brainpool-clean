@@ -7,8 +7,10 @@ import ChatInput from '@/components/ChatInput';
 import RoomList from '@/components/RoomList';
 import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
+import WordPreviewSheet from '@/components/WordPreviewSheet';
 import CorePhrase from '@/components/CorePhrase';
 import ShareRoomModal from '@/components/ShareRoomModal';
+import { speakNow } from '@/lib/tts';
 import styles from './page.module.css';
 
 interface Message {
@@ -111,6 +113,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [nickname, setNickname] = useState('익명');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [selectedWord, setSelectedWord] = useState<any>(null);
+  /** 단어 클릭 시 가벼운 미리보기 — true면 WordModal은 열지 않음 */
+  const [wordPreviewOpen, setWordPreviewOpen] = useState(false);
+  const [wordPreviewLoading, setWordPreviewLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [deviceId, setDeviceId] = useState('');
   const chatRef = useRef<HTMLDivElement>(null);
@@ -390,13 +395,18 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   }, [deviceId, loadRooms]);
 
   const handleBubbleClick = useCallback((msg: Message) => {
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
     setSelectedMessage(msg);
     setSelectedWord(null);
   }, []);
 
   const handleWordClick = useCallback(async (msg: Message, word: string) => {
+    // 단어 클릭 → 미리보기 시트 먼저 (풀 학습 카드는 「자세히」에서)
     setSelectedMessage(msg);
-    setSelectedWord(null);
+    setSelectedWord({ word }); // 즉시 시트에 단어 표시
+    setWordPreviewOpen(true);
+    setWordPreviewLoading(true);
     const res = await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -405,7 +415,29 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.success && json.payload) setSelectedWord(json.payload);
     else setSelectedWord({ word, source: 'not_found' });
+    setWordPreviewLoading(false);
   }, []);
+
+  const closeWordPreview = useCallback(() => {
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
+    setSelectedMessage(null);
+    setSelectedWord(null);
+  }, []);
+
+  const openWordModalFromPreview = useCallback(() => {
+    // selectedMessage / selectedWord 유지, 미리보기만 닫아 WordModal 게이트 통과
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
+  }, []);
+
+  const handlePreviewSpeak = useCallback(() => {
+    const w = selectedWord?.word;
+    if (!w) return;
+    // 클릭 핸들러에서 동기 호출 (iOS 제스처)
+    const lang = selectedMessage?.sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
+    speakNow(w, lang);
+  }, [selectedWord, selectedMessage]);
 
   const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
 
@@ -535,8 +567,20 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         </div>
       )}
 
+      <WordPreviewSheet
+        open={wordPreviewOpen && !!selectedWord?.word}
+        word={selectedWord?.word || ''}
+        meaning={selectedWord?.meaning || selectedWord?.standard || null}
+        isUnknown={selectedWord?.source === 'not_found'}
+        contextLine={selectedMessage?.original || selectedMessage?.translated || undefined}
+        loading={wordPreviewLoading}
+        onSpeak={handlePreviewSpeak}
+        onDetail={openWordModalFromPreview}
+        onClose={closeWordPreview}
+      />
+
       <WordModal
-        data={selectedMessage ? {
+        data={selectedMessage && !wordPreviewOpen ? {
           sentence: selectedMessage.original,
           translated: selectedMessage.translated,
           sourceLang: selectedMessage.sourceLang,
@@ -548,7 +592,12 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           wordDetail: selectedWord || undefined,
         } : null}
         userId={deviceId}
-        onClose={() => { setSelectedMessage(null); setSelectedWord(null); }}
+        onClose={() => {
+          setSelectedMessage(null);
+          setSelectedWord(null);
+          setWordPreviewOpen(false);
+          setWordPreviewLoading(false);
+        }}
       />
 
       {shareRoomCode && shareRoomId && (
