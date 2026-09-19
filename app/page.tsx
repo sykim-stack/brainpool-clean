@@ -389,6 +389,24 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     }
   }, [deviceId, loadRooms]);
 
+  const handleBubbleClick = useCallback((msg: Message) => {
+    setSelectedMessage(msg);
+    setSelectedWord(null);
+  }, []);
+
+  const handleWordClick = useCallback(async (msg: Message, word: string) => {
+    setSelectedMessage(msg);
+    setSelectedWord(null);
+    const res = await fetch('/api/phrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordData', word }),
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.success && json.payload) setSelectedWord(json.payload);
+    else setSelectedWord({ word, source: 'not_found' });
+  }, []);
+
   const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
 
   return (
@@ -487,9 +505,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               deviceId={deviceId}
               messageId={msg.messageId}
               isFirstLang={!!isFirstLang}
-              onClick={() => setSelectedMessage(msg)}
+              onClick={() => handleBubbleClick(msg)}
               audioUrl={msg.audioUrl}
-              onWordClick={(word) => { setSelectedMessage(msg); setSelectedWord({ word }); }}
+              onWordClick={(word) => handleWordClick(msg, word)}
             />
           );
         })}
