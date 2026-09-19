@@ -88,7 +88,9 @@ async function joinRoom(ctx) {
 async function findByCode(ctx) {
   const { inviteCode } = ctx.payload || {};
   if (!inviteCode) return { ...ctx, _error: 'inviteCode required' };
-  const { data, error } = await (await getStorage()).from('chat_rooms').select('*').eq('invite_code', inviteCode).single();
+  const supabase = await getStorage();
+  if (!supabase) return { ...ctx, _error: 'DB connection failed' };
+  const { data, error } = await supabase.from('chat_rooms').select('*').eq('invite_code', inviteCode).single();
   if (error || !data) return { ...ctx, _error: 'Room not found: ' + inviteCode };
   return { ...ctx, payload: { ...ctx.payload, room: { roomId: data.id, inviteCode: data.invite_code, title: data.room_name, createdAt: data.created_at } } };
 }
