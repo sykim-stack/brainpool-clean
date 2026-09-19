@@ -8,6 +8,17 @@ function generateInviteCode() {
   return code;
 }
 
+async function assertRoomOwner(supabase, roomId, deviceId) {
+  const { data: existing, error: fetchError } = await supabase
+    .from('chat_rooms').select('owner_device_id').eq('id', roomId).maybeSingle();
+  if (fetchError) return { ok: false, error: fetchError.message };
+  if (!existing) return { ok: false, error: 'Room not found: ' + roomId };
+  if (!deviceId || existing.owner_device_id !== deviceId) {
+    return { ok: false, error: 'FORBIDDEN: 방장만 할 수 있습니다.' };
+  }
+  return { ok: true };
+}
+
 async function createRoom(ctx) {
   const { title, createdBy = 'anonymous', tags = [], maxParticipants = 100, isPublic = true } = ctx.payload || {};
   if (!title) return { ...ctx, _error: 'Room title is required' };
@@ -28,6 +39,7 @@ async function getRoom(ctx) {
 }
 
 async function listRooms(ctx) {
+  const { } = ctx.payload || {};
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
   const { data, error } = await supabase.from('chat_rooms').select('*').eq('is_public', true).order('created_at', { ascending: false });
@@ -36,10 +48,15 @@ async function listRooms(ctx) {
 }
 
 async function clearMessages(ctx) {
-  const { roomId } = ctx.payload || {};
+  const { roomId, deviceId } = ctx.payload || {};
   if (!roomId) return { ...ctx, _error: 'roomId required' };
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
+
+  // 방장(owner_device_id)만 메시지 초기화 가능
+  const ownership = await assertRoomOwner(supabase, roomId, deviceId);
+  if (!ownership.ok) return { ...ctx, _error: ownership.error };
+
   // ChatMessageEngine writes canonical chat records to messages; clear the same table.
   const { error } = await supabase.from('messages').delete().eq('room_id', roomId);
   if (error) return { ...ctx, _error: error.message };
@@ -52,13 +69,8 @@ async function deleteRoom(ctx) {
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
 
   // 방장(owner_device_id)만 삭제 가능하도록 검증
-  const { data: existing, error: fetchError } = await supabase
-    .from('chat_rooms').select('owner_device_id').eq('id', roomId).maybeSingle();
-  if (fetchError) return { ...ctx, _error: fetchError.message };
-  if (!existing) return { ...ctx, _error: 'Room not found: ' + roomId };
-  if (!deviceId || existing.owner_device_id !== deviceId) {
-    return { ...ctx, _error: 'FORBIDDEN: 방장만 삭제할 수 있습니다.' };
-  }
+  const ownership = await assertRoomOwner(supabase, roomId, deviceId);
+  if (!ownership.ok) return { ...ctx, _error: ownership.error };
 
   const { error } = await supabase.from('chat_rooms').delete().eq('id', roomId);
   if (error) return { ...ctx, _error: error.message };
