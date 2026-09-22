@@ -77,8 +77,45 @@ export default function ChatBubble({
     if (e.key === 'Enter') handleSaveEdit();
   };
 
-  const tokenize = (text: string): string[] => {
-    return text.split(/\s+/).map(w => w.replace(/[.,!?;:'"()]/g, '')).filter(Boolean);
+  // ── tokenize ──────────────────────────────────────────
+  const tokenizeVi = (text: string): string[] => {
+    return text
+      .split(/\s+/)
+      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
+      .filter(Boolean);
+  };
+
+  // 최소 KO 분리: 공백 + 끝 조사/어미 peel (형태소 분석기 없음)
+  const KO_PARTICLE =
+    /(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|부터|까지|에게|한테|께|요|다|니다|습니다|세요|죠)$/;
+
+  const tokenizeKo = (text: string): string[] => {
+    const raw = text
+      .split(/\s+/)
+      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
+      .filter(Boolean);
+
+    const out: string[] = [];
+    for (const token of raw) {
+      // 한글이 거의 없으면 그대로
+      if (!/[가-힣]/.test(token)) {
+        if (token.length > 0) out.push(token);
+        continue;
+      }
+      const m = token.match(KO_PARTICLE);
+      if (m && token.length - m[1].length >= 2) {
+        // 어간만 클릭 대상으로 (조사/어미는 학습 가치 낮음)
+        out.push(token.slice(0, -m[1].length));
+      } else {
+        out.push(token);
+      }
+    }
+    return out.filter(w => w.length >= 1);
+  };
+
+  const tokenize = (text: string, lang?: string): string[] => {
+    if (lang === 'ko') return tokenizeKo(text);
+    return tokenizeVi(text); // VI 및 기타: 기존과 동일
   };
 
   const handleWordClick = (e: React.MouseEvent, word: string) => {
@@ -108,8 +145,15 @@ export default function ChatBubble({
 
   const alignClass = isFirstLang ? styles.wrapperMine : styles.wrapperOther;
   const langLabelClass = sourceLang === 'ko' ? styles.langKo : styles.langVi;
-  const isTokenizable = targetLang === 'vi' || sourceLang === 'vi';
-  const words = isTokenizable ? tokenize(translated) : [];
+  // 번역문이 KO 또는 VI이면 단어 클릭 가능
+  const isTokenizable =
+    targetLang === 'vi' ||
+    targetLang === 'ko' ||
+    sourceLang === 'vi' ||
+    sourceLang === 'ko';
+  const words = isTokenizable
+    ? tokenize(translated, targetLang === 'ko' ? 'ko' : 'vi')
+    : [];
 
   return (
     <div className={`${styles.bubble} ${alignClass}`} onClick={onClick}>
