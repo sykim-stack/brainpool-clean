@@ -87,6 +87,43 @@ export class RingLexiconLayer {
         if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
         data = r1.data?.[0] ?? null;
 
+        // Korean tokens are often stored as part of a phrase/sentence in meaning_ko.
+        // Use the current translated sentence to disambiguate instead of restoring
+        // an unsafe substring-only lookup (e.g. "네" -> "네트워크").
+        if (!data && typeof ctx.payload?.context === 'string') {
+          const context = ctx.payload.context.trim();
+          if (context) {
+            const r2 = await ctx.supabase.from('tp_translations')
+              .select(SELECT_COLS)
+              .ilike('meaning_ko', `%${word}%`)
+              .limit(50);
+            if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
+
+            const normalize = (value) => String(value || '')
+              .replace(/[.,!?;:'"()\-]/g, ' ')
+              .replace(/\\s+/g, ' ')
+              .trim();
+
+            const contextNorm = normalize(context);
+            const candidates = (r2.data || [])
+              .map((row) => {
+                const meaningNorm = normalize(row.meaning_ko);
+                let score = 0;
+                if (meaningNorm === contextNorm) score += 10000;
+                if (meaningNorm && contextNorm.includes(meaningNorm)) score += 5000 + meaningNorm.length * 10;
+                if (meaningNorm && meaningNorm.includes(word)) score += word.length * 10;
+                return { row, score };
+              })
+              .filter(({ row, score }) => {
+                const meaningNorm = normalize(row.meaning_ko);
+                return score > 0 && meaningNorm && contextNorm.includes(meaningNorm);
+              })
+              .sort((a, b) => b.score - a.score);
+
+            data = candidates[0]?.row ?? null;
+          }
+        }
+
       } else {
         const r1 = await ctx.supabase.from('tp_translations')
           .select(SELECT_COLS).ilike('standard_word', word).limit(1);
