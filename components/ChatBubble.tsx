@@ -19,6 +19,65 @@ interface ChatBubbleProps {
   onWordClick?: (word: string) => void;
 }
 
+// ── KO search-key normalize (surface is never mutated for display) ──
+const KO_CONTRACTIONS: Record<string, string> = {
+  난: '나',
+  넌: '너',
+  전: '저',
+  뭘: '무엇',
+};
+
+const KO_PARTICLES = [
+  '에서', '에게', '한테', '으로', '부터', '까지', '처럼', '보다',
+  '은', '는', '이', '가', '을', '를', '의', '에', '로', '와', '과',
+  '도', '만', '께',
+].sort((a, b) => b.length - a.length);
+
+const KO_PARTICLE_SET = new Set(KO_PARTICLES);
+
+/** Surface token → dictionary / vocabulary lookup key (conservative). */
+function toSearchKey(surface: string): string {
+  if (!surface || typeof surface !== 'string') return surface;
+  const s = surface.trim();
+  if (!s) return s;
+
+  if (Object.prototype.hasOwnProperty.call(KO_CONTRACTIONS, s)) {
+    return KO_CONTRACTIONS[s];
+  }
+
+  // multi-role short form: never rewrite
+  if (s === '네') return s;
+
+  // entire token is a particle → leave as-is (click filter excludes it)
+  if (KO_PARTICLE_SET.has(s)) return s;
+
+  if (!/[가-힣]/.test(s)) return s;
+
+  // particle peel once, longest match; 1-syllable stems allowed
+  for (const p of KO_PARTICLES) {
+    if (s.endsWith(p) && s.length - p.length >= 1) {
+      return s.slice(0, -p.length);
+    }
+  }
+
+  return s;
+}
+
+/** Pure particles are not worth clicking as lookup targets. */
+function isClickableSurface(surface: string): boolean {
+  if (!surface || surface.length === 0) return false;
+  if (KO_PARTICLE_SET.has(surface)) return false;
+  return true;
+}
+
+/** Whitespace + punctuation strip only — surface preserved. */
+function splitSurface(text: string): string[] {
+  return text
+    .split(/\s+/)
+    .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
+    .filter(Boolean);
+}
+
 export default function ChatBubble({
   original,
   translated,
@@ -77,51 +136,21 @@ export default function ChatBubble({
     if (e.key === 'Enter') handleSaveEdit();
   };
 
-  // ── tokenize ──────────────────────────────────────────
-  const tokenizeVi = (text: string): string[] => {
-    return text
-      .split(/\s+/)
-      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
-      .filter(Boolean);
-  };
+  const isKoTarget = targetLang === 'ko';
 
-  // 최소 KO 분리: 공백 + 끝 조사/어미 peel (형태소 분석기 없음)
-  const KO_PARTICLE =
-    /(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|부터|까지|에게|한테|께|요|다|니다|습니다|세요|죠)$/;
+  // surface tokens for display (both KO and VI)
+  const surfaceWords = isTokenizableLang(sourceLang, targetLang)
+    ? splitSurface(translated)
+    : [];
 
-  const tokenizeKo = (text: string): string[] => {
-    const raw = text
-      .split(/\s+/)
-      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
-      .filter(Boolean);
-
-    const out: string[] = [];
-    for (const token of raw) {
-      // 한글이 거의 없으면 그대로
-      if (!/[가-힣]/.test(token)) {
-        if (token.length > 0) out.push(token);
-        continue;
-      }
-      const m = token.match(KO_PARTICLE);
-      if (m && token.length - m[1].length >= 2) {
-        // 어간만 클릭 대상으로 (조사/어미는 학습 가치 낮음)
-        out.push(token.slice(0, -m[1].length));
-      } else {
-        out.push(token);
-      }
-    }
-    return out.filter(w => w.length >= 1);
-  };
-
-  const tokenize = (text: string, lang?: string): string[] => {
-    if (lang === 'ko') return tokenizeKo(text);
-    return tokenizeVi(text); // VI 및 기타: 기존과 동일
-  };
-
-  const handleWordClick = (e: React.MouseEvent, word: string) => {
+  const handleWordClick = (e: React.MouseEvent, surface: string) => {
     e.stopPropagation();
     if (longPressTimer.current) return;
-    if (onWordClick) onWordClick(word);
+    if (!onWordClick) return;
+    if (!isClickableSurface(surface)) return;
+    // KO: pass search key only; VI: surface is the key
+    const key = isKoTarget ? toSearchKey(surface) : surface;
+    onWordClick(key);
   };
 
   const handleTouchStart = () => {
@@ -145,15 +174,7 @@ export default function ChatBubble({
 
   const alignClass = isFirstLang ? styles.wrapperMine : styles.wrapperOther;
   const langLabelClass = sourceLang === 'ko' ? styles.langKo : styles.langVi;
-  // 번역문이 KO 또는 VI이면 단어 클릭 가능
-  const isTokenizable =
-    targetLang === 'vi' ||
-    targetLang === 'ko' ||
-    sourceLang === 'vi' ||
-    sourceLang === 'ko';
-  const words = isTokenizable
-    ? tokenize(translated, targetLang === 'ko' ? 'ko' : 'vi')
-    : [];
+  const isTokenizable = isTokenizableLang(sourceLang, targetLang);
 
   return (
     <div className={`${styles.bubble} ${alignClass}`} onClick={onClick}>
@@ -182,9 +203,13 @@ export default function ChatBubble({
           title="단어 클릭: 사전 | 길게 누르기: 번역 수정"
         >
           {isTokenizable ? (
-            words.map((word, i) => (
-              <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, word)}>
-                {word}{' '}
+            surfaceWords.map((surface, i) => (
+              <span
+                key={i}
+                className={styles.word}
+                onClick={(e) => handleWordClick(e, surface)}
+              >
+                {surface}{' '}
               </span>
             ))
           ) : (
@@ -193,7 +218,7 @@ export default function ChatBubble({
         </div>
       )}
 
-      {isTokenizable && words.length > 1 && !isEditing && (
+      {isTokenizable && surfaceWords.length > 1 && !isEditing && (
         <div className={styles.wordBreakdown} onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
@@ -205,14 +230,18 @@ export default function ChatBubble({
           </button>
           {showWordBreakdown && (
             <div className={styles.wordBreakdownList}>
-              {words.map((word, i) => (
+              {surfaceWords.map((surface, i) => (
                 <button
-                  key={`${word}-${i}`}
+                  key={`${surface}-${i}`}
                   type="button"
                   className={styles.wordBreakdownWord}
-                  onClick={() => onWordClick?.(word)}
+                  onClick={() => {
+                    if (!isClickableSurface(surface)) return;
+                    const key = isKoTarget ? toSearchKey(surface) : surface;
+                    onWordClick?.(key);
+                  }}
                 >
-                  {word}
+                  {surface}
                 </button>
               ))}
             </div>
@@ -254,5 +283,14 @@ export default function ChatBubble({
         <span>{new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
+  );
+}
+
+function isTokenizableLang(sourceLang?: string, targetLang?: string): boolean {
+  return (
+    targetLang === 'vi' ||
+    targetLang === 'ko' ||
+    sourceLang === 'vi' ||
+    sourceLang === 'ko'
   );
 }
