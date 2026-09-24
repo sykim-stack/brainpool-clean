@@ -410,7 +410,13 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     const res = await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'getWordData', word }),
+      body: JSON.stringify({
+        action: 'getWordData',
+        word,
+        context: msg.translated,
+        sourceLang: msg.sourceLang,
+        targetLang: msg.targetLang,
+      }),
     }).catch(() => null);
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.success && json.payload) setSelectedWord(json.payload);
