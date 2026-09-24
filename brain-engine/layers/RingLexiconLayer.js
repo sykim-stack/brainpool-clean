@@ -101,7 +101,7 @@ export class RingLexiconLayer {
 
             const normalize = (value) => String(value || '')
               .replace(/[.,!?;:'"()\-]/g, ' ')
-              .replace(/\\s+/g, ' ')
+              .replace(/\s+/g, ' ')
               .trim();
 
             const contextNorm = normalize(context);
