@@ -87,12 +87,6 @@ export class RingLexiconLayer {
         if (r1.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r1.error.message } };
         data = r1.data?.[0] ?? null;
 
-        if (!data) {
-          const r2 = await ctx.supabase.from('tp_translations')
-            .select(SELECT_COLS).ilike('meaning_ko', `%${word}%`).limit(1);
-          if (r2.error) return { ...ctx, _error: { code: 'DB_ERROR', message: r2.error.message } };
-          data = r2.data?.[0] ?? null;
-        }
       } else {
         const r1 = await ctx.supabase.from('tp_translations')
           .select(SELECT_COLS).ilike('standard_word', word).limit(1);
