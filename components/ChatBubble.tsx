@@ -85,32 +85,14 @@ export default function ChatBubble({
       .filter(Boolean);
   };
 
-  // 최소 KO 분리: 공백 + 끝 조사/어미 peel (형태소 분석기 없음)
-  const KO_PARTICLE =
-    /(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|부터|까지|에게|한테|께|요|다|니다|습니다|세요|죠)$/;
-
+  // KO: 공백 분리만. 어미(요/니다/습니다/세요 등) peel 금지
+  // — 안녕하세요→안녕하, 감사합니다→감사합 표시 깨짐 방지
+  // 조사 peel은 형태소 분석기 없이 오탐이 커서 표시·클릭 모두 원형 유지
   const tokenizeKo = (text: string): string[] => {
-    const raw = text
+    return text
       .split(/\s+/)
       .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
       .filter(Boolean);
-
-    const out: string[] = [];
-    for (const token of raw) {
-      // 한글이 거의 없으면 그대로
-      if (!/[가-힣]/.test(token)) {
-        if (token.length > 0) out.push(token);
-        continue;
-      }
-      const m = token.match(KO_PARTICLE);
-      if (m && token.length - m[1].length >= 2) {
-        // 어간만 클릭 대상으로 (조사/어미는 학습 가치 낮음)
-        out.push(token.slice(0, -m[1].length));
-      } else {
-        out.push(token);
-      }
-    }
-    return out.filter(w => w.length >= 1);
   };
 
   const tokenize = (text: string, lang?: string): string[] => {
