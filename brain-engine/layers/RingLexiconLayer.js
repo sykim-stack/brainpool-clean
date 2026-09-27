@@ -69,6 +69,41 @@ export class RingLexiconLayer {
     };
   }
 
+
+  // ── 문장 매칭 정규화: 기존 log 구조는 유지하고 조회 문자열만 보정 ─────
+  normalizePhraseCandidates(text) {
+    const raw = String(text || '').trim();
+    const collapsed = raw.replace(/\s+/g, ' ').trim();
+    const withoutTerminalPunctuation = collapsed.replace(/[?？!！.。]+$/u, '').trim();
+    return [...new Set([raw, collapsed, withoutTerminalPunctuation].filter(Boolean))];
+  }
+
+  async lookupTranslationLogByText(ctx, field, text, LOG_SELECT) {
+    const candidates = this.normalizePhraseCandidates(text);
+    for (const candidate of candidates) {
+      const { data, error } = await ctx.supabase
+        .from('tb_trans_logs')
+        .select(LOG_SELECT)
+        .eq(field, candidate)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!error && data?.[0]) return { data, error: null };
+    }
+
+    // 대소문자 차이까지 허용하되, 기존 exact match를 우선한다.
+    for (const candidate of candidates) {
+      const { data, error } = await ctx.supabase
+        .from('tb_trans_logs')
+        .select(LOG_SELECT)
+        .ilike(field, candidate)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!error && data?.[0]) return { data, error: null };
+    }
+
+    return { data: [], error: null };
+  }
+
   // ── tp_phrases 조회 (tb_trans_log_id 공식 키) ─────────────────────
   async lookupPhraseByLogId(ctx, logId) {
     if (!logId) return null;
@@ -153,18 +188,12 @@ export class RingLexiconLayer {
 
       let logResult;
       if (isSentence) {
-        const r1 = await ctx.supabase.from('tb_trans_logs')
-          .select(LOG_SELECT)
-          .eq('source_text', word)
-          .order('created_at', { ascending: false })
-          .limit(1);
+        // 원문 → 정규화 문장부호/공백 → 대소문자 순서로 기존 log를 찾는다.
+        // log id가 확보되면 이후 tp_phrases 연결은 기존 tb_trans_log_id 그대로 사용한다.
+        const r1 = await this.lookupTranslationLogByText(ctx, 'source_text', word, LOG_SELECT);
         logResult = r1;
         if (!r1.data?.[0]) {
-          const r2 = await ctx.supabase.from('tb_trans_logs')
-            .select(LOG_SELECT)
-            .eq('standard_vi', word)
-            .order('created_at', { ascending: false })
-            .limit(1);
+          const r2 = await this.lookupTranslationLogByText(ctx, 'standard_vi', word, LOG_SELECT);
           logResult = r2;
         }
       } else {
