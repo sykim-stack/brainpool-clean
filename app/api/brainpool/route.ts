@@ -1,6 +1,7 @@
 ﻿import type { NextRequest } from 'next/server';
 import { route } from '@/brain-engine/hajun/router.js';
 import { createCtx } from '@/brain-engine/contracts/ctx.js';
+import { postFactToCoreHub } from '@/lib/corehub';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -100,6 +101,27 @@ export async function POST(request: NextRequest) {
     const p = ctx.payload;
     const sourceLang = p.sourceLang || null;
     const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
+
+    // ── CoreHub: language.translated Fact 전달 (fire-and-forget) ──
+    // 번역 결과를 CoreHub에 전달 → cross.language.relationship 패턴 매칭용
+    // 번역 흐름에 영향을 주지 않는다 (side-effect only)
+    const deviceId =
+      body.device_id ||
+      request.headers.get('x-device-id') ||
+      `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    Promise.resolve().then(async () => {
+      await postFactToCoreHub({
+        source: 'CoreRing',
+        fact_type: 'language.translated',
+        owner_key: deviceId,
+        payload: {
+          source_text: p.text,
+          standard_vi: p.translatedText || p.text,
+          direction: sourceLang === 'ko' ? 'KO_VI' : 'VI_KO',
+          trace_id: traceId,
+        },
+      });
+    });
 
     // ── 번역 결과 즉시 반환 ──────────────────────────────────
     // Gemini 분석(emotion, dialect)은 응답 후 백그라운드에서 실행

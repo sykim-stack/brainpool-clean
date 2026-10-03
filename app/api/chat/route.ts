@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { postFactToCoreHub } from '@/lib/corehub';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -236,6 +237,24 @@ export async function POST(request: NextRequest) {
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
       const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: flatMeta }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
+
+      // ── CoreHub: relation.chat.sent Fact 전달 (fire-and-forget) ──
+      // 채팅 메시지를 CoreHub에 전달 → cross.language.relationship 패턴 매칭용
+      // 채팅 흐름에 영향을 주지 않는다 (side-effect only)
+      Promise.resolve().then(async () => {
+        await postFactToCoreHub({
+          source: 'CoreRing',
+          fact_type: 'relation.chat.sent',
+          owner_key: userId,
+          payload: {
+            room_id: roomId,
+            content: original,
+            tb_trans_log_id: translationMeta.tbTransLogId || null,
+            trace_id: traceId,
+          },
+        });
+      });
+
       return NextResponse.json({ payload: { message: result.message }, _error: null, traceId });
     }
 
