@@ -543,11 +543,30 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         visible={isRoomMode && !currentRoomId}
       />
 
+      <div className={styles.tabBar}>
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('ring')}
+        >
+          CoreRing
+        </button>
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('phrase')}
+        >
+          CorePhrase
+        </button>
+      </div>
+
       {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
 
-      <div className={styles.chat} ref={chatRef}>
+      {activeTab === 'ring' && (
+      <div className="chat-container" ref={chatRef}>
         {showDaily && !currentRoomId && messages.length === 0 && (
-          <div className={styles.daily}>
+          <div className={styles.dailyCard}>
+            <p className={styles.dailyLabel}>오늘의 단어</p>
             <p className={styles.dailyWord}>{dailyWord.word}</p>
             <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
             {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
@@ -576,6 +595,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           );
         })}
       </div>
+      )}
 
       <RoomBar
         nickname={nickname}
@@ -668,18 +688,16 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           style={{
             position: 'fixed',
             bottom: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
+            left: 16,
+            right: 16,
             background: 'var(--color-surface)',
             padding: 16,
             borderRadius: 12,
             zIndex: 50,
           }}
         >
-          <p>iOS: 공유 → 홈 화면에 추가</p>
-          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            닫기
-          </button>
+          <p>Safari 공유 → 홈 화면에 추가</p>
+          <button onClick={() => setShowIOSGuide(false)}>닫기</button>
         </div>
       )}
     </div>
