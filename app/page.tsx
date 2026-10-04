@@ -120,7 +120,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const chatRef = useRef<HTMLDivElement>(null);
   const [firstLanguage, setFirstLanguage] = useState<string | null>(null);
   const [dailyWord, setDailyWord] = useState<DailyWord>({
-    word: 'xin chào', meaning: '안녕하세요',
+    word: 'xin chào',
+    meaning: '안녕하세요',
     usage: '처음 만나는 사람에게 쓰는 인사',
     culturalNote: '남부에서는 "chào" 만으로도 자연스러워요',
   });
@@ -137,31 +138,543 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
-  useEffect(() => { setDeviceId(readOrCreateDeviceId()); }, []);
+  const saveMyRoom = (room: Room) => {
+    setMyRooms(prev => {
+      if (prev.find(r => r.roomId === room.roomId)) return prev;
+      const updated = [room, ...prev].slice(0, 10);
+      localStorage.setItem('myRooms', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isKakao = /KAKAOTALK/i.test(navigator.userAgent);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    } else if (isIOS) setShowIOSGuide(true);
+    else if (isKakao) {
+      window.open(`intent://${location.href.replace(/https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`);
+    }
+  }, [deferredPrompt]);
+
+  useEffect(() => {
+    const el = chatRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 150) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  useEffect(() => {
+    setDeviceId(readOrCreateDeviceId());
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('recentTranslations');
+      if (saved) setMessages(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (currentRoomId) return;
+    try {
+      localStorage.setItem('recentTranslations', JSON.stringify(messages.slice(-30)));
+    } catch {}
+  }, [messages, currentRoomId]);
+
+  useEffect(() => {
+    fetchDailyWord().then(r => {
+      if (!r._error && r.word) setDailyWord(r);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) setShowDaily(false);
+  }, [messages.length]);
+
+  const loadRooms = useCallback(async () => {
+    const res = await fetch('/api/chat/rooms', { headers: { 'x-device-id': deviceId } }).catch(() => null);
+    if (!res) return;
+    const data = await res.json().catch(() => null);
+    if (data?.payload?.rooms) setRooms(data.payload.rooms);
+  }, [deviceId]);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+      Notification.requestPermission()
+        .then(p => {
+          if (p === 'granted') subscribePush(deviceId);
+        })
+        .catch(() => {});
+    }
+  }, [deviceId]);
+
+  const handleExitRoom = useCallback(() => {
+    setCurrentRoomId(null);
+    setCurrentRoomCode('------');
+    setMessages([]);
+    setIsRoomMode(false);
+  }, []);
+
+  useEffect(() => {
+    if (!currentRoomId) return;
+    let isPolling = false;
+    let cancelled = false;
+    const poll = async () => {
+      if (isPolling || cancelled) return;
+      isPolling = true;
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
+        });
+        if (cancelled || !res?.ok) return;
+        const data = await res.json().catch(() => null);
+        if (cancelled || !data) return;
+        if (data._error === 'ROOM_DELETED') {
+          alert('이 방은 삭제되었습니다.');
+          handleExitRoom();
+          return;
+        }
+        const rawMsgs = data.payload?.messages || [];
+        if (!rawMsgs.length) return;
+        const enriched = [...rawMsgs].reverse().map((m: any) => {
+          const srcLang = m.sourceLang || (/[가-힣]/.test(m.original || '') ? 'ko' : 'vi');
+          const tgtLang = m.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
+          return {
+            messageId: m.messageId || m.id,
+            original: m.original || '',
+            translated:
+              m.translated ||
+              m.translations?.[tgtLang] ||
+              m.translations?.[srcLang] ||
+              m.original,
+            sourceLang: srcLang,
+            targetLang: tgtLang,
+            emotion: typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
+            riskScore: m.riskScore ?? 0,
+            intent: m.intent,
+            culturalNote: m.culturalNote,
+            timestamp: m.timestamp || m.createdAt,
+            userId: m.userId || '',
+            audioUrl: m.audioUrl,
+          };
+        });
+        if (!cancelled) setMessages(enriched);
+      } catch (e: any) {
+        if (!cancelled) console.warn('[poll]', e.message);
+      } finally {
+        isPolling = false;
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentRoomId, handleExitRoom]);
+
+  useEffect(() => {
+    if (messages.length > 0 && messages[0].sourceLang && !firstLanguage) {
+      setFirstLanguage(messages[0].sourceLang);
+    }
+  }, [messages.length, firstLanguage]);
+
+  const sendMessageToRoom = async (roomId: string, text: string) => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        action: 'send',
+        roomId,
+        userId: deviceId,
+        original: text,
+        analyze: true,
+      }),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => null) : null;
+    if (data?._error === 'ROOM_DELETED') {
+      alert('이 방은 삭제되었습니다.');
+      handleExitRoom();
+    }
+  };
+
+  const handleSend = useCallback(
+    async (text: string) => {
+      setIsLoading(true);
+      if (!currentRoomId) {
+        try {
+          const res = await fetch('/api/brainpool', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'x-device-id': deviceId,
+            },
+            body: JSON.stringify({ text, device_id: deviceId }),
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload) {
+            const p = data.payload;
+            const srcLang = p.sourceLang || null;
+            const tgtLang = p.targetLang || (srcLang === 'ko' ? 'vi' : 'ko');
+            setMessages(prev => [
+              ...prev,
+              {
+                messageId: p.id || crypto.randomUUID(),
+                original: p.original || text,
+                translated: p.translated || text,
+                sourceLang: srcLang,
+                targetLang: tgtLang,
+                emotion: p.emotion || 'neutral',
+                riskScore: p.riskScore ?? 0,
+                intent: p.intent,
+                culturalNote: p.culturalNote,
+                timestamp: new Date().toISOString(),
+                userId: deviceId,
+              },
+            ]);
+            setLangHistory(prev => {
+              const updated = [...prev, srcLang || 'unknown'];
+              if (updated.includes('ko') && updated.includes('vi')) setShowRoomBanner(true);
+              return updated;
+            });
+          }
+        } catch {}
+        setIsLoading(false);
+        return;
+      }
+      await sendMessageToRoom(currentRoomId, text);
+      setIsLoading(false);
+    },
+    [currentRoomId, deviceId]
+  );
+
+  const handleJoinByCode = useCallback(async (inviteCode: string) => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'join', inviteCode }),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => null) : null;
+    if (data?.payload?.room) {
+      setCurrentRoomId(data.payload.room.roomId);
+      setCurrentRoomCode(data.payload.room.inviteCode || '------');
+      saveMyRoom(data.payload.room);
+      setIsRoomMode(false);
+    } else alert('방을 찾을 수 없습니다. 코드를 확인해주세요.');
+  }, []);
+
+  useEffect(() => {
+    if (initialRoomId) {
+      (async () => {
+        const res = await fetch('/api/chat/rooms/' + initialRoomId).catch(() => null);
+        const data = res ? await res.json().catch(() => null) : null;
+        if (data?.payload?.room) {
+          setMessages([]);
+          setCurrentRoomId(data.payload.room.roomId);
+          setCurrentRoomCode(data.payload.room.inviteCode || '------');
+          saveMyRoom(data.payload.room);
+        }
+      })();
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const roomParam = params.get('room');
+    if (code) {
+      handleJoinByCode(code.toUpperCase());
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (roomParam) {
+      (async () => {
+        const res = await fetch('/api/chat/rooms/' + roomParam).catch(() => null);
+        const data = res ? await res.json().catch(() => null) : null;
+        if (data?.payload?.room) {
+          setMessages([]);
+          setCurrentRoomId(data.payload.room.roomId);
+          setCurrentRoomCode(data.payload.room.inviteCode || '------');
+          saveMyRoom(data.payload.room);
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+      })();
+    }
+  }, [initialRoomId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteRoom = useCallback(
+    async (roomId: string) => {
+      const res = await fetch(`/api/chat/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { 'x-device-id': deviceId },
+      }).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      if (data?.payload?.deleted) {
+        setMyRooms(prev => {
+          const updated = prev.filter(r => r.roomId !== roomId);
+          localStorage.setItem('myRooms', JSON.stringify(updated));
+          return updated;
+        });
+        loadRooms();
+      } else if (String(data?._error || '').startsWith('FORBIDDEN')) {
+        alert('방장만 삭제할 수 있어요.');
+      }
+    },
+    [deviceId, loadRooms]
+  );
+
+  const handleBubbleClick = useCallback((msg: Message) => {
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
+    setSelectedMessage(msg);
+    setSelectedWord(null);
+  }, []);
+
+  const handleWordClick = useCallback(async (msg: Message, word: string) => {
+    setSelectedMessage(msg);
+    setSelectedWord({ word });
+    setWordPreviewOpen(true);
+    setWordPreviewLoading(true);
+    const res = await fetch('/api/phrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ action: 'getWordData', word }),
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.success && json.payload) setSelectedWord(json.payload);
+    else setSelectedWord({ word, source: 'not_found' });
+    setWordPreviewLoading(false);
+  }, []);
+
+  const closeWordPreview = useCallback(() => {
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
+    setSelectedMessage(null);
+    setSelectedWord(null);
+  }, []);
+
+  const openWordModalFromPreview = useCallback(() => {
+    setWordPreviewOpen(false);
+    setWordPreviewLoading(false);
+  }, []);
+
+  const handlePreviewSpeak = useCallback(() => {
+    const w = selectedWord?.word;
+    if (!w) return;
+    const lang = selectedMessage?.sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
+    speakNow(w, lang);
+  }, [selectedWord, selectedMessage]);
+
+  const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
 
   return (
     <div className="app-shell">
       <BrainHeader
         isRoomMode={isRoomMode || !!currentRoomId}
         onRoomToggle={() => {
-          if (currentRoomId) {
-            setCurrentRoomId(null);
-            setCurrentRoomCode('------');
-            setMessages([]);
-            setIsRoomMode(false);
-          } else setIsRoomMode(prev => !prev);
+          if (currentRoomId) handleExitRoom();
+          else setIsRoomMode(prev => !prev);
         }}
         isTyping={isTyping}
-        onClear={() => { setMessages([]); localStorage.removeItem('recentTranslations'); }}
-        onShare={async () => {
-          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() => navigator.clipboard.writeText(location.href));
+        onClear={async () => {
+          if (!currentRoomId) {
+            if (!window.confirm('번역 기록을 모두 지울까요?')) return;
+            setMessages([]);
+            localStorage.removeItem('recentTranslations');
+            return;
+          }
+          if (!window.confirm('이 방의 메시지를 모두 지울까요?')) return;
+          const res = await fetch(`/api/chat/rooms/${currentRoomId}`, {
+            method: 'PATCH',
+            headers: { 'x-device-id': deviceId },
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload?.cleared) setMessages([]);
+          else if (String(data?._error || '').startsWith('FORBIDDEN'))
+            alert('방장만 메시지를 초기화할 수 있어요.');
+          else alert('메시지 초기화에 실패했어요.');
         }}
-        onInstall={() => {}}
+        onShare={async () => {
+          await navigator
+            .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
+            .catch(() => navigator.clipboard.writeText(location.href));
+        }}
+        onInstall={handleInstall}
       />
-      <p style={{ padding: 16, color: '#ccc' }}>
-        긴급 복구 스텁입니다. 로컬에서 git checkout 1a0443a -- app/page.tsx 후 Step6 패치를 적용해 주세요.
-      </p>
-      <ChatInput onSend={async () => {}} onTypingChange={() => {}} userId={deviceId} onVoiceSend={async () => {}} />
+
+      <RoomList
+        rooms={rooms}
+        myRooms={myRooms}
+        deviceId={deviceId}
+        onSelectRoom={id => {
+          const room = rooms.find(r => r.roomId === id) || myRooms.find(r => r.roomId === id);
+          setMessages([]);
+          setCurrentRoomId(id);
+          setCurrentRoomCode(room?.inviteCode || '------');
+        }}
+        onJoinByCode={handleJoinByCode}
+        onCreateRoom={async (title: string, isPublic: boolean) => {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ action: 'create', title, isPublic, createdBy: deviceId }),
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload?.room) {
+            setMessages([]);
+            setCurrentRoomId(data.payload.room.roomId);
+            setCurrentRoomCode(data.payload.room.inviteCode || '------');
+            saveMyRoom(data.payload.room);
+            setIsRoomMode(false);
+            setShareRoomCode(data.payload.room.inviteCode || null);
+            setShareRoomId(data.payload.room.roomId || null);
+          }
+        }}
+        onDeleteRoom={handleDeleteRoom}
+        visible={isRoomMode && !currentRoomId}
+      />
+
+      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
+
+      <div className={styles.chat} ref={chatRef}>
+        {showDaily && !currentRoomId && messages.length === 0 && (
+          <div className={styles.daily}>
+            <p className={styles.dailyWord}>{dailyWord.word}</p>
+            <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
+            {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
+            {dailyWord.culturalNote && <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>}
+          </div>
+        )}
+        {messages.map((msg, i) => {
+          const isFirstLang = firstLanguage ? msg.sourceLang === firstLanguage : i % 2 === 0;
+          return (
+            <ChatBubble
+              key={msg.messageId || i}
+              original={msg.original}
+              translated={msg.translated}
+              sourceLang={msg.sourceLang}
+              targetLang={msg.targetLang}
+              emotion={msg.emotion}
+              riskScore={msg.riskScore}
+              timestamp={msg.timestamp}
+              deviceId={deviceId}
+              messageId={msg.messageId}
+              isFirstLang={!!isFirstLang}
+              onClick={() => handleBubbleClick(msg)}
+              audioUrl={msg.audioUrl}
+              onWordClick={word => handleWordClick(msg, word)}
+            />
+          );
+        })}
+      </div>
+
+      <RoomBar
+        nickname={nickname}
+        roomCode={currentRoomCode}
+        onChangeNickname={() => {
+          const name = prompt('닉네임:', nickname);
+          if (name) setNickname(name);
+        }}
+        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
+        onExit={handleExitRoom}
+        visible={!!currentRoomId}
+      />
+
+      <ChatInput
+        onSend={handleSend}
+        onTypingChange={setIsTyping}
+        userId={deviceId}
+        onVoiceSend={handleVoiceSend}
+      />
+
+      {showRoomBanner && !currentRoomId && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            padding: '12px 16px',
+            borderRadius: 12,
+            zIndex: 50,
+          }}
+        >
+          양방향 대화가 감지됐어요. 채팅방을 만들어 보세요.
+          <button onClick={() => setIsRoomMode(true)}>방 만들기</button>
+          <button onClick={() => setShowRoomBanner(false)}>닫기</button>
+        </div>
+      )}
+
+      <WordPreviewSheet
+        open={wordPreviewOpen && !!selectedWord?.word}
+        word={selectedWord?.word || ''}
+        meaning={selectedWord?.meaning || selectedWord?.standard || null}
+        isUnknown={selectedWord?.source === 'not_found'}
+        contextLine={selectedMessage?.original || selectedMessage?.translated || undefined}
+        loading={wordPreviewLoading}
+        onSpeak={handlePreviewSpeak}
+        onDetail={openWordModalFromPreview}
+        onClose={closeWordPreview}
+      />
+
+      {selectedMessage && !wordPreviewOpen && (
+        <WordModal
+          message={selectedMessage}
+          wordData={selectedWord}
+          onClose={() => {
+            setSelectedMessage(null);
+            setSelectedWord(null);
+          }}
+        />
+      )}
+
+      {shareRoomCode && (
+        <ShareRoomModal
+          roomCode={shareRoomCode}
+          roomId={shareRoomId || undefined}
+          onClose={() => {
+            setShareRoomCode(null);
+            setShareRoomId(null);
+          }}
+        />
+      )}
+
+      {showIOSGuide && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowIOSGuide(false)}
+        >
+          <div
+            style={{ background: '#222', padding: 24, borderRadius: 12, maxWidth: 320 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p>iOS: 공유 → 홈 화면에 추가</p>
+            <button onClick={() => setShowIOSGuide(false)}>닫기</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
