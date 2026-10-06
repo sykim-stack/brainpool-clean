@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import BrainHeader from '@/components/BrainHeader';
 import ChatBubble from '@/components/ChatBubble';
 import ChatInput from '@/components/ChatInput';
+import OpportunityBanner, { type OpportunityItem } from '@/components/OpportunityBanner';
 import RoomList from '@/components/RoomList';
 import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
@@ -66,6 +67,27 @@ const subscribePush = async (deviceId: string) => {
 };
 
 const DEVICE_ID_KEY = 'corering_device_id';
+
+/** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
+const OPPORTUNITY_LABEL: Record<string, string> = {
+  'suggest.corering': '💬 번역 도움이 필요하신가요?',
+  'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
+  'trigger.hajunai.nudge': '🌱 씨앗이 기다리고 있어요',
+};
+
+const COREHUB_OPP_URL = 'https://brainpool-corehub.vercel.app/api/corehub/opportunities';
+
+function mapOpportunities(raw: any[]): OpportunityItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 3).map((item: any) => ({
+    id: String(item.id),
+    label:
+      OPPORTUNITY_LABEL[item.action_type] ||
+      item.payload?.message ||
+      '발견',
+  }));
+}
+
 const LEGACY_DEVICE_ID_KEY = 'deviceId';
 
 function readOrCreateDeviceId(): string {
@@ -137,6 +159,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
+  const dismissedOppRef = useRef<Set<string>>(new Set());
 
   const saveMyRoom = (room: Room) => {
     setMyRooms((prev) => {
@@ -218,6 +242,28 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         .catch(() => {});
     }
   }, [deviceId]);
+
+  const refreshOpportunities = useCallback(async (ownerKey: string) => {
+    if (!ownerKey) return;
+    try {
+      const res = await fetch(
+        `${COREHUB_OPP_URL}?owner_key=${encodeURIComponent(ownerKey)}&status=open&limit=5`,
+        { cache: 'no-store' }
+      ).catch(() => null);
+      if (!res || !res.ok) return;
+      const data = await res.json().catch(() => null);
+      const raw = data?.payload?.opportunities || data?.opportunities || [];
+      const mapped = mapOpportunities(raw).filter((o) => !dismissedOppRef.current.has(o.id));
+      setOpportunities(mapped);
+    } catch (e) {
+      console.warn('[opp] refresh failed', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    refreshOpportunities(deviceId);
+  }, [deviceId, refreshOpportunities]);
 
   const handleExitRoom = useCallback(() => {
     setCurrentRoomId(null);
@@ -350,15 +396,17 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               if (updated.includes('ko') && updated.includes('vi')) setShowRoomBanner(true);
               return updated;
             });
+            window.setTimeout(() => refreshOpportunities(deviceId), 1800);
           }
         } catch {}
         setIsLoading(false);
         return;
       }
       await sendMessageToRoom(currentRoomId, text);
+      window.setTimeout(() => refreshOpportunities(deviceId), 1800);
       setIsLoading(false);
     },
-    [currentRoomId, deviceId]
+    [currentRoomId, deviceId, refreshOpportunities]
   );
 
   const handleJoinByCode = useCallback(async (inviteCode: string) => {
@@ -476,6 +524,20 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
   const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
 
+  const handleDismissOpportunity = useCallback(async (id: string) => {
+    dismissedOppRef.current.add(id);
+    setOpportunities((prev) => prev.filter((o) => o.id !== id));
+    try {
+      await fetch(`${COREHUB_OPP_URL}?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'dismissed' }),
+      });
+    } catch {
+      /* fail-soft */
+    }
+  }, []);
+
   return (
     <div className="app-shell">
       <BrainHeader
@@ -535,80 +597,44 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
             saveMyRoom(data.payload.room);
             setIsRoomMode(false);
-            setShareRoomCode(data.payload.room.inviteCode || null);
-            setShareRoomId(data.payload.room.roomId || null);
           }
         }}
         onDeleteRoom={handleDeleteRoom}
         visible={isRoomMode && !currentRoomId}
       />
 
-      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
+      {currentRoomId && (
+        <RoomBar
+          roomCode={currentRoomCode}
+          onExit={handleExitRoom}
+          onShare={() => {
+            setShareRoomCode(currentRoomCode);
+            setShareRoomId(currentRoomId);
+          }}
+        />
+      )}
 
-      <div className={styles.chat} ref={chatRef}>
+      <div className={styles.chatArea} ref={chatRef}>
         {showDaily && !currentRoomId && messages.length === 0 && (
-          <div className={styles.daily}>
-            <p className={styles.dailyWord}>{dailyWord.word}</p>
-            <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
-            {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
-            {dailyWord.culturalNote && <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>}
-          </div>
+          <CorePhrase word={dailyWord} onDismiss={() => setShowDaily(false)} />
         )}
-        {messages.map((msg, i) => {
-          const isFirstLang = firstLanguage ? msg.sourceLang === firstLanguage : i % 2 === 0;
-          return (
-            <ChatBubble
-              key={msg.messageId || i}
-              original={msg.original}
-              translated={msg.translated}
-              sourceLang={msg.sourceLang}
-              targetLang={msg.targetLang}
-              emotion={msg.emotion}
-              riskScore={msg.riskScore}
-              timestamp={msg.timestamp}
-              deviceId={deviceId}
-              messageId={msg.messageId}
-              isFirstLang={!!isFirstLang}
-              onClick={() => handleBubbleClick(msg)}
-              audioUrl={msg.audioUrl}
-              onWordClick={(word) => handleWordClick(msg, word)}
-            />
-          );
-        })}
+        {messages.map((m) => (
+          <ChatBubble
+            key={m.messageId}
+            message={m}
+            onClick={() => handleBubbleClick(m)}
+            onWordClick={(w) => handleWordClick(m, w)}
+            isMine={m.userId === deviceId}
+          />
+        ))}
       </div>
 
-      <RoomBar
-        nickname={nickname}
-        roomCode={currentRoomCode}
-        onChangeNickname={() => {
-          const name = prompt('닉네임:', nickname);
-          if (name) setNickname(name);
-        }}
-        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
-        onExit={handleExitRoom}
-        visible={!!currentRoomId}
-      />
+      <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
 
-      <ChatInput
-        onSend={handleSend}
-        onTypingChange={setIsTyping}
-        userId={deviceId}
-        onVoiceSend={handleVoiceSend}
-      />
+      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleVoiceSend} />
 
       {showRoomBanner && !currentRoomId && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--color-surface)',
-            padding: '12px 16px',
-            borderRadius: 12,
-            zIndex: 50,
-          }}
-        >
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface)', padding: '12px 16px', borderRadius: 12, zIndex: 50 }}>
           양방향 대화가 감지됐어요. 채팅방을 만들어 보세요.
           <button onClick={() => setIsRoomMode(true)}>방 만들기</button>
           <button onClick={() => setShowRoomBanner(false)}>닫기</button>
@@ -628,21 +654,17 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       />
 
       <WordModal
-        data={
-          selectedMessage && !wordPreviewOpen
-            ? {
-                sentence: selectedMessage.original,
-                translated: selectedMessage.translated,
-                sourceLang: selectedMessage.sourceLang,
-                emotion: selectedMessage.emotion,
-                riskScore: selectedMessage.riskScore,
-                intent: selectedMessage.intent,
-                culturalNote: selectedMessage.culturalNote,
-                sessionId: currentRoomId || undefined,
-                wordDetail: selectedWord || undefined,
-              }
-            : null
-        }
+        data={selectedMessage && !wordPreviewOpen ? {
+          sentence: selectedMessage.original,
+          translated: selectedMessage.translated,
+          sourceLang: selectedMessage.sourceLang,
+          emotion: selectedMessage.emotion,
+          riskScore: selectedMessage.riskScore,
+          intent: selectedMessage.intent,
+          culturalNote: selectedMessage.culturalNote,
+          sessionId: currentRoomId || undefined,
+          wordDetail: selectedWord || undefined,
+        } : null}
         userId={deviceId}
         onClose={() => {
           setSelectedMessage(null);
@@ -656,30 +678,14 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         <ShareRoomModal
           roomId={shareRoomId}
           roomCode={shareRoomCode}
-          onClose={() => {
-            setShareRoomCode(null);
-            setShareRoomId(null);
-          }}
+          onClose={() => { setShareRoomCode(null); setShareRoomId(null); }}
         />
       )}
 
       {showIOSGuide && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--color-surface)',
-            padding: 16,
-            borderRadius: 12,
-            zIndex: 50,
-          }}
-        >
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface)', padding: 16, borderRadius: 12, zIndex: 50 }}>
           <p>iOS: 공유 → 홈 화면에 추가</p>
-          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            닫기
-          </button>
+          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>닫기</button>
         </div>
       )}
     </div>
