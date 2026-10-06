@@ -12,6 +12,7 @@ import WordPreviewSheet from '@/components/WordPreviewSheet';
 import CorePhrase from '@/components/CorePhrase';
 import ShareRoomModal from '@/components/ShareRoomModal';
 import { speakNow } from '@/lib/tts';
+import styles from './page.module.css';
 
 interface Message {
   messageId: string;
@@ -604,31 +605,60 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         visible={isRoomMode && !currentRoomId}
       />
 
+      <div className={styles.tabBar}>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('ring')}
+        >
+          CoreRing
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('phrase')}
+        >
+          CorePhrase
+        </button>
+      </div>
+
       {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
 
-      <div className="chat-container" ref={chatRef}>
-        {activeTab === 'ring' &&
-          messages.map((msg, i) => {
-            const isFirstLang = !firstLanguage || msg.sourceLang === firstLanguage;
-            return (
-              <ChatBubble
-                key={msg.messageId || i}
-                original={msg.original}
-                translated={msg.translated}
-                sourceLang={msg.sourceLang}
-                targetLang={msg.targetLang}
-                emotion={msg.emotion}
-                riskScore={msg.riskScore}
-                timestamp={msg.timestamp}
-                deviceId={deviceId}
-                messageId={msg.messageId}
-                isFirstLang={isFirstLang}
-                onClick={() => handleBubbleClick(msg)}
-                onWordClick={(word) => handleWordClick(msg, word)}
-                audioUrl={msg.audioUrl}
-              />
-            );
-          })}
+      <div
+        className="chat-container"
+        ref={chatRef}
+        style={{ display: activeTab === 'ring' ? 'flex' : 'none' }}
+      >
+        {showDaily && messages.length === 0 && !isLoading && (
+          <div className={styles.dailyCard}>
+            <p className={styles.dailyLabel}>오늘의 단어</p>
+            <p className={styles.dailyWord}>{dailyWord.word}</p>
+            <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
+            {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
+            {dailyWord.culturalNote && (
+              <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>
+            )}
+          </div>
+        )}
+        {messages.map((msg, i) => {
+          const isFirstLang = !firstLanguage || msg.sourceLang === firstLanguage;
+          return (
+            <ChatBubble
+              key={msg.messageId || i}
+              original={msg.original}
+              translated={msg.translated}
+              sourceLang={msg.sourceLang}
+              targetLang={msg.targetLang}
+              emotion={msg.emotion}
+              riskScore={msg.riskScore}
+              timestamp={msg.timestamp}
+              deviceId={deviceId}
+              messageId={msg.messageId}
+              isFirstLang={isFirstLang}
+              onClick={() => handleBubbleClick(msg)}
+              onWordClick={(word) => handleWordClick(msg, word)}
+              audioUrl={msg.audioUrl}
+            />
+          );
+        })}
       </div>
 
       <RoomBar
