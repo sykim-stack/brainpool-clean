@@ -597,44 +597,75 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
             saveMyRoom(data.payload.room);
             setIsRoomMode(false);
+            setShareRoomCode(data.payload.room.inviteCode || null);
+            setShareRoomId(data.payload.room.roomId);
           }
         }}
         onDeleteRoom={handleDeleteRoom}
         visible={isRoomMode && !currentRoomId}
       />
 
-      {currentRoomId && (
-        <RoomBar
-          roomCode={currentRoomCode}
-          onExit={handleExitRoom}
-          onShare={() => {
-            setShareRoomCode(currentRoomCode);
-            setShareRoomId(currentRoomId);
-          }}
-        />
-      )}
+      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
 
-      <div className={styles.chatArea} ref={chatRef}>
-        {showDaily && !currentRoomId && messages.length === 0 && (
-          <CorePhrase word={dailyWord} onDismiss={() => setShowDaily(false)} />
-        )}
-        {messages.map((m) => (
-          <ChatBubble
-            key={m.messageId}
-            message={m}
-            onClick={() => handleBubbleClick(m)}
-            onWordClick={(w) => handleWordClick(m, w)}
-            isMine={m.userId === deviceId}
-          />
-        ))}
+      <div className={styles.chat} ref={chatRef}>
+        {activeTab === 'ring' &&
+          messages.map((msg, i) => {
+            const isFirstLang = !firstLanguage || msg.sourceLang === firstLanguage;
+            return (
+              <ChatBubble
+                key={msg.messageId || i}
+                original={msg.original}
+                translated={msg.translated}
+                sourceLang={msg.sourceLang}
+                targetLang={msg.targetLang}
+                emotion={msg.emotion}
+                riskScore={msg.riskScore}
+                timestamp={msg.timestamp}
+                deviceId={deviceId}
+                messageId={msg.messageId}
+                isFirstLang={isFirstLang}
+                onClick={() => handleBubbleClick(msg)}
+                onWordClick={(word) => handleWordClick(msg, word)}
+                audioUrl={msg.audioUrl}
+              />
+            );
+          })}
       </div>
+
+      <RoomBar
+        nickname={nickname}
+        roomCode={currentRoomCode}
+        onChangeNickname={() => {
+          const name = prompt('닉네임:', nickname);
+          if (name) setNickname(name);
+        }}
+        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
+        onExit={handleExitRoom}
+        visible={!!currentRoomId}
+      />
 
       <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
 
-      <ChatInput onSend={handleSend} onTypingChange={setIsTyping} userId={deviceId} onVoiceSend={handleVoiceSend} />
+      <ChatInput
+        onSend={handleSend}
+        onTypingChange={setIsTyping}
+        userId={deviceId}
+        onVoiceSend={handleVoiceSend}
+      />
 
       {showRoomBanner && !currentRoomId && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface)', padding: '12px 16px', borderRadius: 12, zIndex: 50 }}>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            padding: '12px 16px',
+            borderRadius: 12,
+            zIndex: 50,
+          }}
+        >
           양방향 대화가 감지됐어요. 채팅방을 만들어 보세요.
           <button onClick={() => setIsRoomMode(true)}>방 만들기</button>
           <button onClick={() => setShowRoomBanner(false)}>닫기</button>
@@ -654,17 +685,21 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       />
 
       <WordModal
-        data={selectedMessage && !wordPreviewOpen ? {
-          sentence: selectedMessage.original,
-          translated: selectedMessage.translated,
-          sourceLang: selectedMessage.sourceLang,
-          emotion: selectedMessage.emotion,
-          riskScore: selectedMessage.riskScore,
-          intent: selectedMessage.intent,
-          culturalNote: selectedMessage.culturalNote,
-          sessionId: currentRoomId || undefined,
-          wordDetail: selectedWord || undefined,
-        } : null}
+        data={
+          selectedMessage && !wordPreviewOpen
+            ? {
+                sentence: selectedMessage.original,
+                translated: selectedMessage.translated,
+                sourceLang: selectedMessage.sourceLang,
+                emotion: selectedMessage.emotion,
+                riskScore: selectedMessage.riskScore,
+                intent: selectedMessage.intent,
+                culturalNote: selectedMessage.culturalNote,
+                sessionId: currentRoomId || undefined,
+                wordDetail: selectedWord || undefined,
+              }
+            : null
+        }
         userId={deviceId}
         onClose={() => {
           setSelectedMessage(null);
@@ -678,14 +713,30 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         <ShareRoomModal
           roomId={shareRoomId}
           roomCode={shareRoomCode}
-          onClose={() => { setShareRoomCode(null); setShareRoomId(null); }}
+          onClose={() => {
+            setShareRoomCode(null);
+            setShareRoomId(null);
+          }}
         />
       )}
 
       {showIOSGuide && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface)', padding: 16, borderRadius: 12, zIndex: 50 }}>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            padding: 16,
+            borderRadius: 12,
+            zIndex: 50,
+          }}
+        >
           <p>iOS: 공유 → 홈 화면에 추가</p>
-          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>닫기</button>
+          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            닫기
+          </button>
         </div>
       )}
     </div>
