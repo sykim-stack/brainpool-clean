@@ -12,7 +12,6 @@ import WordPreviewSheet from '@/components/WordPreviewSheet';
 import CorePhrase from '@/components/CorePhrase';
 import ShareRoomModal from '@/components/ShareRoomModal';
 import { speakNow } from '@/lib/tts';
-import styles from './page.module.css';
 
 interface Message {
   messageId: string;
@@ -607,7 +606,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
       {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
 
-      <div className={styles.chat} ref={chatRef}>
+      <div className="chat-container" ref={chatRef}>
         {activeTab === 'ring' &&
           messages.map((msg, i) => {
             const isFirstLang = !firstLanguage || msg.sourceLang === firstLanguage;
