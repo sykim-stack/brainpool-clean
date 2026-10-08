@@ -1,28 +1,37 @@
-/* WordPreviewSheet — 가벼운 미리보기 카드 (화면 중앙) */
+/* WordPreviewSheet — 클릭한 단어 근처에 붙는 비차단형 preview card */
 
-.overlay {
+.layer {
   position: fixed;
   inset: 0;
   z-index: 90;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.55);
-  padding: var(--space-5);
+  pointer-events: none;
 }
 
 .sheet {
-  width: 100%;
-  max-width: 360px;
+  position: fixed;
+  left: var(--preview-left);
+  top: var(--preview-top);
+  width: min(360px, calc(100vw - 24px));
+  box-sizing: border-box;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  padding: var(--space-4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.42);
+  pointer-events: auto;
+  animation: previewIn 140ms ease-out;
 }
 
-.handle {
-  display: none;
+.pointer {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .header {
@@ -48,8 +57,8 @@
   border: none;
   cursor: pointer;
   font-size: 22px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 40px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,7 +80,7 @@
 }
 
 .meaning {
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-4);
   font-size: var(--font-md);
   color: var(--color-text-sub);
   line-height: var(--line-height);
@@ -88,35 +97,62 @@
   gap: var(--space-2);
 }
 
-.detailBtn {
-  flex: 1.4;
-  padding: var(--space-3);
+.detailBtn,
+.closeBtn {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
   min-height: var(--touch-min-height);
-  border: none;
   border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-bg);
-  font-size: var(--font-md);
-  font-weight: var(--weight-bold);
+  font-size: var(--font-sm);
   cursor: pointer;
 }
 
-.detailBtn:active {
-  opacity: 0.85;
+.detailBtn {
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: var(--weight-bold);
 }
 
 .closeBtn {
-  flex: 1;
-  padding: var(--space-3);
-  min-height: var(--touch-min-height);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-sub);
-  font-size: var(--font-md);
-  cursor: pointer;
 }
 
-.closeBtn:active {
-  background: var(--color-border);
+@keyframes previewIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 600px) {
+  .layer {
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .sheet {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    animation-name: sheetIn;
+  }
+
+  .pointer {
+    display: none;
+  }
+
+  .context {
+    white-space: normal;
+  }
+}
+
+@keyframes sheetIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }

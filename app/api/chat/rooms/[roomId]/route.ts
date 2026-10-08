@@ -1,4 +1,6 @@
 import type { NextRequest } from 'next/server';
+import { getPrincipal } from '@/lib/security/principal';
+import { assertRoomMember } from '@/lib/security/room-access';
 
 export async function GET(
   request: NextRequest,
@@ -41,13 +43,21 @@ export async function PATCH(
 ) {
   const traceId = crypto.randomUUID();
   const { roomId } = await params;
-  const deviceId = request.headers.get('x-device-id') || '';
+  const principalResult = getPrincipal(request);
+  if (!principalResult.principal) {
+    return Response.json({ payload: null, _error: principalResult.error, traceId }, { status: 401 });
+  }
+  const access = await assertRoomMember(roomId, principalResult.principal, 'owner');
+  if (!access.allowed) {
+    const status = access.code === 'ROOM_NOT_FOUND' ? 404 : 403;
+    return Response.json({ payload: null, _error: access.code, traceId }, { status });
+  }
 
   try {
     const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result = await ChatRoomEngine({
       type: 'CLEAR_MESSAGES',
-      payload: { roomId, deviceId },
+      payload: { roomId, deviceId: principalResult.principal.deviceId },
       traceId,
       _error: null,
     });
@@ -67,13 +77,24 @@ export async function DELETE(
 ) {
   const traceId = crypto.randomUUID();
   const { roomId } = await params;
-  const deviceId = request.headers.get('x-device-id') || '';
+  const principalResult = getPrincipal(request);
+  if (!principalResult.principal) {
+    return Response.json({ payload: null, _error: principalResult.error, traceId }, { status: 401 });
+  }
+  const access = await assertRoomMember(roomId, principalResult.principal, 'owner');
+  if (!access.allowed) {
+    const status = access.code === 'ROOM_NOT_FOUND' ? 404 : 403;
+    return Response.json(
+      { payload: null, _error: access.code, traceId },
+      { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } },
+    );
+  }
 
   try {
     const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
     const result: any = await ChatRoomEngine({
       type:    'DELETE_ROOM',
-      payload: { roomId, deviceId },
+      payload: { roomId, deviceId: principalResult.principal.deviceId },
       traceId,
       _error:  null,
     });

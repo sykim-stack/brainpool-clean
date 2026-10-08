@@ -137,6 +137,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [selectedWord, setSelectedWord] = useState<any>(null);
   const [wordPreviewOpen, setWordPreviewOpen] = useState(false);
   const [wordPreviewLoading, setWordPreviewLoading] = useState(false);
+  const [wordPreviewAnchor, setWordPreviewAnchor] = useState({ x: 0, y: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [deviceId, setDeviceId] = useState('');
   const chatRef = useRef<HTMLDivElement>(null);
@@ -282,7 +283,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'x-device-id': deviceId,
+          },
           body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
         });
         if (cancelled || !res?.ok) return;
@@ -330,7 +334,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       cancelled = true;
       clearInterval(interval);
     };
-  }, [currentRoomId, handleExitRoom]);
+  }, [currentRoomId, deviceId, handleExitRoom]);
 
   useEffect(() => {
     if (messages.length > 0 && messages[0].sourceLang && !firstLanguage) {
@@ -341,7 +345,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const sendMessageToRoom = async (roomId: string, text: string) => {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'x-device-id': deviceId,
+      },
       body: JSON.stringify({
         action: 'send',
         roomId,
@@ -487,9 +494,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     setSelectedWord(null);
   }, []);
 
-  const handleWordClick = useCallback(async (msg: Message, word: string) => {
+  const handleWordClick = useCallback(async (msg: Message, word: string, anchor: { x: number; y: number }) => {
     setSelectedMessage(msg);
     setSelectedWord({ word });
+    setWordPreviewAnchor(anchor);
     setWordPreviewOpen(true);
     setWordPreviewLoading(true);
     const res = await fetch('/api/phrase', {
@@ -508,6 +516,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     setWordPreviewLoading(false);
     setSelectedMessage(null);
     setSelectedWord(null);
+    setWordPreviewAnchor({ x: 0, y: 0 });
   }, []);
 
   const openWordModalFromPreview = useCallback(() => {
@@ -654,8 +663,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               messageId={msg.messageId}
               isFirstLang={isFirstLang}
               onClick={() => handleBubbleClick(msg)}
-              onWordClick={(word) => handleWordClick(msg, word)}
               audioUrl={msg.audioUrl}
+              onWordClick={(word, anchor) => handleWordClick(msg, word, anchor)}
             />
           );
         })}
@@ -707,6 +716,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         meaning={selectedWord?.meaning || selectedWord?.standard || null}
         isUnknown={selectedWord?.source === 'not_found'}
         contextLine={selectedMessage?.original || selectedMessage?.translated || undefined}
+        anchor={wordPreviewAnchor}
         loading={wordPreviewLoading}
         onSpeak={handlePreviewSpeak}
         onDetail={openWordModalFromPreview}

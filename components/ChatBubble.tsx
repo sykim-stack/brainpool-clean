@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import styles from './ChatBubble.module.css';
+import { tokenizeForLearning, type LearningToken } from '@/lib/language/tokenize';
 
 interface ChatBubbleProps {
   original: string;
@@ -16,7 +17,7 @@ interface ChatBubbleProps {
   isFirstLang: boolean;
   onClick?: () => void;
   audioUrl?: string;
-  onWordClick?: (word: string) => void;
+  onWordClick?: (word: string, anchor: { x: number; y: number }) => void;
 }
 
 export default function ChatBubble({
@@ -28,7 +29,6 @@ export default function ChatBubble({
   riskScore,
   timestamp,
   deviceId,
-  messageId,
   isFirstLang,
   onClick,
   onWordClick,
@@ -77,33 +77,11 @@ export default function ChatBubble({
     if (e.key === 'Enter') handleSaveEdit();
   };
 
-  // ── tokenize ──────────────────────────────────────────
-  const tokenizeVi = (text: string): string[] => {
-    return text
-      .split(/\s+/)
-      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
-      .filter(Boolean);
-  };
-
-  // KO: 공백 분리만. 어미(요/니다/습니다/세요 등) peel 금지
-  // — 안녕하세요→안녕하, 감사합니다→감사합 표시 깨짐 방지
-  // 조사 peel은 형태소 분석기 없이 오탐이 커서 표시·클릭 모두 원형 유지
-  const tokenizeKo = (text: string): string[] => {
-    return text
-      .split(/\s+/)
-      .map(w => w.replace(/[.,!?;:'"()\-]/g, ''))
-      .filter(Boolean);
-  };
-
-  const tokenize = (text: string, lang?: string): string[] => {
-    if (lang === 'ko') return tokenizeKo(text);
-    return tokenizeVi(text); // VI 및 기타: 기존과 동일
-  };
-
   const handleWordClick = (e: React.MouseEvent, word: string) => {
     e.stopPropagation();
     if (longPressTimer.current) return;
-    if (onWordClick) onWordClick(word);
+    const rect = e.currentTarget.getBoundingClientRect();
+    onWordClick?.(word, { x: rect.left + rect.width / 2, y: rect.bottom });
   };
 
   const handleTouchStart = () => {
@@ -133,9 +111,10 @@ export default function ChatBubble({
     targetLang === 'ko' ||
     sourceLang === 'vi' ||
     sourceLang === 'ko';
-  const words = isTokenizable
-    ? tokenize(translated, targetLang === 'ko' ? 'ko' : 'vi')
+  const tokens: LearningToken[] = isTokenizable
+    ? tokenizeForLearning(translated, targetLang === 'ko' ? 'ko' : 'vi')
     : [];
+  const learningTokens = tokens.filter((token) => token.clickable);
 
   return (
     <div className={`${styles.bubble} ${alignClass}`} onClick={onClick}>
@@ -164,10 +143,14 @@ export default function ChatBubble({
           title="단어 클릭: 사전 | 길게 누르기: 번역 수정"
         >
           {isTokenizable ? (
-            words.map((word, i) => (
-              <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, word)}>
-                {word}{' '}
-              </span>
+            tokens.map((token, i) => (
+              token.clickable ? (
+                <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, token.lookupText)}>
+                  {token.text}{' '}
+                </span>
+              ) : (
+                <span key={i} className={styles.nonLearningToken}>{token.text}{' '}</span>
+              )
             ))
           ) : (
             translated
@@ -175,7 +158,7 @@ export default function ChatBubble({
         </div>
       )}
 
-      {isTokenizable && words.length > 1 && !isEditing && (
+      {isTokenizable && learningTokens.length > 0 && !isEditing && (
         <div className={styles.wordBreakdown} onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
@@ -183,18 +166,22 @@ export default function ChatBubble({
             onClick={() => setShowWordBreakdown(prev => !prev)}
             aria-expanded={showWordBreakdown}
           >
-            🔎 단어별 보기 {showWordBreakdown ? '▲' : '▼'}
+            🔎 학습 단어 보기 {showWordBreakdown ? '▲' : '▼'}
           </button>
           {showWordBreakdown && (
             <div className={styles.wordBreakdownList}>
-              {words.map((word, i) => (
+              {learningTokens.map((token, i) => (
                 <button
-                  key={`${word}-${i}`}
+                  key={`${token.lookupText}-${i}`}
                   type="button"
                   className={styles.wordBreakdownWord}
-                  onClick={() => onWordClick?.(word)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    onWordClick?.(token.lookupText, { x: rect.left + rect.width / 2, y: rect.bottom });
+                  }}
                 >
-                  {word}
+                  {token.text}
                 </button>
               ))}
             </div>
@@ -218,7 +205,7 @@ export default function ChatBubble({
               const audio = document.createElement('audio');
               audio.src = audioUrl;
               audio.controls = false;
-              (audio as any).playsInline = true;
+              audio.setAttribute('playsinline', '');
               document.body.appendChild(audio);
               audio.play().catch(() => { window.open(audioUrl, '_blank'); });
               audio.onended = () => document.body.removeChild(audio);

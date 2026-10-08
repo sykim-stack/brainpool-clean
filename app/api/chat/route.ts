@@ -1,5 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { postFactToCoreHub } from '@/lib/corehub';
+import { getPrincipal, principalOwnsIdentifier } from '@/lib/security/principal';
+import { assertRoomMember } from '@/lib/security/room-access';
 
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
@@ -20,6 +22,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ payload: null, _error: 'roomId, userId, original required', traceId }, { status: 400 });
       }
 
+      const principalResult = getPrincipal(request);
+      if (!principalResult.principal) {
+        return NextResponse.json({ payload: null, _error: principalResult.error, traceId }, { status: 401 });
+      }
+      if (!principalOwnsIdentifier(principalResult.principal, userId)) {
+        return NextResponse.json({ payload: null, _error: 'PRINCIPAL_MISMATCH', traceId }, { status: 403 });
+      }
+      const roomAccess = await assertRoomMember(roomId, principalResult.principal, 'write');
+      if (!roomAccess.allowed) {
+        const status = roomAccess.code === 'ROOM_NOT_FOUND' ? 404 : 403;
+        return NextResponse.json({ payload: null, _error: roomAccess.code, traceId }, { status });
+      }
+      const effectiveUserId = principalResult.principal.deviceId || principalResult.principal.userId || userId;
+
       // ── Step 1: 번역만 먼저 (동기) ──────────────────────────
       let translationMeta: any = {
         translations: {}, detectedLanguage: null, emotion: null, cultureHints: [],
@@ -32,7 +48,7 @@ export async function POST(request: NextRequest) {
         try {
           const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
           const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
-          let ctx = createCtx({ text: original, author: userId }, traceId);
+          let ctx = createCtx({ text: original, author: effectiveUserId }, traceId);
           ctx = await engineRoute('translate', ctx);  // DeepL만 기다림
 
           const p = ctx.payload;
@@ -167,7 +183,7 @@ export async function POST(request: NextRequest) {
                     .from('messages')
                     .select('id', { count: 'exact', head: true })
                     .eq('room_id', roomId)
-                    .eq('device_id', userId)
+                    .eq('device_id', effectiveUserId)
                     .eq('meta->>intent', ap.intent)
                     .gte('created_at', windowStart);
 
@@ -179,7 +195,7 @@ export async function POST(request: NextRequest) {
                       .from('messages')
                       .select('id, meta')
                       .eq('room_id', roomId)
-                      .eq('device_id', userId)
+                      .eq('device_id', effectiveUserId)
                       .eq('content', original)
                       .order('created_at', { ascending: false })
                       .limit(1)
@@ -219,7 +235,7 @@ export async function POST(request: NextRequest) {
               await fetch(appUrl + '/api/push/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: roomId, sender_id: userId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: `/?room=${roomId}` }),
+                body: JSON.stringify({ room_id: roomId, sender_id: effectiveUserId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: `/?room=${roomId}` }),
               }).catch(() => null);
             } catch (e) {}
           });
@@ -235,7 +251,7 @@ export async function POST(request: NextRequest) {
         emotion: translationMeta.emotion?.primary || null,
       };
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId, original, meta: flatMeta }, traceId, _error: null });
+      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId: effectiveUserId, original, meta: flatMeta }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
 
       // ── CoreHub: relation.chat.sent Fact 전달 (fire-and-forget) ──
@@ -245,7 +261,7 @@ export async function POST(request: NextRequest) {
         await postFactToCoreHub({
           source: 'CoreRing',
           fact_type: 'relation.chat.sent',
-          owner_key: userId,
+          owner_key: effectiveUserId,
           payload: {
             room_id: roomId,
             content: original,
@@ -262,6 +278,15 @@ export async function POST(request: NextRequest) {
     if (action === 'poll') {
       const { roomId, limit = 50 } = body;
       if (!roomId) return NextResponse.json({ payload: null, _error: 'roomId required', traceId }, { status: 400 });
+      const principalResult = getPrincipal(request);
+      if (!principalResult.principal) {
+        return NextResponse.json({ payload: null, _error: principalResult.error, traceId }, { status: 401 });
+      }
+      const roomAccess = await assertRoomMember(roomId, principalResult.principal, 'read');
+      if (!roomAccess.allowed) {
+        const status = roomAccess.code === 'ROOM_NOT_FOUND' ? 404 : 403;
+        return NextResponse.json({ payload: null, _error: roomAccess.code, traceId }, { status });
+      }
       console.log(`[chat/poll] roomId=${roomId}`);
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
       const result: any = await ChatMessageEngine({ type: 'GET_HISTORY', payload: { roomId, limit }, traceId, _error: null });

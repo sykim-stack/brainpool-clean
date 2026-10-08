@@ -1,0 +1,1 @@
+{"routes":[{"path":"/","title":"CoreRing"},{"path":"/rooms/:roomId","title":"CoreRing Room"}]}

@@ -94,6 +94,10 @@
   color: var(--color-accent);
 }
 
+.nonLearningToken {
+  cursor: default;
+}
+
 .wordBreakdown {
   margin-top: var(--space-1);
 }
