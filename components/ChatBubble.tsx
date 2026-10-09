@@ -145,11 +145,11 @@ export default function ChatBubble({
           {isTokenizable ? (
             tokens.map((token, i) => (
               token.clickable ? (
-                <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, token.lookupText)}>
-                  {token.text}{' '}
+                <span key={i} className={styles.word} onClick={(e) => handleWordClick(e, token.lookupText || token.text)}>
+                  {token.text}
                 </span>
               ) : (
-                <span key={i} className={styles.nonLearningToken}>{token.text}{' '}</span>
+                <span key={i} className={styles.nonLearningToken}>{token.text}</span>
               )
             ))
           ) : (
