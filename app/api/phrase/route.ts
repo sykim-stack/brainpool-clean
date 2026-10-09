@@ -64,10 +64,13 @@ export async function POST(req: Request) {
     if (result._error) {
       console.error('[phrase] action error:', action, JSON.stringify(result._error));
 
-      // 단어 단위 조회에서 사전에 없는 경우에도 클릭한 단어를 유지할 수 있도록
-      // 정상 응답(payload)으로 전달한다. 문장 조회의 NOT_FOUND 동작은 그대로 유지한다.
+      // 단어/짧은 복합어 조회에서 사전에 없는 경우에도 클릭한 단위를 유지할 수 있도록
+      // 정상 응답(payload)으로 전달한다. 긴 문장(표현) 조회의 NOT_FOUND 동작은 그대로 유지한다.
       const word = typeof payload.word === 'string' ? payload.word.trim() : '';
-      const isWordLookup = !!word && !word.includes(' ') && word.length <= 15;
+      const wordTokens = word ? word.split(/\s+/).filter(Boolean) : [];
+      // 공백이 있다는 이유만으로 단어 조회에서 제외하지 않는다.
+      // 짧은 복합어(≤3 토큰, ≤30자)는 단어 조회, 그 이상은 표현 조회로 본다.
+      const isWordLookup = !!word && word.length <= 30 && wordTokens.length <= 3;
       if (result._error.code === 'NOT_FOUND' && isWordLookup) {
         return new Response(
           JSON.stringify({
