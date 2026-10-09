@@ -137,10 +137,15 @@ export class RingLexiconLayer {
       'id, emotion, emotion_score, risk_score, risk_reason, intent, detected_dialect, meaning_score, meaning_reason';
 
     const isKorean = /[가-힣]/.test(word);
-    const isSentence = word.includes(' ') || word.length > 15;
+    // 공백이 있다는 이유만으로 문장 처리하지 않는다.
+    // 짧은 복합어(≤3 토큰, ≤30자)는 단어 조회 경로 유지, 그 이상은 표현 조회.
+    const trimmedWord = String(word || '').trim();
+    const tokenCount = trimmedWord ? trimmedWord.split(/\s+/).filter(Boolean).length : 0;
+    const isSentence = tokenCount > 3 || trimmedWord.length > 30;
     let data = null;
 
-    // 문장(공백 포함 또는 긴 텍스트)은 사전 조회 건너뜀 → tb_trans_logs에서만 분석값 조회
+    // 표현(긴 문장)은 사전 조회 건너뜀 → tb_trans_logs에서만 분석값 조회
+    // tin nhắn 같은 짧은 복합어는 기존 단어 조회 경로를 탄다.
     if (!isSentence) {
       if (isKorean) {
         const r1 = await ctx.supabase.from('tp_translations')
