@@ -225,8 +225,16 @@ export class RingLexiconLayer {
       ? ((dialect === 'southern') ? data.example_southern : data.example_northern)
       : null;
 
-    // meaning: tp_translations 우선 → tp_lexicon 번역 짝 → null
-    let meaning = data?.meaning_ko || null;
+    // meaning = 클릭 언어의 반대쪽 (학습용)
+    // - 한국어 조회 → 베트남어(standard_word)
+    // - 베트남어 조회 → 한국어(meaning_ko)
+    // tp_translations 우선 → tp_lexicon 번역 짝 → null
+    let meaning = null;
+    if (data) {
+      meaning = isKorean
+        ? (data.standard_word || null)
+        : (data.meaning_ko || null);
+    }
     if (!meaning && lexiconMatch) {
       meaning = isKorean ? lexiconMatch.translations.vi : lexiconMatch.translations.ko;
     }
