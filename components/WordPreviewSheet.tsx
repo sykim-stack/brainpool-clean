@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import styles from './WordPreviewSheet.module.css';
+import { resolveLearningMeaning } from '@/lib/language/resolveLearningMeaning';
 
 export type WordPreviewAnchor = {
   x: number;
@@ -55,11 +56,19 @@ export default function WordPreviewSheet({
 
   if (!open || !word) return null;
 
+  // 문장 원문(contextLine)을 문맥으로 써서 사전 품질 이슈(예: 안녕하세요→Hi) 폴백
+  const resolvedMeaning = resolveLearningMeaning({
+    word,
+    meaning,
+    standard: null,
+    sourceLang: contextLine && /[àáảãạăâèéêìíòóôơùúưỳýđ]/i.test(contextLine) ? 'vi' : undefined,
+    original: contextLine,
+  });
   const meaningLine = loading
     ? '뜻 불러오는 중…'
-    : isUnknown
+    : isUnknown && !resolvedMeaning
       ? '아직 뜻을 찾지 못했어요'
-      : (meaning || '뜻 정보 없음');
+      : (resolvedMeaning || meaning || '뜻 정보 없음');
 
   const cardWidth = 360;
   const horizontalMargin = 12;
