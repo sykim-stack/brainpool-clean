@@ -10,6 +10,7 @@ import RoomBar from '@/components/RoomBar';
 import WordModal from '@/components/WordModal';
 import WordPreviewSheet from '@/components/WordPreviewSheet';
 import CorePhrase from '@/components/CorePhrase';
+import KiipPractice from '@/components/KiipPractice';
 import ShareRoomModal from '@/components/ShareRoomModal';
 import { speakNow } from '@/lib/tts';
 import styles from './page.module.css';
@@ -153,7 +154,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
   const [shareRoomId, setShareRoomId] = useState<string | null>(null);
   const [langHistory, setLangHistory] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'ring' | 'phrase'>('ring');
+  const [activeTab, setActiveTab] = useState<'ring' | 'phrase' | 'kiip'>('ring');
   const [myRooms, setMyRooms] = useState<Room[]>(() => {
     if (typeof window === 'undefined') return [];
     return JSON.parse(localStorage.getItem('myRooms') || '[]');
@@ -616,9 +617,38 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         visible={isRoomMode && !currentRoomId}
       />
 
+      <div className={styles.tabBar} role="tablist" aria-label="CoreRing 학습 메뉴">
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('ring')}
+          role="tab"
+          aria-selected={activeTab === 'ring'}
+        >
+          CoreRing
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('phrase')}
+          role="tab"
+          aria-selected={activeTab === 'phrase'}
+        >
+          CorePhrase
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'kiip' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('kiip')}
+          role="tab"
+          aria-selected={activeTab === 'kiip'}
+        >
+          KIIP 연습
+        </button>
+      </div>
+
       <div className={styles.main} ref={chatRef}>
         {activeTab === 'phrase' ? (
-          <CorePhrase deviceId={deviceId} />
+          <CorePhrase userId={deviceId} />
+        ) : activeTab === 'kiip' ? (
+          <KiipPractice deviceId={deviceId} />
         ) : (
           <>
             {showDaily && !messages.length && (
@@ -630,9 +660,19 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             {messages.map((m) => (
               <ChatBubble
                 key={m.messageId}
-                message={m}
+                original={m.original}
+                translated={m.translated}
+                sourceLang={m.sourceLang}
+                targetLang={m.targetLang}
+                emotion={m.emotion}
+                riskScore={m.riskScore}
+                timestamp={m.timestamp}
+                deviceId={deviceId}
+                messageId={m.messageId}
+                isFirstLang={!firstLanguage || m.sourceLang === firstLanguage}
                 onClick={() => handleBubbleClick(m)}
-                onWordClick={handleWordClick}
+                onWordClick={(word, anchor) => handleWordClick(m, word, anchor)}
+                audioUrl={m.audioUrl}
               />
             ))}
           </>
@@ -640,20 +680,27 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       </div>
 
       <RoomBar
+        nickname={nickname}
         roomCode={currentRoomCode}
+        onChangeNickname={() => {
+          const name = window.prompt('닉네임:', nickname);
+          if (name) setNickname(name);
+        }}
+        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
         onExit={handleExitRoom}
         visible={!!currentRoomId}
       />
 
       <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
 
-      <ChatInput
-        onSend={handleSend}
-        onTypingChange={setIsTyping}
-        userId={deviceId}
-        onVoiceSend={handleVoiceSend}
-        disabled={isLoading}
-      />
+      {activeTab === 'ring' && (
+        <ChatInput
+          onSend={handleSend}
+          onTypingChange={setIsTyping}
+          userId={deviceId}
+          onVoiceSend={handleVoiceSend}
+        />
+      )}
 
       {showRoomBanner && (
         <div
