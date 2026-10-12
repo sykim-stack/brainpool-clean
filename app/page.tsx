@@ -253,7 +253,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       ).catch(() => null);
       if (!res || !res.ok) return;
       const data = await res.json().catch(() => null);
-      const raw = data?.payload?.opportunities || data?.opportunities || [];
+      // CoreHub returns { data: Opportunity[] }; warehouse-style payload kept as fallback
+      const raw = Array.isArray(data?.data)
+        ? data.data
+        : data?.payload?.opportunities || data?.opportunities || [];
       const mapped = mapOpportunities(raw).filter((o) => !dismissedOppRef.current.has(o.id));
       setOpportunities(mapped);
     } catch (e) {
@@ -540,7 +543,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       await fetch(`${COREHUB_OPP_URL}?id=${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'dismissed' }),
+        body: JSON.stringify({ outcome: 'dismissed', opportunity_id: id }),
       });
     } catch {
       /* fail-soft */
@@ -601,7 +604,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
           if (data?.payload?.room) {
-            setMessages([]);
             setCurrentRoomId(data.payload.room.roomId);
             setCurrentRoomCode(data.payload.room.inviteCode || '------');
             saveMyRoom(data.payload.room);
@@ -614,70 +616,31 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         visible={isRoomMode && !currentRoomId}
       />
 
-      <div className={styles.tabBar}>
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('ring')}
-        >
-          CoreRing
-        </button>
-        <button
-          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('phrase')}
-        >
-          CorePhrase
-        </button>
-      </div>
-
-      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
-
-      <div
-        className="chat-container"
-        ref={chatRef}
-        style={{ display: activeTab === 'ring' ? 'flex' : 'none' }}
-      >
-        {showDaily && messages.length === 0 && !isLoading && (
-          <div className={styles.dailyCard}>
-            <p className={styles.dailyLabel}>오늘의 단어</p>
-            <p className={styles.dailyWord}>{dailyWord.word}</p>
-            <p className={styles.dailyMeaning}>{dailyWord.meaning}</p>
-            {dailyWord.usage && <p className={styles.dailyUsage}>{dailyWord.usage}</p>}
-            {dailyWord.culturalNote && (
-              <p className={styles.dailyNote}>{dailyWord.culturalNote}</p>
+      <div className={styles.main} ref={chatRef}>
+        {activeTab === 'phrase' ? (
+          <CorePhrase deviceId={deviceId} />
+        ) : (
+          <>
+            {showDaily && !messages.length && (
+              <div className={styles.daily}>
+                <div className={styles.dailyWord}>{dailyWord.word}</div>
+                <div className={styles.dailyMeaning}>{dailyWord.meaning}</div>
+              </div>
             )}
-          </div>
+            {messages.map((m) => (
+              <ChatBubble
+                key={m.messageId}
+                message={m}
+                onClick={() => handleBubbleClick(m)}
+                onWordClick={handleWordClick}
+              />
+            ))}
+          </>
         )}
-        {messages.map((msg, i) => {
-          const isFirstLang = !firstLanguage || msg.sourceLang === firstLanguage;
-          return (
-            <ChatBubble
-              key={msg.messageId || i}
-              original={msg.original}
-              translated={msg.translated}
-              sourceLang={msg.sourceLang}
-              targetLang={msg.targetLang}
-              emotion={msg.emotion}
-              riskScore={msg.riskScore}
-              timestamp={msg.timestamp}
-              deviceId={deviceId}
-              messageId={msg.messageId}
-              isFirstLang={isFirstLang}
-              onClick={() => handleBubbleClick(msg)}
-              audioUrl={msg.audioUrl}
-              onWordClick={(word, anchor) => handleWordClick(msg, word, anchor)}
-            />
-          );
-        })}
       </div>
 
       <RoomBar
-        nickname={nickname}
         roomCode={currentRoomCode}
-        onChangeNickname={() => {
-          const name = prompt('닉네임:', nickname);
-          if (name) setNickname(name);
-        }}
-        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
         onExit={handleExitRoom}
         visible={!!currentRoomId}
       />
@@ -689,17 +652,18 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         onTypingChange={setIsTyping}
         userId={deviceId}
         onVoiceSend={handleVoiceSend}
+        disabled={isLoading}
       />
 
-      {showRoomBanner && !currentRoomId && (
+      {showRoomBanner && (
         <div
           style={{
             position: 'fixed',
-            bottom: 80,
+            bottom: 120,
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'var(--color-surface)',
-            padding: '12px 16px',
+            padding: 12,
             borderRadius: 12,
             zIndex: 50,
           }}
