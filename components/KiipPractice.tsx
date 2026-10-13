@@ -1,13 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getUiLocale, type UiLocale } from '@/lib/locale';
 import styles from './KiipPractice.module.css';
 
 type QuestionType = 'meaning' | 'context' | 'response';
 type Question = { id: string; stage: 1; type: QuestionType; topic: string; prompt: string; context?: string; choices: string[]; vocabulary: string };
 type AnswerResult = { correct: boolean; correctIndex: number; explanation: string; vocabulary: string; topic: string };
 
-interface KiipPracticeProps { deviceId: string; }
+interface KiipPracticeProps {
+  deviceId: string;
+  /** UI 설정 언어. 없으면 localStorage/브라우저 언어로 결정 */
+  locale?: UiLocale | string;
+}
 
 const TYPE_LABEL: Record<QuestionType, string> = { meaning: '뜻 고르기', context: '문맥 빈칸', response: '상황 응답' };
 
@@ -20,7 +25,8 @@ function normalizeMultiline(value: string | undefined | null): string {
     .replace(/\\r/g, '\n');
 }
 
-export default function KiipPractice({ deviceId }: KiipPracticeProps) {
+export default function KiipPractice({ deviceId, locale: localeProp }: KiipPracticeProps) {
+  const [uiLocale, setUiLocaleState] = useState<UiLocale>('ko');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -35,16 +41,29 @@ export default function KiipPractice({ deviceId }: KiipPracticeProps) {
   const current = questions[index];
   const completionPercent = questions.length ? (isComplete ? 100 : (index / questions.length) * 100) : 0;
 
+  // prop 우선, 없으면 저장된 UI locale / 브라우저 언어
+  useEffect(() => {
+    if (localeProp) {
+      setUiLocaleState(getUiLocale() && localeProp ? (String(localeProp).slice(0, 2) as UiLocale) : 'ko');
+      // normalize via helper path: prefer explicit prop through get when stored
+      const fromProp = String(localeProp).toLowerCase().split(/[-_]/)[0];
+      if (fromProp === 'ko' || fromProp === 'vi' || fromProp === 'en') setUiLocaleState(fromProp);
+      else setUiLocaleState(getUiLocale());
+      return;
+    }
+    setUiLocaleState(getUiLocale());
+  }, [localeProp]);
+
   const request = useCallback(async (body: Record<string, unknown>) => {
     const response = await fetch('/api/kiip', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8', 'x-device-id': deviceId },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, locale: uiLocale }),
     });
     const json = await response.json().catch(() => null);
     if (!response.ok || !json?.success) throw new Error(json?.error?.message || 'KIIP 연습을 불러오지 못했어요.');
     return json.payload;
-  }, [deviceId]);
+  }, [deviceId, uiLocale]);
 
   const startSession = useCallback(async () => {
     if (!deviceId) return;
@@ -66,8 +85,10 @@ export default function KiipPractice({ deviceId }: KiipPracticeProps) {
     }
   }, [deviceId, request]);
 
-  // device principal이 준비된 뒤에만 세션을 요청한다.
-  useEffect(() => { if (deviceId) startSession(); }, [deviceId, startSession]); // eslint-disable-line react-hooks/set-state-in-effect
+  // device + locale 준비 후 세션 요청. locale 변경 시 다시 로드.
+  useEffect(() => {
+    if (deviceId) startSession();
+  }, [deviceId, uiLocale, startSession]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const submitAnswer = async (choiceIndex: number) => {
     if (!current || selectedIndex !== null || isSubmitting) return;
