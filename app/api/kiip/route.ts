@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrincipal } from '@/lib/security/principal';
 import { getSupabase } from '@/lib/supabase';
+import { normalizeUiLocale, type UiLocale } from '@/lib/locale';
 
 type QuestionType = 'meaning' | 'context' | 'response';
 type Option = { id: string; text: string };
@@ -46,14 +47,16 @@ function normalizeMultiline(value: string | null | undefined): string {
 
 function parseOptions(value: unknown): Option[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is Option => {
-    if (!item || typeof item !== 'object') return false;
-    const candidate = item as Record<string, unknown>;
-    return typeof candidate.id === 'string' && typeof candidate.text === 'string';
-  }).map((option) => ({
-    id: option.id,
-    text: normalizeMultiline(option.text),
-  }));
+  return value
+    .filter((item): item is Option => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as Record<string, unknown>;
+      return typeof candidate.id === 'string' && typeof candidate.text === 'string';
+    })
+    .map((option) => ({
+      id: option.id,
+      text: normalizeMultiline(option.text),
+    }));
 }
 
 function toQuestion(row: QuestionRow): { question: PublicQuestion; locale: LocaleRow } | null {
@@ -86,6 +89,45 @@ function errorResponse(code: string, message: string, traceId: string, status: n
   return NextResponse.json({ success: false, error: { code, message }, traceId }, { status });
 }
 
+type SupabaseClient = NonNullable<ReturnType<typeof getSupabase>>;
+
+async function fetchSessionRows(
+  supabase: SupabaseClient,
+  stage: number,
+  locale: UiLocale,
+  targetLocale: string | null
+) {
+  let questionQuery = supabase
+    .from('kiip_questions')
+    .select(
+      'id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)'
+    )
+    .eq('stage', stage)
+    .eq('status', 'approved')
+    .eq('kiip_question_locales.locale', locale)
+    .limit(100);
+  if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
+  return questionQuery;
+}
+
+async function fetchAnswerRow(
+  supabase: SupabaseClient,
+  questionId: string,
+  locale: UiLocale,
+  targetLocale: string | null
+) {
+  let questionQuery = supabase
+    .from('kiip_questions')
+    .select(
+      'id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)'
+    )
+    .eq('id', questionId)
+    .eq('status', 'approved')
+    .eq('kiip_question_locales.locale', locale);
+  if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
+  return questionQuery.maybeSingle();
+}
+
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
   const principalResult = getPrincipal(request);
@@ -103,28 +145,43 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '');
     const stageValue = Number(body?.stage || 1);
     const stage = Number.isInteger(stageValue) && stageValue >= 1 && stageValue <= 6 ? stageValue : 1;
-    const locale = typeof body?.locale === 'string' ? body.locale : 'ko';
+    const requestedLocale = normalizeUiLocale(body?.locale);
     const targetLocale = typeof body?.targetLocale === 'string' ? body.targetLocale : null;
 
     if (action === 'get-session') {
       const requestedCount = Number(body?.questionCount || 5);
       const questionCount = Math.min(Math.max(Number.isFinite(requestedCount) ? requestedCount : 5, 3), 5);
-      let questionQuery = supabase
-        .from('kiip_questions')
-        .select('id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)')
-        .eq('stage', stage)
-        .eq('status', 'approved')
-        .eq('kiip_question_locales.locale', locale)
-        .limit(100);
-      if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
-      const { data, error } = await questionQuery;
+
+      let resolvedLocale: UiLocale = requestedLocale;
+      let { data, error } = await fetchSessionRows(supabase, stage, resolvedLocale, targetLocale);
       if (error) throw error;
+
+      // 요청 locale 콘텐츠가 없으면 ko로 폴백 (vi 시드 전에도 서비스 유지)
+      if ((!data || data.length === 0) && resolvedLocale !== 'ko') {
+        resolvedLocale = 'ko';
+        const fallback = await fetchSessionRows(supabase, stage, 'ko', targetLocale);
+        if (fallback.error) throw fallback.error;
+        data = fallback.data;
+      }
+
       const questions = shuffle(((data || []) as unknown as QuestionRow[])
         .map(toQuestion)
         .filter((item): item is { question: PublicQuestion; locale: LocaleRow } => item !== null))
         .slice(0, questionCount)
         .map((item) => item.question);
-      return NextResponse.json({ success: true, payload: { stage, locale, targetLocale, questionCount: questions.length, questions }, traceId });
+
+      return NextResponse.json({
+        success: true,
+        payload: {
+          stage,
+          locale: resolvedLocale,
+          requestedLocale,
+          targetLocale,
+          questionCount: questions.length,
+          questions,
+        },
+        traceId,
+      });
     }
 
     if (action === 'submit-answer') {
@@ -133,15 +190,18 @@ export async function POST(request: NextRequest) {
       if (!questionId || !Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex > 3) {
         return errorResponse('INVALID_ANSWER', '문제 또는 답안이 올바르지 않습니다.', traceId, 400);
       }
-      let questionQuery = supabase
-        .from('kiip_questions')
-        .select('id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)')
-        .eq('id', questionId)
-        .eq('status', 'approved')
-        .eq('kiip_question_locales.locale', locale);
-      if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
-      const { data, error } = await questionQuery.maybeSingle();
+
+      let resolvedLocale: UiLocale = requestedLocale;
+      let { data, error } = await fetchAnswerRow(supabase, questionId, resolvedLocale, targetLocale);
       if (error) throw error;
+
+      if (!data && resolvedLocale !== 'ko') {
+        resolvedLocale = 'ko';
+        const fallback = await fetchAnswerRow(supabase, questionId, 'ko', targetLocale);
+        if (fallback.error) throw fallback.error;
+        data = fallback.data;
+      }
+
       const row = data as unknown as QuestionRow | null;
       const parsed = row ? toQuestion(row) : null;
       if (!row || !parsed || !parsed.locale.options[selectedIndex]) {
@@ -156,6 +216,7 @@ export async function POST(request: NextRequest) {
           explanation: parsed.locale.explanation,
           vocabulary: parsed.locale.vocabulary,
           topic: row.topic_key,
+          locale: resolvedLocale,
         },
         traceId,
       });
