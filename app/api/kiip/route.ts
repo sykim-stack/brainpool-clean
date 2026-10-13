@@ -31,6 +31,10 @@ type PublicQuestion = {
   choices: string[];
   vocabulary: string;
 };
+type UiExplanationRow = {
+  explanation: string | null;
+  vocabulary: string | null;
+};
 
 /** 문제 본문·선택지는 학습 콘텐츠 언어(한국어) 고정. 해설만 UI 언어. */
 const CONTENT_LOCALE: UiLocale = 'ko';
@@ -134,9 +138,10 @@ async function fetchUiExplanation(
     .limit(1)
     .maybeSingle();
   if (error || !data) return null;
+  const row = data as UiExplanationRow;
   return {
-    explanation: normalizeMultiline(data.explanation),
-    vocabulary: String(data.vocabulary || ''),
+    explanation: normalizeMultiline(row.explanation),
+    vocabulary: String(row.vocabulary || ''),
   };
 }
 
