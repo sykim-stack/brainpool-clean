@@ -8,7 +8,7 @@ type Option = { id: string; text: string };
 type LocaleRow = {
   prompt: string;
   context: string | null;
-  options: Option[];
+  options: Option[] | unknown;
   explanation: string;
   vocabulary: string;
 };
@@ -32,11 +32,13 @@ type PublicQuestion = {
   vocabulary: string;
 };
 
+/** 문제 본문·선택지는 학습 콘텐츠 언어(한국어) 고정. 해설만 UI 언어. */
+const CONTENT_LOCALE: UiLocale = 'ko';
+
 function shuffle<T>(items: T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
-/** 시드/CSV에서 \\n 이스케이프로 들어간 문자열을 실제 줄바꿈으로 */
 function normalizeMultiline(value: string | null | undefined): string {
   if (!value) return '';
   return value
@@ -59,17 +61,18 @@ function parseOptions(value: unknown): Option[] {
     }));
 }
 
-function toQuestion(row: QuestionRow): { question: PublicQuestion; locale: LocaleRow } | null {
+function toQuestion(row: QuestionRow): { question: PublicQuestion; locale: LocaleRow & { options: Option[] } } | null {
   const rawLocale = row.kiip_question_locales?.[0];
   if (!rawLocale) return null;
-  const locale: LocaleRow = {
+  const options = parseOptions(rawLocale.options);
+  if (options.length !== 4) return null;
+  const locale = {
     prompt: normalizeMultiline(rawLocale.prompt),
     context: rawLocale.context ? normalizeMultiline(rawLocale.context) : null,
-    options: parseOptions(rawLocale.options),
+    options,
     explanation: normalizeMultiline(rawLocale.explanation),
     vocabulary: rawLocale.vocabulary,
   };
-  if (locale.options.length !== 4) return null;
   return {
     locale,
     question: {
@@ -79,7 +82,7 @@ function toQuestion(row: QuestionRow): { question: PublicQuestion; locale: Local
       topic: row.topic_key,
       prompt: locale.prompt,
       ...(locale.context ? { context: locale.context } : {}),
-      choices: locale.options.map((option) => option.text),
+      choices: options.map((option) => option.text),
       vocabulary: locale.vocabulary,
     },
   };
@@ -91,41 +94,50 @@ function errorResponse(code: string, message: string, traceId: string, status: n
 
 type SupabaseClient = NonNullable<ReturnType<typeof getSupabase>>;
 
-async function fetchSessionRows(
-  supabase: SupabaseClient,
-  stage: number,
-  locale: UiLocale,
-  targetLocale: string | null
-) {
-  let questionQuery = supabase
+async function fetchContentSessionRows(supabase: SupabaseClient, stage: number) {
+  return supabase
     .from('kiip_questions')
     .select(
       'id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)'
     )
     .eq('stage', stage)
     .eq('status', 'approved')
-    .eq('kiip_question_locales.locale', locale)
+    .eq('kiip_question_locales.locale', CONTENT_LOCALE)
     .limit(100);
-  if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
-  return questionQuery;
 }
 
-async function fetchAnswerRow(
-  supabase: SupabaseClient,
-  questionId: string,
-  locale: UiLocale,
-  targetLocale: string | null
-) {
-  let questionQuery = supabase
+async function fetchContentAnswerRow(supabase: SupabaseClient, questionId: string) {
+  return supabase
     .from('kiip_questions')
     .select(
       'id, stage, type, topic_key, answer_option_id, status, kiip_question_locales!inner(prompt, context, options, explanation, vocabulary)'
     )
     .eq('id', questionId)
     .eq('status', 'approved')
-    .eq('kiip_question_locales.locale', locale);
-  if (targetLocale) questionQuery = questionQuery.eq('kiip_question_locales.target_locale', targetLocale);
-  return questionQuery.maybeSingle();
+    .eq('kiip_question_locales.locale', CONTENT_LOCALE)
+    .limit(1)
+    .maybeSingle();
+}
+
+/** UI 언어 해설만 조회. 없으면 null → 콘텐츠 locale 해설 사용 */
+async function fetchUiExplanation(
+  supabase: SupabaseClient,
+  questionId: string,
+  uiLocale: UiLocale
+): Promise<{ explanation: string; vocabulary: string } | null> {
+  if (uiLocale === CONTENT_LOCALE) return null;
+  const { data, error } = await supabase
+    .from('kiip_question_locales')
+    .select('explanation, vocabulary')
+    .eq('question_id', questionId)
+    .eq('locale', uiLocale)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    explanation: normalizeMultiline(data.explanation),
+    vocabulary: String(data.vocabulary || ''),
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -145,28 +157,19 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '');
     const stageValue = Number(body?.stage || 1);
     const stage = Number.isInteger(stageValue) && stageValue >= 1 && stageValue <= 6 ? stageValue : 1;
-    const requestedLocale = normalizeUiLocale(body?.locale);
-    const targetLocale = typeof body?.targetLocale === 'string' ? body.targetLocale : null;
+    const uiLocale = normalizeUiLocale(body?.locale);
 
     if (action === 'get-session') {
       const requestedCount = Number(body?.questionCount || 5);
       const questionCount = Math.min(Math.max(Number.isFinite(requestedCount) ? requestedCount : 5, 3), 5);
 
-      let resolvedLocale: UiLocale = requestedLocale;
-      let { data, error } = await fetchSessionRows(supabase, stage, resolvedLocale, targetLocale);
+      // 문제·선택지는 항상 한국어 콘텐츠 locale에서 로드
+      const { data, error } = await fetchContentSessionRows(supabase, stage);
       if (error) throw error;
-
-      // 요청 locale 콘텐츠가 없으면 ko로 폴백 (vi 시드 전에도 서비스 유지)
-      if ((!data || data.length === 0) && resolvedLocale !== 'ko') {
-        resolvedLocale = 'ko';
-        const fallback = await fetchSessionRows(supabase, stage, 'ko', targetLocale);
-        if (fallback.error) throw fallback.error;
-        data = fallback.data;
-      }
 
       const questions = shuffle(((data || []) as unknown as QuestionRow[])
         .map(toQuestion)
-        .filter((item): item is { question: PublicQuestion; locale: LocaleRow } => item !== null))
+        .filter((item): item is NonNullable<typeof item> => item !== null))
         .slice(0, questionCount)
         .map((item) => item.question);
 
@@ -174,9 +177,8 @@ export async function POST(request: NextRequest) {
         success: true,
         payload: {
           stage,
-          locale: resolvedLocale,
-          requestedLocale,
-          targetLocale,
+          contentLocale: CONTENT_LOCALE,
+          uiLocale,
           questionCount: questions.length,
           questions,
         },
@@ -191,32 +193,29 @@ export async function POST(request: NextRequest) {
         return errorResponse('INVALID_ANSWER', '문제 또는 답안이 올바르지 않습니다.', traceId, 400);
       }
 
-      let resolvedLocale: UiLocale = requestedLocale;
-      let { data, error } = await fetchAnswerRow(supabase, questionId, resolvedLocale, targetLocale);
+      // 채점은 한국어 콘텐츠 행 기준 (선택지 순서·정답 ID 일치)
+      const { data, error } = await fetchContentAnswerRow(supabase, questionId);
       if (error) throw error;
-
-      if (!data && resolvedLocale !== 'ko') {
-        resolvedLocale = 'ko';
-        const fallback = await fetchAnswerRow(supabase, questionId, 'ko', targetLocale);
-        if (fallback.error) throw fallback.error;
-        data = fallback.data;
-      }
 
       const row = data as unknown as QuestionRow | null;
       const parsed = row ? toQuestion(row) : null;
       if (!row || !parsed || !parsed.locale.options[selectedIndex]) {
         return errorResponse('INVALID_ANSWER', '문제 또는 답안이 올바르지 않습니다.', traceId, 400);
       }
+
       const selectedOptionId = parsed.locale.options[selectedIndex].id;
+      const uiText = await fetchUiExplanation(supabase, questionId, uiLocale);
+
       return NextResponse.json({
         success: true,
         payload: {
           correct: selectedOptionId === row.answer_option_id,
           correctIndex: parsed.locale.options.findIndex((option) => option.id === row.answer_option_id),
-          explanation: parsed.locale.explanation,
-          vocabulary: parsed.locale.vocabulary,
+          explanation: uiText?.explanation || parsed.locale.explanation,
+          vocabulary: uiText?.vocabulary || parsed.locale.vocabulary,
           topic: row.topic_key,
-          locale: resolvedLocale,
+          contentLocale: CONTENT_LOCALE,
+          uiLocale,
         },
         traceId,
       });
