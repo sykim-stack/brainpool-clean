@@ -11,6 +11,15 @@ interface KiipPracticeProps { deviceId: string; }
 
 const TYPE_LABEL: Record<QuestionType, string> = { meaning: '뜻 고르기', context: '문맥 빈칸', response: '상황 응답' };
 
+/** DB/시드에 이스케이프된 \\n 문자열이 들어와도 실제 줄바꿈으로 표시 */
+function normalizeMultiline(value: string | undefined | null): string {
+  if (!value) return '';
+  return value
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n');
+}
+
 export default function KiipPractice({ deviceId }: KiipPracticeProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
@@ -105,6 +114,10 @@ export default function KiipPractice({ deviceId }: KiipPracticeProps) {
 
   if (!current) return <div className={styles.empty}>문제를 준비하지 못했어요.</div>;
 
+  const promptText = normalizeMultiline(current.prompt);
+  const contextText = normalizeMultiline(current.context);
+  const explanationText = result ? normalizeMultiline(result.explanation) : '';
+
   return (
     <section className={styles.wrap} aria-label="KIIP 1단계 연습">
       <header className={styles.header}>
@@ -114,17 +127,23 @@ export default function KiipPractice({ deviceId }: KiipPracticeProps) {
       <div className={styles.progressTrack}><div className={styles.progressFill} style={{ width: `${completionPercent}%` }} /></div>
       <div className={styles.topicRow}><span>{TYPE_LABEL[current.type]}</span><span>{current.topic}</span></div>
       <article className={styles.questionCard}>
-        <p className={styles.prompt}>{current.prompt}</p>
-        {current.context && <pre className={styles.context}>{current.context}</pre>}
+        <p className={styles.prompt}>{promptText}</p>
+        {contextText ? <pre className={styles.context}>{contextText}</pre> : null}
         <div className={styles.choices} role="radiogroup" aria-label="답 선택">
           {current.choices.map((choice, choiceIndex) => {
             const isSelected = selectedIndex === choiceIndex;
             const isCorrect = result && result.correctIndex === choiceIndex;
             const className = `${styles.choice} ${isSelected ? styles.selected : ''} ${result && isCorrect ? styles.correct : ''} ${result && isSelected && !result.correct ? styles.incorrect : ''}`;
-            return <button key={choice} className={className} onClick={() => submitAnswer(choiceIndex)} disabled={selectedIndex !== null || isSubmitting} role="radio" aria-checked={isSelected}><span>{String.fromCharCode(65 + choiceIndex)}</span>{choice}</button>;
+            return <button key={`${current.id}-${choiceIndex}`} className={className} onClick={() => submitAnswer(choiceIndex)} disabled={selectedIndex !== null || isSubmitting} role="radio" aria-checked={isSelected}><span>{String.fromCharCode(65 + choiceIndex)}</span>{normalizeMultiline(choice)}</button>;
           })}
         </div>
-        {result && <div className={`${styles.feedback} ${result.correct ? styles.feedbackCorrect : styles.feedbackIncorrect}`}><strong>{result.correct ? '정답이에요.' : '다시 생각해 볼까요?'}</strong><p>{result.explanation}</p><small>핵심 표현 · {result.vocabulary}</small></div>}
+        {result && (
+          <div className={`${styles.feedback} ${result.correct ? styles.feedbackCorrect : styles.feedbackIncorrect}`}>
+            <strong>{result.correct ? '정답이에요.' : '다시 생각해 볼까요?'}</strong>
+            <p>{explanationText}</p>
+            <small>핵심 표현 · {result.vocabulary}</small>
+          </div>
+        )}
       </article>
       {error && <p className={styles.inlineError}>{error}</p>}
       <footer className={styles.footer}>{result ? <button className={styles.primaryButton} onClick={nextQuestion}>{index === questions.length - 1 ? '결과 보기' : '다음 문제'}</button> : <p>실제 대화에서 자주 쓰는 표현을 골라 보세요.</p>}</footer>
