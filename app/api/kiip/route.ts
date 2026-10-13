@@ -35,23 +35,35 @@ function shuffle<T>(items: T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
+/** 시드/CSV에서 \\n 이스케이프로 들어간 문자열을 실제 줄바꿈으로 */
+function normalizeMultiline(value: string | null | undefined): string {
+  if (!value) return '';
+  return value
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n');
+}
+
 function parseOptions(value: unknown): Option[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is Option => {
     if (!item || typeof item !== 'object') return false;
     const candidate = item as Record<string, unknown>;
     return typeof candidate.id === 'string' && typeof candidate.text === 'string';
-  });
+  }).map((option) => ({
+    id: option.id,
+    text: normalizeMultiline(option.text),
+  }));
 }
 
 function toQuestion(row: QuestionRow): { question: PublicQuestion; locale: LocaleRow } | null {
   const rawLocale = row.kiip_question_locales?.[0];
   if (!rawLocale) return null;
   const locale: LocaleRow = {
-    prompt: rawLocale.prompt,
-    context: rawLocale.context,
+    prompt: normalizeMultiline(rawLocale.prompt),
+    context: rawLocale.context ? normalizeMultiline(rawLocale.context) : null,
     options: parseOptions(rawLocale.options),
-    explanation: rawLocale.explanation,
+    explanation: normalizeMultiline(rawLocale.explanation),
     vocabulary: rawLocale.vocabulary,
   };
   if (locale.options.length !== 4) return null;
