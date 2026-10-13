@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getUiLocale, type UiLocale } from '@/lib/locale';
+import { getUiLocale, normalizeUiLocale, type UiLocale } from '@/lib/locale';
 import styles from './KiipPractice.module.css';
 
 type QuestionType = 'meaning' | 'context' | 'response';
@@ -10,7 +10,7 @@ type AnswerResult = { correct: boolean; correctIndex: number; explanation: strin
 
 interface KiipPracticeProps {
   deviceId: string;
-  /** UI 설정 언어. 없으면 localStorage/브라우저 언어로 결정 */
+  /** UI 설정 언어. 없으면 localStorage → 브라우저 언어 */
   locale?: UiLocale | string;
 }
 
@@ -26,7 +26,9 @@ function normalizeMultiline(value: string | undefined | null): string {
 }
 
 export default function KiipPractice({ deviceId, locale: localeProp }: KiipPracticeProps) {
-  const [uiLocale, setUiLocaleState] = useState<UiLocale>('ko');
+  const [uiLocale, setUiLocaleState] = useState<UiLocale>(() =>
+    localeProp ? normalizeUiLocale(localeProp) : 'ko'
+  );
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -41,29 +43,26 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   const current = questions[index];
   const completionPercent = questions.length ? (isComplete ? 100 : (index / questions.length) * 100) : 0;
 
-  // prop 우선, 없으면 저장된 UI locale / 브라우저 언어
   useEffect(() => {
-    if (localeProp) {
-      setUiLocaleState(getUiLocale() && localeProp ? (String(localeProp).slice(0, 2) as UiLocale) : 'ko');
-      // normalize via helper path: prefer explicit prop through get when stored
-      const fromProp = String(localeProp).toLowerCase().split(/[-_]/)[0];
-      if (fromProp === 'ko' || fromProp === 'vi' || fromProp === 'en') setUiLocaleState(fromProp);
-      else setUiLocaleState(getUiLocale());
-      return;
-    }
-    setUiLocaleState(getUiLocale());
+    if (localeProp) setUiLocaleState(normalizeUiLocale(localeProp));
+    else setUiLocaleState(getUiLocale());
   }, [localeProp]);
 
-  const request = useCallback(async (body: Record<string, unknown>) => {
-    const response = await fetch('/api/kiip', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'x-device-id': deviceId },
-      body: JSON.stringify({ ...body, locale: uiLocale }),
-    });
-    const json = await response.json().catch(() => null);
-    if (!response.ok || !json?.success) throw new Error(json?.error?.message || 'KIIP 연습을 불러오지 못했어요.');
-    return json.payload;
-  }, [deviceId, uiLocale]);
+  const request = useCallback(
+    async (body: Record<string, unknown>) => {
+      const response = await fetch('/api/kiip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'x-device-id': deviceId },
+        body: JSON.stringify({ ...body, locale: uiLocale }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.error?.message || 'KIIP 연습을 불러오지 못했어요.');
+      }
+      return json.payload;
+    },
+    [deviceId, uiLocale]
+  );
 
   const startSession = useCallback(async () => {
     if (!deviceId) return;
@@ -95,10 +94,14 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     setSelectedIndex(choiceIndex);
     setIsSubmitting(true);
     try {
-      const answer = await request({ action: 'submit-answer', questionId: current.id, selectedIndex: choiceIndex });
+      const answer = await request({
+        action: 'submit-answer',
+        questionId: current.id,
+        selectedIndex: choiceIndex,
+      });
       setResult(answer);
       if (answer.correct) setScore((value) => value + 1);
-      else setWrongTopics((topics) => topics.includes(answer.topic) ? topics : [...topics, answer.topic]);
+      else setWrongTopics((topics) => (topics.includes(answer.topic) ? topics : [...topics, answer.topic]));
     } catch (err) {
       setError(err instanceof Error ? err.message : '답안을 확인하지 못했어요.');
       setSelectedIndex(null);
@@ -109,7 +112,11 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
 
   const nextQuestion = () => {
     if (index >= questions.length - 1) setIsComplete(true);
-    else { setIndex((value) => value + 1); setSelectedIndex(null); setResult(null); }
+    else {
+      setIndex((value) => value + 1);
+      setSelectedIndex(null);
+      setResult(null);
+    }
   };
 
   const scoreMessage = useMemo(() => {
@@ -119,19 +126,45 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   }, [questions.length, score]);
 
   if (!deviceId) return <div className={styles.empty}>학습 공간을 준비하고 있어요...</div>;
-  if (isLoading && !questions.length) return <div className={styles.empty}>오늘의 KIIP 연습을 준비하고 있어요...</div>;
-  if (error && !questions.length) return <div className={styles.empty}><p>{error}</p><button className={styles.secondaryButton} onClick={startSession}>다시 시도</button></div>;
+  if (isLoading && !questions.length) {
+    return <div className={styles.empty}>오늘의 KIIP 연습을 준비하고 있어요...</div>;
+  }
+  if (error && !questions.length) {
+    return (
+      <div className={styles.empty}>
+        <p>{error}</p>
+        <button className={styles.secondaryButton} onClick={startSession}>
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
-  if (isComplete) return (
-    <section className={styles.resultWrap} aria-label="KIIP 연습 결과">
-      <div className={styles.resultBadge}>1단계 완료</div>
-      <p className={styles.resultScore}>{score}<span> / {questions.length}</span></p>
-      <h2>{scoreMessage}</h2>
-      <p className={styles.resultSub}>오늘은 생활 인사와 기본 상황 표현을 연습했어요.</p>
-      {wrongTopics.length > 0 && <div className={styles.reviewBox}><strong>다시 볼 주제</strong><span>{wrongTopics.join(' · ')}</span></div>}
-      <div className={styles.resultActions}><button className={styles.primaryButton} onClick={startSession}>다시 연습</button><p>오답 표현은 다음 단계에서 CorePhrase 단어장 연결로 확장할 수 있어요.</p></div>
-    </section>
-  );
+  if (isComplete) {
+    return (
+      <section className={styles.resultWrap} aria-label="KIIP 연습 결과">
+        <div className={styles.resultBadge}>1단계 완료</div>
+        <p className={styles.resultScore}>
+          {score}
+          <span> / {questions.length}</span>
+        </p>
+        <h2>{scoreMessage}</h2>
+        <p className={styles.resultSub}>오늘은 생활 인사와 기본 상황 표현을 연습했어요.</p>
+        {wrongTopics.length > 0 && (
+          <div className={styles.reviewBox}>
+            <strong>다시 볼 주제</strong>
+            <span>{wrongTopics.join(' · ')}</span>
+          </div>
+        )}
+        <div className={styles.resultActions}>
+          <button className={styles.primaryButton} onClick={startSession}>
+            다시 연습
+          </button>
+          <p>오답 표현은 다음 단계에서 CorePhrase 단어장 연결로 확장할 수 있어요.</p>
+        </div>
+      </section>
+    );
+  }
 
   if (!current) return <div className={styles.empty}>문제를 준비하지 못했어요.</div>;
 
@@ -142,11 +175,21 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   return (
     <section className={styles.wrap} aria-label="KIIP 1단계 연습">
       <header className={styles.header}>
-        <div><p className={styles.eyebrow}>KIIP PRACTICE · STAGE 1</p><h1>오늘의 생활 한국어</h1></div>
-        <span className={styles.counter}>{index + 1} / {questions.length}</span>
+        <div>
+          <p className={styles.eyebrow}>KIIP PRACTICE · STAGE 1</p>
+          <h1>오늘의 생활 한국어</h1>
+        </div>
+        <span className={styles.counter}>
+          {index + 1} / {questions.length}
+        </span>
       </header>
-      <div className={styles.progressTrack}><div className={styles.progressFill} style={{ width: `${completionPercent}%` }} /></div>
-      <div className={styles.topicRow}><span>{TYPE_LABEL[current.type]}</span><span>{current.topic}</span></div>
+      <div className={styles.progressTrack}>
+        <div className={styles.progressFill} style={{ width: `${completionPercent}%` }} />
+      </div>
+      <div className={styles.topicRow}>
+        <span>{TYPE_LABEL[current.type]}</span>
+        <span>{current.topic}</span>
+      </div>
       <article className={styles.questionCard}>
         <p className={styles.prompt}>{promptText}</p>
         {contextText ? <pre className={styles.context}>{contextText}</pre> : null}
@@ -155,11 +198,25 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
             const isSelected = selectedIndex === choiceIndex;
             const isCorrect = result && result.correctIndex === choiceIndex;
             const className = `${styles.choice} ${isSelected ? styles.selected : ''} ${result && isCorrect ? styles.correct : ''} ${result && isSelected && !result.correct ? styles.incorrect : ''}`;
-            return <button key={`${current.id}-${choiceIndex}`} className={className} onClick={() => submitAnswer(choiceIndex)} disabled={selectedIndex !== null || isSubmitting} role="radio" aria-checked={isSelected}><span>{String.fromCharCode(65 + choiceIndex)}</span>{normalizeMultiline(choice)}</button>;
+            return (
+              <button
+                key={`${current.id}-${choiceIndex}`}
+                className={className}
+                onClick={() => submitAnswer(choiceIndex)}
+                disabled={selectedIndex !== null || isSubmitting}
+                role="radio"
+                aria-checked={isSelected}
+              >
+                <span>{String.fromCharCode(65 + choiceIndex)}</span>
+                {normalizeMultiline(choice)}
+              </button>
+            );
           })}
         </div>
         {result && (
-          <div className={`${styles.feedback} ${result.correct ? styles.feedbackCorrect : styles.feedbackIncorrect}`}>
+          <div
+            className={`${styles.feedback} ${result.correct ? styles.feedbackCorrect : styles.feedbackIncorrect}`}
+          >
             <strong>{result.correct ? '정답이에요.' : '다시 생각해 볼까요?'}</strong>
             <p>{explanationText}</p>
             <small>핵심 표현 · {result.vocabulary}</small>
@@ -167,7 +224,15 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         )}
       </article>
       {error && <p className={styles.inlineError}>{error}</p>}
-      <footer className={styles.footer}>{result ? <button className={styles.primaryButton} onClick={nextQuestion}>{index === questions.length - 1 ? '결과 보기' : '다음 문제'}</button> : <p>실제 대화에서 자주 쓰는 표현을 골라 보세요.</p>}</footer>
+      <footer className={styles.footer}>
+        {result ? (
+          <button className={styles.primaryButton} onClick={nextQuestion}>
+            {index === questions.length - 1 ? '결과 보기' : '다음 문제'}
+          </button>
+        ) : (
+          <p>실제 대화에서 자주 쓰는 표현을 골라 보세요.</p>
+        )}
+      </footer>
     </section>
   );
 }
