@@ -24,6 +24,9 @@ function principalIdentifiers(principal: Principal): string[] {
  *
  * This is an API-layer guard. It deliberately does not change RLS or mutate the database.
  * Service principals are reserved for internal jobs and bypass the user membership check.
+ *
+ * Public rooms: any authenticated principal may read/write (invite links, code join).
+ * Private rooms: owner or chat_participants membership required for write; read also needs membership.
  */
 export async function assertRoomMember(
   roomId: string,
@@ -48,29 +51,28 @@ export async function assertRoomMember(
 
   const identifiers = principalIdentifiers(principal);
   const isOwner = Boolean(room.owner_device_id && identifiers.includes(room.owner_device_id));
+  const roomMeta = {
+    id: room.id,
+    ownerDeviceId: room.owner_device_id,
+    isPublic: Boolean(room.is_public),
+  };
 
   if (access === 'owner') {
     return {
       allowed: isOwner,
       code: isOwner ? 'OK' : 'FORBIDDEN',
-      room: {
-        id: room.id,
-        ownerDeviceId: room.owner_device_id,
-        isPublic: Boolean(room.is_public),
-      },
+      room: roomMeta,
     };
   }
 
-  if (isOwner || (access === 'read' && room.is_public)) {
-    return {
-      allowed: true,
-      code: 'OK',
-      room: {
-        id: room.id,
-        ownerDeviceId: room.owner_device_id,
-        isPublic: Boolean(room.is_public),
-      },
-    };
+  // Owner always allowed for read/write
+  if (isOwner) {
+    return { allowed: true, code: 'OK', room: roomMeta };
+  }
+
+  // Public rooms: authenticated device can read and write (invitee support)
+  if (room.is_public && (access === 'read' || access === 'write')) {
+    return { allowed: true, code: 'OK', room: roomMeta };
   }
 
   let isMember = false;
@@ -107,10 +109,6 @@ export async function assertRoomMember(
   return {
     allowed: isMember,
     code: isMember ? 'OK' : 'FORBIDDEN',
-    room: {
-      id: room.id,
-      ownerDeviceId: room.owner_device_id,
-      isPublic: Boolean(room.is_public),
-    },
+    room: roomMeta,
   };
 }

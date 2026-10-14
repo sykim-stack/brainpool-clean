@@ -78,11 +78,38 @@ async function deleteRoom(ctx) {
 
 async function joinRoom(ctx) {
   const { roomId, userId, nickname } = ctx.payload || {};
+  if (!roomId) return { ...ctx, _error: 'roomId required' };
   const supabase = await getStorage();
   if (!supabase) return { ...ctx, _error: 'DB connection failed' };
-  const { error } = await supabase.from('chat_participants').insert({ room_id: roomId, user_id: null, nickname: nickname || 'anonymous', role: 'member', device_id: userId || 'anonymous' });
-  if (error) return { ...ctx, _error: error.message };
-  return { ...ctx, joined: true, event: { type: 'JOIN', roomId, userId } };
+  const deviceId = userId || 'anonymous';
+
+  // Already a member → success (idempotent re-join)
+  const { data: existing } = await supabase
+    .from('chat_participants')
+    .select('id')
+    .eq('room_id', roomId)
+    .eq('device_id', deviceId)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    return { ...ctx, joined: true, alreadyMember: true, event: { type: 'JOIN', roomId, userId: deviceId } };
+  }
+
+  const { error } = await supabase.from('chat_participants').insert({
+    room_id: roomId,
+    user_id: null,
+    nickname: nickname || 'anonymous',
+    role: 'member',
+    device_id: deviceId,
+  });
+  if (error) {
+    // Unique race: treat as already joined
+    if (error.code === '23505' || /duplicate|unique/i.test(error.message || '')) {
+      return { ...ctx, joined: true, alreadyMember: true, event: { type: 'JOIN', roomId, userId: deviceId } };
+    }
+    return { ...ctx, _error: error.message };
+  }
+  return { ...ctx, joined: true, event: { type: 'JOIN', roomId, userId: deviceId } };
 }
 
 async function findByCode(ctx) {
