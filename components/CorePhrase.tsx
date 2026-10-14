@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import styles from './CorePhrase.module.css';
@@ -46,13 +46,18 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'get-user-vocabulary', user_id: userId }),
     }).catch(() => null);
-    if (!res || !res.ok) { setIsLoading(false); return; }
+    if (!res || !res.ok) {
+      setIsLoading(false);
+      return;
+    }
     const json = await res.json().catch(() => null);
     if (json?.success && Array.isArray(json.payload)) setItems(json.payload);
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchVocab(); }, [userId]);
+  useEffect(() => {
+    fetchVocab();
+  }, [userId]);
 
   const updateItem = async (item: VocabItem, fields: Record<string, any>) => {
     await fetch('/api/phrase', {
@@ -69,7 +74,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'delete-vocabulary', id: item.id, user_id: userId }),
     }).catch(() => null);
-    setItems(prev => prev.filter(i => i.id !== item.id));
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
   };
 
   const startEdit = (item: VocabItem) => {
@@ -87,7 +92,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     const reviewAt = new Date();
     reviewAt.setDate(reviewAt.getDate() + 7);
     await updateItem(item, { learn_status: 'done', review_at: reviewAt.toISOString() });
-    setStudiedToday(prev => prev + 1);
+    setStudiedToday((prev) => prev + 1);
     nextCard();
   };
 
@@ -95,13 +100,13 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     const reviewAt = new Date();
     reviewAt.setDate(reviewAt.getDate() + 1);
     await updateItem(item, { learn_status: 'learning', review_at: reviewAt.toISOString() });
-    setStudiedToday(prev => prev + 1);
+    setStudiedToday((prev) => prev + 1);
     nextCard();
   };
 
   const nextCard = () => {
     setFlipped(false);
-    setTimeout(() => setStudyIndex(prev => prev + 1), 200);
+    setTimeout(() => setStudyIndex((prev) => prev + 1), 200);
   };
 
   const startStudy = () => {
@@ -112,75 +117,127 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const totalCount  = items.length;
-  const doneCount   = items.filter(i => i.learn_status === 'done').length;
-  const reviewCount = items.filter(i => i.review_at && i.review_at.split('T')[0] <= today).length;
-  const streakDays  = (() => {
-    const dates = [...new Set(items.filter(i => i.review_at).map(i => i.review_at!.split('T')[0]))].sort().reverse();
+  const totalCount = items.length;
+  const doneCount = items.filter((i) => i.learn_status === 'done').length;
+  const reviewCount = items.filter((i) => i.review_at && i.review_at.split('T')[0] <= today).length;
+  const streakDays = (() => {
+    const dates = [
+      ...new Set(items.filter((i) => i.review_at).map((i) => i.review_at!.split('T')[0])),
+    ]
+      .sort()
+      .reverse();
     let streak = 0;
     let cursor = new Date();
     for (const d of dates) {
       const diff = Math.round((cursor.getTime() - new Date(d).getTime()) / 86400000);
-      if (diff <= 1) { streak++; cursor = new Date(d); } else break;
+      if (diff <= 1) {
+        streak++;
+        cursor = new Date(d);
+      } else break;
     }
     return streak;
   })();
 
-  const filteredItems = items.filter(item => {
+  const filteredItems = items.filter((item) => {
     if (filter === 'bookmarked') return item.is_bookmarked;
     if (filter === 'review') return item.review_at && item.review_at.split('T')[0] <= today;
     return true;
   });
 
-  const studyItems = filteredItems.filter(i => i.learn_status !== 'done');
+  const studyItems = filteredItems.filter((i) => i.learn_status !== 'done');
   const currentCard = studyItems[studyIndex];
   const isDone = studyIndex >= studyItems.length;
 
   const statusLabel: Record<string, string> = {
-    new: '🆕 새로운', learning: '📖 학습중', done: '✅ 완료',
+    new: '새로운',
+    learning: '학습중',
+    done: '완료',
   };
 
   if (isLoading) return <div className={styles.empty}>불러오는 중...</div>;
 
   if (mode === 'study') {
-    if (isDone) return (
-      <div className={styles.studyDone}>
-        <p className={styles.studyDoneEmoji}>🎉</p>
-        <p className={styles.studyDoneText}>오늘 학습 완료!</p>
-        <p className={styles.studyDoneSub}>{studiedToday}개 카드를 학습했어요</p>
-        <button className={styles.studyBackBtn} onClick={() => { setMode('list'); setStudiedToday(0); }}>목록으로</button>
-      </div>
-    );
+    if (isDone)
+      return (
+        <div className={styles.studyDone}>
+          <p className={styles.studyDoneEmoji}>🎉</p>
+          <p className={styles.studyDoneText}>오늘 학습 완료!</p>
+          <p className={styles.studyDoneSub}>{studiedToday}개 카드를 학습했어요</p>
+          <button
+            className={styles.studyBackBtn}
+            onClick={() => {
+              setMode('list');
+              setStudiedToday(0);
+            }}
+          >
+            목록으로
+          </button>
+        </div>
+      );
     return (
       <div className={styles.studyWrap}>
         <div className={styles.studyHeader}>
-          <button className={styles.studyBackBtn} onClick={() => setMode('list')}>← 목록</button>
-          <span className={styles.studyProgress}>{studyIndex + 1} / {studyItems.length}</span>
+          <button className={styles.studyBackBtn} onClick={() => setMode('list')}>
+            ← 목록
+          </button>
+          <span className={styles.studyProgress}>
+            {studyIndex + 1} / {studyItems.length}
+          </span>
         </div>
         <div className={styles.progressBar}>
-          <div className={styles.progressFill} style={{ width: `${(studyIndex / studyItems.length) * 100}%` }} />
+          <div
+            className={styles.progressFill}
+            style={{ width: `${(studyIndex / Math.max(studyItems.length, 1)) * 100}%` }}
+          />
         </div>
-        <div className={`${styles.flipCard} ${flipped ? styles.flipped : ''}`} onClick={() => setFlipped(prev => !prev)}>
+        <div
+          className={`${styles.flipCard} ${flipped ? styles.flipped : ''}`}
+          onClick={() => setFlipped((prev) => !prev)}
+        >
           <div className={styles.flipInner}>
             <div className={styles.flipFront}>
-              <p className={styles.flipLabel}>베트남어</p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <p className={styles.flipWord} style={{ margin: 0 }}>{currentCard?.word}</p>
-                <button onClick={(e) => { e.stopPropagation(); speakNow(currentCard?.word || '', detectSpeechLang(currentCard?.word || '')); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', flexShrink: 0 }}>🔊</button>
+              <p className={styles.flipLabel}>표현</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                <p className={styles.flipWord} style={{ margin: 0 }}>
+                  {currentCard?.word}
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakNow(currentCard?.word || '', detectSpeechLang(currentCard?.word || ''));
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    flexShrink: 0,
+                  }}
+                  aria-label="발음 듣기"
+                >
+                  🔊
+                </button>
               </div>
-              <p className={styles.flipHint}>탭해서 한국어 확인</p>
-
+              <p className={styles.flipHint}>탭해서 뜻 확인</p>
             </div>
             <div className={styles.flipBack}>
-              <p className={styles.flipLabel}>한국어</p>
+              <p className={styles.flipLabel}>뜻</p>
               <p className={styles.flipWord}>{currentCard?.memo || currentCard?.meaning_kr}</p>
             </div>
           </div>
         </div>
         {flipped && (
           <div className={styles.studyBtns}>
-            <button className={styles.dontKnowBtn} onClick={() => currentCard && handleDontKnow(currentCard)}>😅 모르겠어요</button>
-            <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>😊 알아요!</button>
+            <button
+              className={styles.dontKnowBtn}
+              onClick={() => currentCard && handleDontKnow(currentCard)}
+            >
+              모르겠어요
+            </button>
+            <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>
+              알아요
+            </button>
           </div>
         )}
       </div>
@@ -194,31 +251,52 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           <span className={styles.statNum}>{totalCount}</span>
           <span className={styles.statLabel}>전체</span>
         </div>
-        <div className={styles.statDivider} />
         <div className={styles.statItem}>
           <span className={styles.statNum}>{doneCount}</span>
           <span className={styles.statLabel}>완료</span>
         </div>
-        <div className={styles.statDivider} />
         <div className={styles.statItem}>
           <span className={styles.statNum}>{reviewCount}</span>
           <span className={styles.statLabel}>오늘 복습</span>
         </div>
-        <div className={styles.statDivider} />
         <div className={styles.statItem}>
-          <span className={styles.statNum}>{streakDays}🔥</span>
+          <span className={styles.statNum}>
+            {streakDays}
+            <span className={styles.statNumAccent} aria-hidden>
+              🔥
+            </span>
+          </span>
           <span className={styles.statLabel}>연속 학습</span>
         </div>
       </div>
 
       <div className={styles.toolbar}>
         <div className={styles.filters}>
-          <button className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`} onClick={() => setFilter('all')}>전체 {items.length}</button>
-          <button className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`} onClick={() => setFilter('bookmarked')}>🔖 {items.filter(i => i.is_bookmarked).length}</button>
-          <button className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`} onClick={() => setFilter('review')}>📅 복습 {reviewCount}</button>
+          <button
+            className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            전체 {items.length}
+          </button>
+          <button
+            className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('bookmarked')}
+          >
+            북마크 {items.filter((i) => i.is_bookmarked).length}
+          </button>
+          <button
+            className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
+            onClick={() => setFilter('review')}
+          >
+            복습 {reviewCount}
+          </button>
         </div>
-        <button className={styles.studyStartBtn} onClick={startStudy} disabled={studyItems.length === 0}>
-          학습 시작 {studyItems.length > 0 ? `(${studyItems.length})` : ''}
+        <button
+          className={styles.studyStartBtn}
+          onClick={startStudy}
+          disabled={studyItems.length === 0}
+        >
+          학습 시작{studyItems.length > 0 ? ` (${studyItems.length})` : ''}
         </button>
       </div>
 
@@ -237,52 +315,83 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   <input
                     className={styles.editInput}
                     value={editMeaning}
-                    onChange={e => setEditMeaning(e.target.value)}
+                    onChange={(e) => setEditMeaning(e.target.value)}
                     placeholder="한국어 번역 수정"
                   />
                   <textarea
                     className={styles.editTextarea}
                     value={editMemo}
-                    onChange={e => setEditMemo(e.target.value)}
+                    onChange={(e) => setEditMemo(e.target.value)}
                     placeholder="메모 추가 (예: 더 자연스러운 표현, 사용 상황...)"
                     rows={2}
                   />
                   <div className={styles.editBtns}>
-                    <button className={styles.editSaveBtn} onClick={() => saveEdit(item)}>저장</button>
-                    <button className={styles.editCancelBtn} onClick={() => setEditingId(null)}>취소</button>
+                    <button className={styles.editSaveBtn} onClick={() => saveEdit(item)}>
+                      저장
+                    </button>
+                    <button className={styles.editCancelBtn} onClick={() => setEditingId(null)}>
+                      취소
+                    </button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className={styles.cardTop}>
                     <div className={styles.words}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                         <span className={styles.word}>{item.word}</span>
-                        <button onClick={(e) => { e.stopPropagation(); speakNow(item.word, detectSpeechLang(item.word)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', opacity: 0.7, flexShrink: 0 }}>🔊</button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakNow(item.word, detectSpeechLang(item.word));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            opacity: 0.7,
+                            flexShrink: 0,
+                            marginTop: 2,
+                          }}
+                          aria-label="발음 듣기"
+                        >
+                          🔊
+                        </button>
                       </div>
                       {item.meaning_kr && <span className={styles.meaning}>{item.meaning_kr}</span>}
-                      {item.memo && <span className={styles.memo}>✏️ {item.memo}</span>}
+                      {item.memo && <span className={styles.memo}>{item.memo}</span>}
                     </div>
                     <button
                       className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
                       onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
+                      aria-label={item.is_bookmarked ? '북마크 해제' : '북마크'}
                     >
-                      {item.is_bookmarked ? '🔖' : '🤍'}
+                      {item.is_bookmarked ? '♥' : '♡'}
                     </button>
                   </div>
                   <div className={styles.cardBottom}>
                     <button
                       className={styles.statusBtn}
                       onClick={() => {
-                        const next: Record<string, string> = { new: 'learning', learning: 'done', done: 'new' };
+                        const next: Record<string, string> = {
+                          new: 'learning',
+                          learning: 'done',
+                          done: 'new',
+                        };
                         updateItem(item, { learn_status: next[item.learn_status] || 'new' });
                       }}
                     >
-                      {statusLabel[item.learn_status] || '🆕 새로운'}
+                      {statusLabel[item.learn_status] || '새로운'}
                     </button>
                     <div className={styles.cardActions}>
-                      <button className={styles.editBtn} onClick={() => startEdit(item)}>✏️</button>
-                      <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>삭제</button>
+                      <button className={styles.editBtn} onClick={() => startEdit(item)} aria-label="편집">
+                        ✎
+                      </button>
+                      <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>
+                        삭제
+                      </button>
                     </div>
                   </div>
                 </>
@@ -294,4 +403,3 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     </div>
   );
 }
-
