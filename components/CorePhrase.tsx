@@ -3,6 +3,16 @@
 import { useEffect, useState } from 'react';
 import styles from './CorePhrase.module.css';
 import { speakNow } from '@/lib/tts';
+import {
+  getUiLocale,
+  setUiLocale,
+  getLearningSource,
+  getLearningTarget,
+  setLearningDirection,
+  type UiLocale,
+  type LearningLang,
+} from '@/lib/locale';
+import { translate, type MessageKey } from '@/lib/i18n/messages';
 
 // word 필드가 한국어/베트남어 어느 쪽이든 저장될 수 있어(원문 메시지 그대로
 // 저장되는 구조), 재생 직전에 한글 포함 여부로 언어를 판단한다.
@@ -38,6 +48,29 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editMemo, setEditMemo] = useState('');
   const [editMeaning, setEditMeaning] = useState('');
+  const [uiLocale, setUiLocaleState] = useState<UiLocale>('ko');
+  const [learningSource, setLearningSourceState] = useState<LearningLang>('vi');
+  const [learningTarget, setLearningTargetState] = useState<LearningLang>('ko');
+
+  useEffect(() => {
+    setUiLocaleState(getUiLocale());
+    setLearningSourceState(getLearningSource());
+    setLearningTargetState(getLearningTarget());
+  }, []);
+
+  const t = (key: MessageKey, vars?: Record<string, string | number>) =>
+    translate(uiLocale, key, vars);
+
+  const handleUiLocaleChange = (next: UiLocale) => {
+    setUiLocale(next);
+    setUiLocaleState(next);
+  };
+
+  const handleLearningDirChange = (source: LearningLang, target: LearningLang) => {
+    const dir = setLearningDirection(source, target);
+    setLearningSourceState(dir.source);
+    setLearningTargetState(dir.target);
+  };
 
   const fetchVocab = async () => {
     setIsLoading(true);
@@ -149,20 +182,75 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const isDone = studyIndex >= studyItems.length;
 
   const statusLabel: Record<string, string> = {
-    new: '새로운',
-    learning: '학습중',
-    done: '완료',
+    new: t('phrase.status.new'),
+    learning: t('phrase.status.learning'),
+    done: t('phrase.status.done'),
   };
 
-  if (isLoading) return <div className={styles.empty}>불러오는 중...</div>;
+  const settingsBar = (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px 16px',
+        alignItems: 'center',
+        padding: '8px 16px',
+        borderBottom: '1px solid var(--color-border)',
+        width: '100%',
+        boxSizing: 'border-box',
+        fontSize: '12px',
+        color: 'var(--color-text-muted)',
+      }}
+    >
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>{t('phrase.settings.uiLang')}</span>
+        <select
+          value={uiLocale}
+          onChange={(e) => handleUiLocaleChange(e.target.value as UiLocale)}
+          style={{
+            background: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            padding: '2px 6px',
+          }}
+        >
+          <option value="ko">한국어</option>
+          <option value="vi">Tiếng Việt</option>
+        </select>
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>{t('phrase.settings.learningDir')}</span>
+        <select
+          value={`${learningSource}->${learningTarget}`}
+          onChange={(e) => {
+            const [s, tgt] = e.target.value.split('->') as [LearningLang, LearningLang];
+            handleLearningDirChange(s, tgt);
+          }}
+          style={{
+            background: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            padding: '2px 6px',
+          }}
+        >
+          <option value="vi->ko">VI → KO</option>
+          <option value="ko->vi">KO → VI</option>
+        </select>
+      </label>
+    </div>
+  );
+
+  if (isLoading) return <div className={styles.empty}>...</div>;
 
   if (mode === 'study') {
     if (isDone)
       return (
         <div className={styles.studyDone}>
           <p className={styles.studyDoneEmoji}>🎉</p>
-          <p className={styles.studyDoneText}>오늘 학습 완료!</p>
-          <p className={styles.studyDoneSub}>{studiedToday}개 카드를 학습했어요</p>
+          <p className={styles.studyDoneText}>{t('phrase.study.doneTitle')}</p>
+          <p className={styles.studyDoneSub}>{t('phrase.study.doneSub', { count: studiedToday })}</p>
           <button
             className={styles.studyBackBtn}
             onClick={() => {
@@ -170,7 +258,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               setStudiedToday(0);
             }}
           >
-            목록으로
+            {t('phrase.study.toList')}
           </button>
         </div>
       );
@@ -178,7 +266,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       <div className={styles.studyWrap}>
         <div className={styles.studyHeader}>
           <button className={styles.studyBackBtn} onClick={() => setMode('list')}>
-            ← 목록
+            {t('phrase.study.back')}
           </button>
           <span className={styles.studyProgress}>
             {studyIndex + 1} / {studyItems.length}
@@ -196,7 +284,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
         >
           <div className={styles.flipInner}>
             <div className={styles.flipFront}>
-              <p className={styles.flipLabel}>표현</p>
+              <p className={styles.flipLabel}>{t('phrase.study.frontLabel')}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                 <p className={styles.flipWord} style={{ margin: 0 }}>
                   {currentCard?.word}
@@ -214,15 +302,15 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     fontSize: '20px',
                     flexShrink: 0,
                   }}
-                  aria-label="발음 듣기"
+                  aria-label={t('phrase.study.listen')}
                 >
                   🔊
                 </button>
               </div>
-              <p className={styles.flipHint}>탭해서 뜻 확인</p>
+              <p className={styles.flipHint}>{t('phrase.study.hint')}</p>
             </div>
             <div className={styles.flipBack}>
-              <p className={styles.flipLabel}>뜻</p>
+              <p className={styles.flipLabel}>{t('phrase.study.backLabel')}</p>
               <p className={styles.flipWord}>{currentCard?.memo || currentCard?.meaning_kr}</p>
             </div>
           </div>
@@ -233,10 +321,10 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               className={styles.dontKnowBtn}
               onClick={() => currentCard && handleDontKnow(currentCard)}
             >
-              모르겠어요
+              {t('phrase.study.dontKnow')}
             </button>
             <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>
-              알아요
+              {t('phrase.study.know')}
             </button>
           </div>
         )}
@@ -246,27 +334,29 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   return (
     <div className={styles.wrap}>
+      {settingsBar}
       <div className={styles.stats}>
         <div className={styles.statItem}>
           <span className={styles.statNum}>{totalCount}</span>
-          <span className={styles.statLabel}>전체</span>
+          <span className={styles.statLabel}>{t('phrase.stat.total')}</span>
         </div>
+        <div className={styles.statDivider} />
         <div className={styles.statItem}>
           <span className={styles.statNum}>{doneCount}</span>
-          <span className={styles.statLabel}>완료</span>
+          <span className={styles.statLabel}>{t('phrase.stat.done')}</span>
         </div>
+        <div className={styles.statDivider} />
         <div className={styles.statItem}>
           <span className={styles.statNum}>{reviewCount}</span>
-          <span className={styles.statLabel}>오늘 복습</span>
+          <span className={styles.statLabel}>{t('phrase.stat.reviewToday')}</span>
         </div>
+        <div className={styles.statDivider} />
         <div className={styles.statItem}>
           <span className={styles.statNum}>
             {streakDays}
-            <span className={styles.statNumAccent} aria-hidden>
-              🔥
-            </span>
+            <span aria-hidden>🔥</span>
           </span>
-          <span className={styles.statLabel}>연속 학습</span>
+          <span className={styles.statLabel}>{t('phrase.stat.streak')}</span>
         </div>
       </div>
 
@@ -276,34 +366,31 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
             className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`}
             onClick={() => setFilter('all')}
           >
-            전체 {items.length}
+            {t('phrase.filter.all')} {items.length}
           </button>
           <button
             className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`}
             onClick={() => setFilter('bookmarked')}
           >
-            북마크 {items.filter((i) => i.is_bookmarked).length}
+            {t('phrase.filter.bookmark')} {items.filter((i) => i.is_bookmarked).length}
           </button>
           <button
             className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
             onClick={() => setFilter('review')}
           >
-            복습 {reviewCount}
+            {t('phrase.filter.review')} {reviewCount}
           </button>
         </div>
-        <button
-          className={styles.studyStartBtn}
-          onClick={startStudy}
-          disabled={studyItems.length === 0}
-        >
-          학습 시작{studyItems.length > 0 ? ` (${studyItems.length})` : ''}
+        <button className={styles.studyStartBtn} onClick={startStudy} disabled={studyItems.length === 0}>
+          {t('phrase.startStudy')}
+          {studyItems.length > 0 ? ` (${studyItems.length})` : ''}
         </button>
       </div>
 
       {filteredItems.length === 0 ? (
         <div className={styles.empty}>
-          <p>저장된 단어가 없어요</p>
-          <p className={styles.emptySub}>채팅 버블을 클릭해서 단어를 저장해보세요</p>
+          <p>{t('phrase.empty')}</p>
+          <p className={styles.emptySub}>{t('phrase.emptyHint')}</p>
         </div>
       ) : (
         <div className={styles.list}>
@@ -316,21 +403,21 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     className={styles.editInput}
                     value={editMeaning}
                     onChange={(e) => setEditMeaning(e.target.value)}
-                    placeholder="한국어 번역 수정"
+                    placeholder={t('phrase.edit.meaningPlaceholder')}
                   />
                   <textarea
                     className={styles.editTextarea}
                     value={editMemo}
                     onChange={(e) => setEditMemo(e.target.value)}
-                    placeholder="메모 추가 (예: 더 자연스러운 표현, 사용 상황...)"
+                    placeholder={t('phrase.edit.memoPlaceholder')}
                     rows={2}
                   />
                   <div className={styles.editBtns}>
                     <button className={styles.editSaveBtn} onClick={() => saveEdit(item)}>
-                      저장
+                      {t('phrase.edit.save')}
                     </button>
                     <button className={styles.editCancelBtn} onClick={() => setEditingId(null)}>
-                      취소
+                      {t('phrase.edit.cancel')}
                     </button>
                   </div>
                 </div>
@@ -338,7 +425,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                 <>
                   <div className={styles.cardTop}>
                     <div className={styles.words}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span className={styles.word}>{item.word}</span>
                         <button
                           type="button"
@@ -353,22 +440,23 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                             fontSize: '16px',
                             opacity: 0.7,
                             flexShrink: 0,
-                            marginTop: 2,
                           }}
-                          aria-label="발음 듣기"
+                          aria-label={t('phrase.study.listen')}
                         >
                           🔊
                         </button>
                       </div>
                       {item.meaning_kr && <span className={styles.meaning}>{item.meaning_kr}</span>}
-                      {item.memo && <span className={styles.memo}>{item.memo}</span>}
+                      {item.memo && <span className={styles.memo}>✏️ {item.memo}</span>}
                     </div>
                     <button
                       className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
                       onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
-                      aria-label={item.is_bookmarked ? '북마크 해제' : '북마크'}
+                      aria-label={
+                        item.is_bookmarked ? t('phrase.action.unbookmark') : t('phrase.action.bookmark')
+                      }
                     >
-                      {item.is_bookmarked ? '♥' : '♡'}
+                      {item.is_bookmarked ? '🔖' : '🤍'}
                     </button>
                   </div>
                   <div className={styles.cardBottom}>
@@ -383,14 +471,14 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                         updateItem(item, { learn_status: next[item.learn_status] || 'new' });
                       }}
                     >
-                      {statusLabel[item.learn_status] || '새로운'}
+                      {statusLabel[item.learn_status] || t('phrase.status.new')}
                     </button>
                     <div className={styles.cardActions}>
-                      <button className={styles.editBtn} onClick={() => startEdit(item)} aria-label="편집">
-                        ✎
+                      <button className={styles.editBtn} onClick={() => startEdit(item)}>
+                        ✏️
                       </button>
                       <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>
-                        삭제
+                        {t('phrase.action.delete')}
                       </button>
                     </div>
                   </div>
