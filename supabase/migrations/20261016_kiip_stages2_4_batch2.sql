@@ -1,0 +1,87 @@
+-- KIIP Stages 2–4 batch 2: 30 new approved questions (10 per stage).
+-- Adds 10 questions to each existing 20-question pool; content remains Korean (ko/ko).
+
+insert into public.kiip_questions
+  (id, stage, type, topic_key, answer_option_id, difficulty, status, source, reviewed_at, reviewed_by)
+values
+  ('kiip2-rest-03', 2, 'response', 'restaurant', 'b', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-cafe-03', 2, 'context', 'cafe', 'b', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-library-01', 2, 'response', 'library', 'a', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-weather-02', 2, 'context', 'weather', 'c', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-delivery-01', 2, 'response', 'delivery', 'd', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-trans-04', 2, 'meaning', 'transport', 'a', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-appt-03', 2, 'response', 'appointment', 'a', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-recycle-01', 2, 'response', 'daily-life', 'b', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-store-03', 2, 'meaning', 'shopping', 'd', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip2-trans-05', 2, 'context', 'transport', 'a', 'elementary', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-work-04', 3, 'context', 'workplace', 'c', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-office-03', 3, 'context', 'public-office', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-housing-03', 3, 'response', 'housing', 'd', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-bank-03', 3, 'meaning', 'bank', 'b', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-school-01', 3, 'response', 'school', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-post-01', 3, 'context', 'post-office', 'c', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-job-01', 3, 'response', 'workplace', 'd', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-store-04', 3, 'response', 'shopping', 'b', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-community-01', 3, 'meaning', 'community', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip3-apartment-01', 3, 'response', 'housing', 'c', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-report-01', 4, 'context', 'workplace', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-concession-01', 4, 'response', 'opinion', 'd', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-regret-03', 4, 'response', 'regret', 'b', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-inference-01', 4, 'response', 'daily-life', 'c', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-passive-01', 4, 'meaning', 'daily-life', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-addition-01', 4, 'context', 'opinion', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-condition-01', 4, 'response', 'formal', 'd', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-quotation-02', 4, 'context', 'workplace', 'c', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-idiom-01', 4, 'meaning', 'emotion', 'b', 'intermediate', 'approved', 'generated', now(), 'manus-batch2'),
+  ('kiip4-contrast-03', 4, 'context', 'contrast', 'a', 'intermediate', 'approved', 'generated', now(), 'manus-batch2')
+on conflict (id) do update set
+  stage = excluded.stage,
+  type = excluded.type,
+  topic_key = excluded.topic_key,
+  answer_option_id = excluded.answer_option_id,
+  difficulty = excluded.difficulty,
+  status = excluded.status,
+  reviewed_at = excluded.reviewed_at,
+  reviewed_by = excluded.reviewed_by,
+  updated_at = now();
+
+insert into public.kiip_question_locales
+  (question_id, locale, target_locale, prompt, context, options, explanation, vocabulary)
+values
+  ('kiip2-rest-03', 'ko', 'ko', '매운 음식을 잘 먹지 못할 때 식당에서 할 수 있는 말은 무엇인가요?', null, '[{"id":"a","text":"많이 맵게 해 주세요."},{"id":"b","text":"덜 맵게 해 주세요."},{"id":"c","text":"빨리 계산해 주세요."},{"id":"d","text":"포장해 주세요."}]', '맵기를 낮춰 달라고 부탁할 때는 ‘덜 맵게 해 주세요’라고 말해요. 주문할 때 ‘조금 덜 맵게 해 주세요’라고 해도 자연스러워요.', '덜 맵게 해 주세요'),
+  ('kiip2-cafe-03', 'ko', 'ko', '빈칸에 들어갈 표현을 고르세요.', E'A: 매장에서 드시고 가세요?\nB: 아니요, _____. 차에서 마실 거예요.', '[{"id":"a","text":"네, 여기서 먹을게요"},{"id":"b","text":"포장해 주세요"},{"id":"c","text":"따뜻하게 해 주세요"},{"id":"d","text":"카드로 계산할게요"}]', '매장에서 먹지 않고 다른 곳에서 마실 계획이라면 ‘포장해 주세요’라고 해요. 카페나 식당에서 가져갈 음식을 주문할 때 쓸 수 있어요.', '포장해 주세요'),
+  ('kiip2-library-01', 'ko', 'ko', '도서관에서 책을 반납하려고 합니다. 직원의 질문에 알맞게 대답한 것은 무엇인가요?', E'A: 책은 어디에 반납하면 돼요?\nB: _____.', '[{"id":"a","text":"입구 옆 반납함에 넣으시면 돼요"},{"id":"b","text":"대출 기간은 2주예요"},{"id":"c","text":"회원증은 안내 데스크에서 만들 수 있어요"},{"id":"d","text":"오늘은 자료실이 일찍 닫아요"}]', '‘어디에’라고 장소를 물었으므로 반납 장소를 알려 주는 대답이 알맞아요. 도서관에서 책을 빌리거나 돌려줄 때 사용할 수 있어요.', '책을 반납하다'),
+  ('kiip2-weather-02', 'ko', 'ko', '일기예보에 오늘 오후에 비가 온다고 합니다. 외출하기 전에 준비할 물건은 무엇인가요?', null, '[{"id":"a","text":"선글라스"},{"id":"b","text":"장갑"},{"id":"c","text":"우산"},{"id":"d","text":"수영복"}]', '비가 올 때는 우산을 준비하면 옷이나 가방이 젖는 것을 막을 수 있어요. 날씨에 따라 필요한 물건을 말할 때 쓸 수 있어요.', '비가 오다 · 우산'),
+  ('kiip2-delivery-01', 'ko', 'ko', '택배 기사님이 집에 사람이 없으면 문 앞에 두어도 되는지 물었습니다. 알맞은 대답은 무엇인가요?', E'A: 집에 안 계시면 택배를 문 앞에 놓아도 될까요?\nB: _____.', '[{"id":"a","text":"아니요, 오늘 비가 와요"},{"id":"b","text":"네, 주소를 바꿔 주세요"},{"id":"c","text":"택배가 어제 왔어요"},{"id":"d","text":"네, 문 앞에 놓아 주세요"}]', '문 앞에 두어도 되는지 묻는 말에는 허락하거나 거절하는 답을 해요. 받을 사람이 집에 없을 때 배송 기사님과 연락하며 쓸 수 있어요.', '문 앞에 놓아 주세요'),
+  ('kiip2-trans-04', 'ko', 'ko', '교통카드를 ‘충전하다’는 무슨 뜻인가요?', null, '[{"id":"a","text":"카드에 돈을 더 넣어 사용할 수 있게 하다"},{"id":"b","text":"카드를 버스 요금 결제에 사용하다"},{"id":"c","text":"카드에 남은 잔액을 확인하다"},{"id":"d","text":"사용하지 않는 카드를 반납하다"}]', '교통카드에 돈을 넣어 잔액을 늘리는 것을 ‘충전하다’라고 해요. 지하철역이나 편의점에서 교통카드 잔액을 충전할 수 있어요.', '교통카드를 충전하다'),
+  ('kiip2-appt-03', 'ko', 'ko', '약속 장소로 가는 중인데 지하철을 놓쳐 약속 시간보다 10분 늦을 것 같습니다. 친구에게 보낼 메시지를 고르세요.', null, '[{"id":"a","text":"미안해요. 지하철을 놓쳐서 10분 정도 늦을 것 같아요."},{"id":"b","text":"미안해요. 약속 장소를 다음 주로 바꾸면 좋겠어요."},{"id":"c","text":"미안해요. 10분 일찍 도착해서 기다릴게요."},{"id":"d","text":"미안해요. 오늘은 약속을 잊어버렸어요."}]', '늦을 때는 먼저 미안하다고 말하고 얼마나 늦을지 알려 주면 좋아요. 약속 시간에 맞추기 어려울 때 미리 연락하며 사용할 수 있어요.', '10분 정도 늦을 것 같아요'),
+  ('kiip2-recycle-01', 'ko', 'ko', '아파트 관리실에서 재활용 쓰레기 버리는 방법을 물었습니다. 알맞은 안내는 무엇인가요?', E'A: 종이와 플라스틱은 어디에 버리면 돼요?\nB: _____.', '[{"id":"a","text":"음식물 쓰레기통에 함께 넣으세요"},{"id":"b","text":"종류별로 나누어 분리수거장에 버리세요"},{"id":"c","text":"종량제 봉투에 모두 담으세요"},{"id":"d","text":"매주 한 번씩 집 안에 보관하세요"}]', '종이와 플라스틱 같은 재활용품은 종류별로 나누어 정해진 장소에 버려요. 아파트에서는 분리수거장 위치와 배출 방법을 관리실에 물어볼 수 있어요.', '종류별로 나누어 버리다'),
+  ('kiip2-store-03', 'ko', 'ko', '가게에서 ‘봉투 필요하세요?’라고 물으면 무엇을 확인하는 말인가요?', null, '[{"id":"a","text":"물건을 교환할지"},{"id":"b","text":"현금으로 계산할지"},{"id":"c","text":"영수증을 받을지"},{"id":"d","text":"물건을 담을 봉투가 필요한지"}]', '계산할 때 봉투가 필요한지 확인하는 질문이에요. 봉투가 필요하면 ‘네, 주세요’, 필요하지 않으면 ‘아니요, 괜찮아요’라고 대답할 수 있어요.', '봉투 필요하세요?'),
+  ('kiip2-trans-05', 'ko', 'ko', '버스 앞에 ‘시청행’이라고 적혀 있습니다. 타기 전에 기사님께 물었을 때 알맞은 대답은 무엇인가요?', E'A: 이 버스가 시청에 가요?\nB: _____.', '[{"id":"a","text":"네, 시청 앞에서 내리시면 돼요"},{"id":"b","text":"아니요, 이 버스는 공항으로 가요"},{"id":"c","text":"교통카드는 승차할 때 단말기에 대세요"},{"id":"d","text":"버스 정류장은 길 건너편에 있어요"}]', '목적지에 가는 버스인지 묻는 질문에는 해당 장소에 가는지 알려 주면 돼요. 버스를 타기 전에 기사님이나 주변 사람에게 확인할 때 쓸 수 있어요.', '시청 앞에서 내리다'),
+  ('kiip3-work-04', 'ko', 'ko', '빈칸에 들어갈 가장 자연스러운 말을 고르세요.', E'A: 회의 자료를 오전 중에 보내 주실 수 있나요?\nB: 네, _____ 보내 드리겠습니다.', '[{"id":"a","text":"내일까지"},{"id":"b","text":"어제"},{"id":"c","text":"오전 중으로"},{"id":"d","text":"다음 달에"}]', '오전 중에 보내 달라는 요청에 같은 시간 범위를 사용해 답하면 뜻이 분명해요. 직장에서 업무 자료의 전달 시점을 확인할 때 쓸 수 있어요.', '오전 중으로 보내 드리겠습니다'),
+  ('kiip3-office-03', 'ko', 'ko', '주민센터 창구에서 직원이 신분증을 확인하려고 합니다. 빈칸에 알맞은 말을 고르세요.', E'A: 등본을 발급받고 싶습니다.\nB: 신분증을 잠시 _____.', '[{"id":"a","text":"보여 주세요"},{"id":"b","text":"반납해 주세요"},{"id":"c","text":"발급해 주세요"},{"id":"d","text":"신청해 주세요"}]', '신분증을 확인할 때는 상대방에게 신분증을 ‘보여 달라’고 말해요. 관공서나 은행에서 신분을 확인할 때 들을 수 있는 표현이에요.', '신분증을 보여 주세요'),
+  ('kiip3-housing-03', 'ko', 'ko', '싱크대 밑에서 물이 새고 있습니다. 집주인에게 수리를 요청할 때 알맞은 말은 무엇인가요?', null, '[{"id":"a","text":"싱크대 아래에 수납장이 있습니다."},{"id":"b","text":"배수구를 청소하면 물이 잘 빠질 거예요."},{"id":"c","text":"수도 요금은 관리비에 포함되어 있어요."},{"id":"d","text":"싱크대 밑에서 물이 새는데 확인해 주실 수 있을까요?"}]', '집의 설비에 문제가 생기면 어디에서 어떤 문제가 있는지 설명하고 확인을 부탁할 수 있어요. 집주인이나 관리사무소에 수리를 요청할 때 사용할 수 있어요.', '물이 새다 · 확인해 주실 수 있을까요?'),
+  ('kiip3-bank-03', 'ko', 'ko', '은행 업무에서 ‘자동이체’는 무엇을 뜻하나요?', null, '[{"id":"a","text":"현금을 다른 사람에게 직접 건네는 것"},{"id":"b","text":"정해진 날짜에 돈이 계좌에서 자동으로 빠져나가게 하는 것"},{"id":"c","text":"은행 창구에서 번호표를 받는 것"},{"id":"d","text":"통장에 적힌 이름을 바꾸는 것"}]', '자동이체를 신청하면 정해진 날짜마다 요금이나 돈이 계좌에서 자동으로 나가요. 월세나 공과금을 납부할 때 이용할 수 있어요.', '자동이체를 신청하다'),
+  ('kiip3-school-01', 'ko', 'ko', '아이의 학교생활에 대해 담임 선생님과 상담하고 싶을 때 할 수 있는 말은 무엇인가요?', null, '[{"id":"a","text":"아이 학교생활에 대해 상담하고 싶은데 가능한 시간이 있을까요?"},{"id":"b","text":"아이의 다음 학기 수업료는 얼마인가요?"},{"id":"c","text":"내일 학교에 가져갈 준비물은 무엇인가요?"},{"id":"d","text":"학부모 모임은 다음 주에 있나요?"}]', '상담을 원할 때는 상담 주제와 가능한 시간을 함께 물으면 자연스러워요. 학교에 면담이나 상담을 신청할 때 활용할 수 있어요.', '학교생활에 대해 상담하다'),
+  ('kiip3-post-01', 'ko', 'ko', '중요한 서류를 보내고 배송 과정을 확인하고 싶습니다. 우체국 직원의 안내에 알맞은 말을 고르세요.', E'A: 이 서류를 보내려고 하는데요.\nB: 배송 과정을 확인하시려면 _____로 보내시면 됩니다.', '[{"id":"a","text":"일반 우편"},{"id":"b","text":"반송"},{"id":"c","text":"등기 우편"},{"id":"d","text":"광고 우편"}]', '등기 우편은 발송과 배달 과정을 확인할 수 있어요. 서류처럼 전달 여부를 확인하고 싶은 우편물을 보낼 때 우체국에서 문의할 수 있어요.', '등기 우편으로 보내다'),
+  ('kiip3-job-01', 'ko', 'ko', '면접에서 이전 직장에서 맡았던 업무를 묻는 질문을 들었습니다. 알맞은 대답은 무엇인가요?', E'A: 이전 직장에서는 주로 어떤 일을 하셨나요?\nB: _____.', '[{"id":"a","text":"근무 시간은 주 5일이었습니다."},{"id":"b","text":"이전 회사는 집에서 가까웠습니다."},{"id":"c","text":"다음 달부터 출근할 수 있습니다."},{"id":"d","text":"고객 문의를 받고 상품을 정리했습니다."}]', '업무 경험을 묻는 질문에는 실제로 담당했던 일을 설명해요. 면접에서 이전 직장의 역할과 경험을 말할 때 쓸 수 있어요.', '주로 어떤 일을 하다'),
+  ('kiip3-store-04', 'ko', 'ko', '산 물건의 색을 다른 색으로 바꾸고 싶습니다. 가게 직원에게 할 수 있는 말은 무엇인가요?', null, '[{"id":"a","text":"이 제품의 사용 방법을 알려 주실 수 있을까요?"},{"id":"b","text":"다른 색으로 교환하고 싶은데 가능할까요?"},{"id":"c","text":"이 제품은 언제 다시 들어오나요?"},{"id":"d","text":"영수증을 다시 발급받을 수 있을까요?"}]', '물건을 다른 색이나 제품으로 바꾸고 싶을 때 ‘교환하고 싶다’고 말해요. 교환 가능 여부와 필요한 영수증 등을 매장에 확인할 수 있어요.', '다른 색으로 교환하다'),
+  ('kiip3-community-01', 'ko', 'ko', '주민센터 안내문에 ‘한국어 회화 수강 신청’이라고 적혀 있습니다. ‘수강 신청’은 무슨 뜻인가요?', null, '[{"id":"a","text":"강의나 수업을 듣겠다고 등록하는 것"},{"id":"b","text":"수업이 끝난 뒤 교실을 청소하는 것"},{"id":"c","text":"강의 내용을 다른 사람에게 설명하는 것"},{"id":"d","text":"수업 시간을 확인하는 것"}]', '수강 신청은 강의나 수업을 듣기 위해 이름과 정보를 등록하는 절차예요. 주민센터나 평생교육관의 프로그램에 참여하고 싶을 때 신청해요.', '수강 신청을 하다'),
+  ('kiip3-apartment-01', 'ko', 'ko', '이번 달 관리비 내역을 항목별로 확인하고 싶습니다. 관리사무소에서 할 수 있는 대답은 무엇인가요?', E'A: 이번 달 관리비 내역을 자세히 보고 싶은데요.\nB: _____.', '[{"id":"a","text":"관리비 납부 기한은 매월 말일입니다."},{"id":"b","text":"전기 사용량은 지난달보다 줄었습니다."},{"id":"c","text":"항목별 내역을 확인해 드리겠습니다."},{"id":"d","text":"공용 주차장 이용 신청을 도와드릴게요."}]', '관리비 내역을 묻는 말에는 항목별 내용을 확인해 주겠다고 답할 수 있어요. 아파트 관리사무소에 요금이나 공용시설 이용을 문의할 때 쓸 수 있어요.', '항목별 내역을 확인하다'),
+  ('kiip4-report-01', 'ko', 'ko', '빈칸에 들어갈 간접 인용 표현을 고르세요.', E'A: 회의가 몇 시에 시작된대요?\nB: 팀장님이 오후 두 시에 시작_____ 하셨어요.', '[{"id":"a","text":"한다고"},{"id":"b","text":"하냐고"},{"id":"c","text":"하자고"},{"id":"d","text":"하라고"}]', '다른 사람이 한 말을 전할 때 평서문은 ‘-다고 하다’를 사용해요. ‘오후 두 시에 시작한다고 하셨어요’처럼 회의 시간 안내를 전달할 수 있어요.', '시작한다고 하셨어요'),
+  ('kiip4-concession-01', 'ko', 'ko', '동료가 비용을 걱정할 때, 비용이 든다는 점을 인정하고 시간이 절약된다는 장점을 말하는 대답은 무엇인가요?', E'A: 이 방법은 비용이 좀 들겠네요.\nB: _____.', '[{"id":"a","text":"비용이 들면 시간이 절약돼요."},{"id":"b","text":"비용이 들어서 시간이 절약돼요."},{"id":"c","text":"비용이 들기 전에 시간을 절약해요."},{"id":"d","text":"비용이 들기는 하지만 시간이 절약돼요."}]', '‘-기는 하지만’은 앞의 사실을 인정하면서 뒤에 다른 면이나 반대되는 내용을 덧붙일 때 써요. 제안의 장단점을 함께 설명할 때 활용할 수 있어요.', '-기는 하지만'),
+  ('kiip4-regret-03', 'ko', 'ko', '버스를 놓쳐 회의에 늦은 뒤, 조금 더 일찍 출발하지 않은 일을 아쉬워하며 할 말은 무엇인가요?', E'A: 회의에 늦으셨네요. 무슨 일이 있었어요?\nB: 버스를 놓쳐서 늦었어요. _____.', '[{"id":"a","text":"일찍 출발하면 버스를 놓치지 않아요."},{"id":"b","text":"조금 더 일찍 출발했더라면 버스를 놓치지 않았을 텐데요."},{"id":"c","text":"일찍 출발한다고 버스를 놓치지 않았어요."},{"id":"d","text":"일찍 출발하자고 버스를 놓쳤어요."}]', '‘-았/었더라면 … -았/었을 텐데’는 과거의 상황이 달랐다면 결과도 달랐을 것이라는 아쉬움을 나타내요. 늦거나 실수한 일을 되돌아볼 때 쓸 수 있어요.', '-았/었더라면 · -았/었을 텐데'),
+  ('kiip4-inference-01', 'ko', 'ko', '집 안의 불이 모두 꺼져 있고 현관에 신발도 없습니다. 이 단서로 추측해 친구에게 할 말은 무엇인가요?', E'A: 불이 다 꺼져 있고 현관에 신발도 없네요.\nB: _____.', '[{"id":"a","text":"아무도 집에 없었으면 좋겠어요."},{"id":"b","text":"아무도 집에 없다고 들었어요."},{"id":"c","text":"아무도 집에 없나 봐요."},{"id":"d","text":"아무도 집에 없으라고 했어요."}]', '‘-나 보다’는 눈에 보이는 상황이나 단서를 바탕으로 추측할 때 써요. 직접 확인하지 않았지만 주변 상황으로 짐작할 때 사용할 수 있어요.', '-나 봐요'),
+  ('kiip4-passive-01', 'ko', 'ko', '‘예약이 취소되었어요’라는 말은 어떤 뜻인가요?', null, '[{"id":"a","text":"예약이 더 이상 유지되지 않게 되었어요."},{"id":"b","text":"예약 시간을 더 늦게 바꾸었어요."},{"id":"c","text":"새로운 예약을 추가로 만들었어요."},{"id":"d","text":"예약 내용을 다른 사람에게 설명했어요."}]', '‘취소되다’는 예약이나 신청이 없어지거나 효력이 끝난 상태를 나타내요. 앱이나 안내 문자를 통해 예약 상태를 확인할 때 볼 수 있어요.', '예약이 취소되다'),
+  ('kiip4-addition-01', 'ko', 'ko', '두 가지 장점을 ‘-는 데다가’로 이어 말하려고 합니다. 빈칸에 들어갈 표현은 무엇인가요?', E'A: 이번 숙소는 어땠어요?\nB: 위치가 좋은 _____ 객실도 깨끗했어요.', '[{"id":"a","text":"데다가"},{"id":"b","text":"는데"},{"id":"c","text":"더라도"},{"id":"d","text":"도록"}]', '‘-는 데다가’는 한 가지 특징에 다른 특징을 더해 말할 때 써요. 숙소나 물건의 장점을 여러 가지 설명할 때 활용할 수 있어요.', '-는 데다가'),
+  ('kiip4-condition-01', 'ko', 'ko', '‘-(으)시다면’과 ‘-(으)ㄹ 수 있을까요?’를 사용해 상대방에게 공손하게 대화를 요청하는 말은 무엇인가요?', null, '[{"id":"a","text":"시간이 괜찮으니까 잠깐 이야기합시다."},{"id":"b","text":"시간이 괜찮으시다면 잠깐 이야기하라고 하셨어요."},{"id":"c","text":"시간이 괜찮으시다면 잠깐 이야기 나눴어요."},{"id":"d","text":"시간이 괜찮으시다면 잠깐 이야기 나눌 수 있을까요?"}]', '‘-시다면’으로 상대의 상황을 먼저 배려하고, ‘-수 있을까요?’로 공손하게 부탁할 수 있어요. 직장이나 처음 만난 사람에게 대화를 요청할 때 알맞아요.', '시간이 괜찮으시다면'),
+  ('kiip4-quotation-02', 'ko', 'ko', '선생님이 학생에게 준 조언을 다른 사람에게 전하는 문장을 고르세요.', E'선생님은 과제를 제출하기 전에 맞춤법을 _____ 하셨어요.', '[{"id":"a","text":"확인한다고"},{"id":"b","text":"확인하냐고"},{"id":"c","text":"확인하라고"},{"id":"d","text":"확인하자고"}]', '다른 사람에게 어떤 행동을 하도록 말한 내용을 전할 때 ‘-(으)라고 하다’를 써요. ‘맞춤법을 확인하라고 하셨어요’는 선생님의 조언을 전달하는 말이에요.', '확인하라고 하셨어요'),
+  ('kiip4-idiom-01', 'ko', 'ko', '‘그 일이 마음에 걸려요’는 어떤 뜻인가요?', null, '[{"id":"a","text":"그 일을 꼭 기억하고 싶어요."},{"id":"b","text":"그 일이 걱정되거나 계속 신경 쓰여요."},{"id":"c","text":"그 일에 대해 이미 잊어버렸어요."},{"id":"d","text":"그 일 때문에 기분이 아주 좋아요."}]', '‘마음에 걸리다’는 어떤 일이 걱정되거나 마음속에서 계속 신경 쓰인다는 뜻이에요. 실수나 약속을 계속 생각하며 걱정될 때 쓸 수 있어요.', '마음에 걸리다'),
+  ('kiip4-contrast-03', 'ko', 'ko', '충분히 쉬지 못하고 오히려 밤새 일했다는 사실을 강조하는 문장을 고르세요.', E'A: 어젯밤에 충분히 쉬었어요?\nB: _____', '[{"id":"a","text":"충분히 쉬기는커녕 밤새 일했어요."},{"id":"b","text":"충분히 쉬는 데다가 밤새 일했어요."},{"id":"c","text":"충분히 쉬더라도 밤새 일했어요."},{"id":"d","text":"충분히 쉬는 바람에 밤새 일했어요."}]', '‘-기는커녕’은 기대하거나 언급한 일이 이루어지기는커녕 오히려 반대되는 상황이 생겼음을 강조해요. 기대와 실제 결과가 크게 다를 때 쓸 수 있어요.', '-기는커녕')
+on conflict (question_id, locale, target_locale) do update set
+  prompt = excluded.prompt,
+  context = excluded.context,
+  options = excluded.options,
+  explanation = excluded.explanation,
+  vocabulary = excluded.vocabulary,
+  updated_at = now();
