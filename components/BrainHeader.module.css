@@ -10,12 +10,21 @@
   z-index: 20;
 }
 
+@media (max-width: 480px) {
+  .header {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+  }
+}
+
 /* ── 상단 행 ── */
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: var(--touch-min-height);
+  gap: var(--space-2);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── 우측 버튼 묶음 ── */
@@ -24,6 +33,13 @@
   align-items: center;
   gap: var(--space-2);
   height: var(--touch-min-height);
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .actions {
+    gap: var(--space-1);
+  }
 }
 
 /* ── ROOM 토글 묶음 ── */
@@ -32,6 +48,7 @@
   align-items: center;
   gap: var(--space-1);
   height: var(--touch-min-height);
+  flex-shrink: 0;
 }
 
 /* ── ROOM 라벨 ── */
@@ -43,10 +60,17 @@
   line-height: 1;
 }
 
+@media (max-width: 360px) {
+  .roomLabel {
+    display: none;
+  }
+}
+
 /* ── 구분선 ── */
 .divider {
   display: block;
   width: var(--border-width);
   height: var(--space-4);
   background: var(--color-border);
+  flex-shrink: 0;
 }

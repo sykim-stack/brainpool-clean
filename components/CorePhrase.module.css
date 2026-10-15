@@ -1,139 +1,25 @@
-/* CorePhrase — KIIP/앱 쉘과 동일한 max-width·여백 체계 */
-
-.wrap {
-  display: flex;
-  flex-direction: column;
-  width: min(680px, 100%);
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-4) 140px;
-  box-sizing: border-box;
-  gap: var(--space-3);
-  min-height: 0;
-}
-
-/* ── 통계 ── */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-
-.statItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.statNum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-size: clamp(18px, 4vw, 22px);
-  font-weight: var(--weight-bold);
-  color: var(--color-text);
-  line-height: 1.2;
-}
-
-.statNumAccent {
-  color: var(--color-gold);
-  font-size: 0.85em;
-}
-
-.statLabel {
-  font-size: var(--font-xs);
-  color: var(--color-text-muted);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.statDivider {
-  display: none;
-}
-
-/* ── 툴바 ── */
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.filterBtn {
-  padding: var(--space-1) var(--space-2);
-  border-radius: 99px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-xs);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.filterBtn:hover {
-  border-color: rgba(212, 175, 55, 0.45);
-  color: var(--color-text);
-}
-
-.filterActive {
-  background: rgba(212, 175, 55, 0.12);
-  color: var(--color-gold);
-  border-color: rgba(212, 175, 55, 0.45);
-}
-
-.studyStartBtn {
-  padding: var(--space-2) var(--space-3);
-  border-radius: 99px;
-  border: 1px solid var(--color-gold);
-  background: var(--color-gold);
-  color: var(--color-bg);
-  font-size: var(--font-sm);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: var(--transition-fast);
-}
-
-.studyStartBtn:hover:not(:disabled) {
-  filter: brightness(1.05);
-}
-
-.studyStartBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* ── 목록 ── */
 .list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-3);
+  overflow-y: auto;
+  flex: 1;
   min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  gap: var(--space-2);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cardTop {
@@ -146,7 +32,7 @@
 .words {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -155,22 +41,13 @@
   font-size: var(--font-md);
   color: var(--color-text);
   font-weight: var(--weight-bold);
-  line-height: 1.45;
   word-break: break-word;
 }
 
 .meaning {
   font-size: var(--font-sm);
   color: var(--color-text-muted);
-  line-height: 1.45;
   word-break: break-word;
-}
-
-.memo {
-  font-size: var(--font-xs);
-  color: var(--color-gold);
-  font-style: italic;
-  line-height: 1.4;
 }
 
 .bookmark {
@@ -178,14 +55,8 @@
   border: none;
   cursor: pointer;
   font-size: 18px;
-  padding: 4px;
+  padding: 0;
   flex-shrink: 0;
-  line-height: 1;
-  opacity: 0.85;
-}
-
-.bookmark:hover {
-  opacity: 1;
 }
 
 .bookmarked {
@@ -197,13 +68,12 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 .statusBtn {
   font-size: var(--font-xs);
-  padding: 6px 10px;
-  border-radius: 99px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text-sub);
@@ -212,35 +82,13 @@
 }
 
 .statusBtn:hover {
-  border-color: rgba(212, 175, 55, 0.4);
-  color: var(--color-text);
-}
-
-.cardActions {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.editBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-}
-
-.editBtn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .deleteBtn {
   font-size: var(--font-xs);
-  padding: 6px 10px;
-  border-radius: 99px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-muted);
@@ -258,18 +106,83 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  flex: 1;
+  min-height: 200px;
+  width: 100%;
   color: var(--color-text-muted);
   font-size: var(--font-md);
   gap: var(--space-2);
-  text-align: center;
-  padding: var(--space-5) var(--space-3);
+  box-sizing: border-box;
 }
 
 .emptySub {
   font-size: var(--font-sm);
   color: var(--color-text-muted);
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+/* ── 전체 래퍼: page.main(align-items:center) 안에서도 가로 100% ── */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 0;
+  flex: 1;
+  box-sizing: border-box;
+  align-self: stretch;
+}
+
+/* ── 툴바 ── */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2);
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  cursor: pointer;
+}
+
+.filterActive {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.studyStartBtn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.studyStartBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* ── 학습 모드 ── */
@@ -277,11 +190,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(680px, 100%);
+  padding: var(--space-4) var(--space-3);
+  width: 100%;
+  max-width: 720px;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-4) 140px;
   box-sizing: border-box;
-  gap: var(--space-3);
+  align-self: stretch;
 }
 
 .studyHeader {
@@ -289,7 +203,7 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 400px;
+  margin-bottom: var(--space-3);
 }
 
 .studyProgress {
@@ -300,40 +214,38 @@
 .studyBackBtn {
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: 99px;
+  border-radius: var(--radius-md);
   padding: var(--space-1) var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-sm);
   cursor: pointer;
 }
 
-.studyBackBtn:hover {
-  border-color: rgba(212, 175, 55, 0.4);
-  color: var(--color-text);
-}
-
+/* ── 진행 바 ── */
 .progressBar {
   width: 100%;
-  max-width: 400px;
-  height: 5px;
+  height: 4px;
   background: var(--color-surface);
-  border-radius: 99px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-5);
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background: var(--color-gold);
-  border-radius: inherit;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
+/* ── 플립 카드 ── */
 .flipCard {
   width: 100%;
-  max-width: 400px;
-  height: 240px;
+  max-width: 340px;
+  height: 220px;
   perspective: 1000px;
   cursor: pointer;
+  margin-bottom: var(--space-1);
 }
 
 .flipInner {
@@ -362,42 +274,51 @@
   backface-visibility: hidden;
   gap: var(--space-2);
   padding: var(--space-4);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
 .flipBack {
   transform: rotateY(180deg);
-  background: rgba(212, 175, 55, 0.12);
-  border-color: rgba(212, 175, 55, 0.35);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .flipLabel {
   font-size: var(--font-xs);
-  color: var(--color-gold);
+  color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
+}
+
+.flipBack .flipLabel {
+  color: var(--color-bg);
+  opacity: 0.7;
 }
 
 .flipWord {
-  font-size: clamp(18px, 4vw, 22px);
+  font-size: var(--font-lg);
   font-weight: var(--weight-bold);
   color: var(--color-text);
   text-align: center;
-  line-height: 1.45;
+  line-height: var(--line-height);
   word-break: break-word;
+}
+
+.flipBack .flipWord {
+  color: var(--color-bg);
 }
 
 .flipHint {
   font-size: var(--font-xs);
   color: var(--color-text-muted);
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
+/* ── 알아요/몰라요 버튼 ── */
 .studyBtns {
   display: flex;
   gap: var(--space-3);
   width: 100%;
-  max-width: 400px;
+  max-width: 340px;
 }
 
 .knowBtn,
@@ -409,14 +330,13 @@
   font-size: var(--font-md);
   cursor: pointer;
   transition: var(--transition-fast);
-  min-height: 48px;
+  min-height: var(--touch-min-height);
 }
 
 .knowBtn {
-  background: var(--color-gold);
+  background: var(--color-success);
   color: var(--color-bg);
-  border-color: var(--color-gold);
-  font-weight: var(--weight-bold);
+  border-color: var(--color-success);
 }
 
 .dontKnowBtn {
@@ -424,18 +344,16 @@
   color: var(--color-text-sub);
 }
 
+/* ── 학습 완료 ── */
 .studyDone {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: min(680px, 100%);
-  margin: 0 auto;
-  min-height: 360px;
+  width: 100%;
+  min-height: 280px;
   gap: var(--space-2);
-  padding: var(--space-5) var(--space-4);
   box-sizing: border-box;
-  text-align: center;
 }
 
 .studyDoneEmoji {
@@ -454,42 +372,79 @@
   margin-bottom: var(--space-3);
 }
 
-/* ── 편집 ── */
+/* ── 통계 카드 ── */
+.stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.statNum {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+}
+
+.statDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border);
+}
+
+/* ── 편집 모드 ── */
 .editBox {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-2) 0;
+  width: 100%;
 }
 
 .editWord {
   font-size: var(--font-sm);
   color: var(--color-text-muted);
   margin: 0;
-  word-break: break-word;
 }
 
-.editInput,
-.editTextarea {
+.editInput {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  border: 1px solid var(--color-accent);
+  background: var(--color-surface);
   color: var(--color-text);
   font-size: var(--font-sm);
   width: 100%;
   box-sizing: border-box;
-  font-family: inherit;
-}
-
-.editInput:focus,
-.editTextarea:focus {
-  outline: none;
-  border-color: rgba(212, 175, 55, 0.55);
 }
 
 .editTextarea {
-  resize: vertical;
-  min-height: 64px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  width: 100%;
+  resize: none;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
 .editBtns {
@@ -497,34 +452,50 @@
   gap: var(--space-2);
 }
 
-.editSaveBtn,
-.editCancelBtn {
+.editSaveBtn {
   flex: 1;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg);
   font-size: var(--font-sm);
   cursor: pointer;
 }
 
-.editSaveBtn {
-  border: 1px solid var(--color-gold);
-  background: var(--color-gold);
-  color: var(--color-bg);
-  font-weight: var(--weight-bold);
-}
-
 .editCancelBtn {
+  flex: 1;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
 }
 
-@media (max-width: 480px) {
-  .stats {
-    padding: var(--space-3) var(--space-2);
-  }
+.memo {
+  font-size: var(--font-xs);
+  color: var(--color-accent);
+  font-style: italic;
+}
 
-  .statLabel {
-    font-size: 10px;
-  }
+.cardActions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.editBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.editBtn:hover {
+  background: var(--color-surface);
 }
