@@ -1,10 +1,13 @@
-﻿.list {
+.list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
   overflow-y: auto;
-  height: calc(100vh - 180px);
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card {
@@ -15,29 +18,36 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cardTop {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: var(--space-2);
 }
 
 .words {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
 }
 
 .word {
   font-size: var(--font-md);
   color: var(--color-text);
   font-weight: var(--weight-bold);
+  word-break: break-word;
 }
 
 .meaning {
   font-size: var(--font-sm);
   color: var(--color-text-muted);
+  word-break: break-word;
 }
 
 .bookmark {
@@ -46,6 +56,7 @@
   cursor: pointer;
   font-size: 18px;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .bookmarked {
@@ -56,6 +67,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-2);
 }
 
 .statusBtn {
@@ -94,10 +106,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: calc(100vh - 180px);
+  flex: 1;
+  min-height: 200px;
+  width: 100%;
   color: var(--color-text-muted);
   font-size: var(--font-md);
   gap: var(--space-2);
+  box-sizing: border-box;
 }
 
 .emptySub {
@@ -106,11 +121,17 @@
   opacity: 0.6;
 }
 
-/* ── 전체 래퍼 ── */
+/* ── 전체 래퍼: page.main(align-items:center) 안에서도 가로 100% ── */
 .wrap {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 180px);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 0;
+  flex: 1;
+  box-sizing: border-box;
+  align-self: stretch;
 }
 
 /* ── 툴바 ── */
@@ -121,11 +142,15 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   gap: var(--space-2);
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
 }
 
 .filters {
   display: flex;
   gap: var(--space-1);
+  flex-wrap: wrap;
 }
 
 .filterBtn {
@@ -166,7 +191,11 @@
   flex-direction: column;
   align-items: center;
   padding: var(--space-4) var(--space-3);
-  height: calc(100vh - 180px);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  align-self: stretch;
 }
 
 .studyHeader {
@@ -271,6 +300,7 @@
   color: var(--color-text);
   text-align: center;
   line-height: var(--line-height);
+  word-break: break-word;
 }
 
 .flipBack .flipWord {
@@ -320,8 +350,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: calc(100vh - 180px);
+  width: 100%;
+  min-height: 280px;
   gap: var(--space-2);
+  box-sizing: border-box;
 }
 
 .studyDoneEmoji {
@@ -348,6 +380,8 @@
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .statItem {
@@ -380,6 +414,7 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2) 0;
+  width: 100%;
 }
 
 .editWord {
@@ -396,6 +431,7 @@
   color: var(--color-text);
   font-size: var(--font-sm);
   width: 100%;
+  box-sizing: border-box;
 }
 
 .editTextarea {
@@ -408,6 +444,7 @@
   width: 100%;
   resize: none;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .editBtns {
