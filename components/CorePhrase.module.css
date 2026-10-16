@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -14,7 +14,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -121,13 +121,13 @@
   opacity: 0.6;
 }
 
-/* ── 전체 래퍼: page.main(align-items:center) 안에서도 가로 100% ── */
+/* ── 전체 래퍼: 화면 가로 전체 사용 ── */
 .wrap {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   min-height: 0;
   flex: 1;
   box-sizing: border-box;
@@ -139,7 +139,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   gap: var(--space-2);
   width: 100%;
@@ -190,10 +190,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-4) var(--space-3);
+  padding: var(--space-4);
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   box-sizing: border-box;
   align-self: stretch;
 }
@@ -238,11 +238,11 @@
   transition: width 0.3s ease;
 }
 
-/* ── 플립 카드 ── */
+/* ── 플립 카드 (학습 카드만 읽기 쉬운 폭) ── */
 .flipCard {
-  width: 100%;
-  max-width: 340px;
-  height: 220px;
+  width: min(100%, 420px);
+  max-width: 420px;
+  height: 240px;
   perspective: 1000px;
   cursor: pointer;
   margin-bottom: var(--space-1);
@@ -317,8 +317,7 @@
 .studyBtns {
   display: flex;
   gap: var(--space-3);
-  width: 100%;
-  max-width: 340px;
+  width: min(100%, 420px);
 }
 
 .knowBtn,
