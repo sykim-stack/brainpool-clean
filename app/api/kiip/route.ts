@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrincipal } from '@/lib/security/principal';
 import { getSupabase } from '@/lib/supabase';
 import { normalizeUiLocale, type UiLocale } from '@/lib/locale';
+import {
+  KIIP_MAX_QUESTION_COUNT,
+  KIIP_MIN_QUESTION_COUNT,
+  KIIP_SESSION_QUESTION_COUNT,
+} from '@/lib/kiip/constants';
 
 type QuestionType = 'meaning' | 'context' | 'response';
 type Option = { id: string; text: string };
@@ -165,8 +170,14 @@ export async function POST(request: NextRequest) {
     const uiLocale = normalizeUiLocale(body?.locale);
 
     if (action === 'get-session') {
-      const requestedCount = Number(body?.questionCount || 5);
-      const questionCount = Math.min(Math.max(Number.isFinite(requestedCount) ? requestedCount : 5, 3), 5);
+      const requestedCount = Number(body?.questionCount || KIIP_SESSION_QUESTION_COUNT);
+      const questionCount = Math.min(
+        Math.max(
+          Number.isFinite(requestedCount) ? requestedCount : KIIP_SESSION_QUESTION_COUNT,
+          KIIP_MIN_QUESTION_COUNT
+        ),
+        KIIP_MAX_QUESTION_COUNT
+      );
 
       // 문제·선택지는 항상 한국어 콘텐츠 locale에서 로드
       const { data, error } = await fetchContentSessionRows(supabase, stage);

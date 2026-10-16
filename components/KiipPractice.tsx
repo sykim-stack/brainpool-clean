@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUiLocale, normalizeUiLocale, type UiLocale } from '@/lib/locale';
 import { t, type MessageKey } from '@/lib/i18n/messages';
+import { KIIP_SESSION_QUESTION_COUNT } from '@/lib/kiip/constants';
 import styles from './KiipPractice.module.css';
 
 type QuestionType = 'meaning' | 'context' | 'response';
@@ -137,7 +138,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         const payload = await request({
           action: 'get-session',
           stage,
-          questionCount: 5,
+          questionCount: KIIP_SESSION_QUESTION_COUNT,
         });
         setQuestions(payload.questions || []);
         setIndex(0);
@@ -232,7 +233,6 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     return <div className={styles.empty}>{copy('kiip.device.preparing')}</div>;
   }
 
-  // ─── 단계 선택 화면 ───────────────────────────────────────────
   if (selectedStage === null) {
     return (
       <section className={styles.stageSelect} aria-label={copy('kiip.stageSelect.aria')}>
