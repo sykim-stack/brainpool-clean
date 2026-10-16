@@ -42,6 +42,7 @@ const API_ERROR_MESSAGES: Partial<Record<string, MessageKey>> = {
   UNAUTHORIZED: 'kiip.error.unauthorized',
   DATABASE_UNAVAILABLE: 'kiip.error.databaseUnavailable',
   INVALID_ANSWER: 'kiip.error.invalidAnswer',
+  INVALID_SESSION: 'kiip.error.invalidRequest',
   UNKNOWN_ACTION: 'kiip.error.unknownAction',
   INVALID_REQUEST: 'kiip.error.invalidRequest',
   REQUEST_FAILED: 'kiip.error.sessionLoad',
@@ -74,6 +75,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     localeProp ? normalizeUiLocale(localeProp) : 'ko'
   );
   const [selectedStage, setSelectedStage] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -140,6 +142,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           stage,
           questionCount: KIIP_SESSION_QUESTION_COUNT,
         });
+        setSessionId(typeof payload.sessionId === 'string' ? payload.sessionId : null);
         setQuestions(payload.questions || []);
         setIndex(0);
         setSelectedIndex(null);
@@ -152,6 +155,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           ? API_ERROR_MESSAGES[err.code] || 'kiip.error.sessionStart'
           : 'kiip.error.sessionStart';
         setError(copy(messageKey));
+        setSessionId(null);
         setQuestions([]);
       } finally {
         setIsLoading(false);
@@ -168,6 +172,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
 
   const handleChangeStage = () => {
     setSelectedStage(null);
+    setSessionId(null);
     setQuestions([]);
     setIndex(0);
     setSelectedIndex(null);
@@ -194,6 +199,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     try {
       const answer = await request({
         action: 'submit-answer',
+        sessionId: sessionId || undefined,
         questionId: current.id,
         selectedIndex: choiceIndex,
       });
@@ -214,9 +220,31 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     }
   };
 
+  const completeSession = useCallback(async () => {
+    if (!sessionId) {
+      setIsComplete(true);
+      return;
+    }
+    try {
+      const payload = await request({
+        action: 'complete-session',
+        sessionId,
+      });
+      if (typeof payload.score === 'number') setScore(payload.score);
+      if (Array.isArray(payload.wrongTopics)) {
+        setWrongTopics(payload.wrongTopics.filter((t: unknown): t is string => typeof t === 'string'));
+      }
+    } catch {
+      // 완료 저장 실패해도 결과 화면은 보여 준다 (로컬 점수 유지)
+    } finally {
+      setIsComplete(true);
+    }
+  }, [request, sessionId]);
+
   const nextQuestion = () => {
-    if (index >= questions.length - 1) setIsComplete(true);
-    else {
+    if (index >= questions.length - 1) {
+      void completeSession();
+    } else {
       setIndex((value) => value + 1);
       setSelectedIndex(null);
       setResult(null);
@@ -224,8 +252,9 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   };
 
   const scoreMessageKey = useMemo<MessageKey>(() => {
+    if (questions.length === 0) return 'kiip.result.scoreLow';
     if (score === questions.length) return 'kiip.result.scorePerfect';
-    if (score >= 3) return 'kiip.result.scoreHigh';
+    if (score >= Math.ceil(questions.length * 0.6)) return 'kiip.result.scoreHigh';
     return 'kiip.result.scoreLow';
   }, [questions.length, score]);
 

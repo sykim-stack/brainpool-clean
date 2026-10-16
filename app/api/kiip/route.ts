@@ -150,12 +150,27 @@ async function fetchUiExplanation(
   };
 }
 
+async function loadOwnedSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  deviceId: string
+) {
+  return supabase
+    .from('kiip_sessions')
+    .select('id, device_id, stage, question_count, score, status')
+    .eq('id', sessionId)
+    .eq('device_id', deviceId)
+    .maybeSingle();
+}
+
 export async function POST(request: NextRequest) {
   const traceId = crypto.randomUUID();
   const principalResult = getPrincipal(request);
   if (!principalResult.principal) {
     return errorResponse('UNAUTHORIZED', principalResult.error?.message || '인증이 필요합니다.', traceId, 401);
   }
+
+  const deviceId = principalResult.principal.deviceId || principalResult.principal.id;
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -179,7 +194,6 @@ export async function POST(request: NextRequest) {
         KIIP_MAX_QUESTION_COUNT
       );
 
-      // 문제·선택지는 항상 한국어 콘텐츠 locale에서 로드
       const { data, error } = await fetchContentSessionRows(supabase, stage);
       if (error) throw error;
 
@@ -189,9 +203,32 @@ export async function POST(request: NextRequest) {
         .slice(0, questionCount)
         .map((item) => item.question);
 
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from('kiip_sessions')
+        .insert({
+          device_id: deviceId,
+          stage,
+          question_count: questions.length,
+          score: 0,
+          status: 'in_progress',
+        })
+        .select('id')
+        .single();
+
+      if (sessionError || !sessionRow?.id) {
+        console.error('[kiip] session insert', sessionError);
+        return errorResponse(
+          'DATABASE_UNAVAILABLE',
+          '연습 세션을 저장할 수 없습니다. 마이그레이션 적용 여부를 확인해 주세요.',
+          traceId,
+          503
+        );
+      }
+
       return NextResponse.json({
         success: true,
         payload: {
+          sessionId: sessionRow.id as string,
           stage,
           contentLocale: CONTENT_LOCALE,
           uiLocale,
@@ -205,11 +242,12 @@ export async function POST(request: NextRequest) {
     if (action === 'submit-answer') {
       const questionId = String(body?.questionId || '');
       const selectedIndex = Number(body?.selectedIndex);
+      const sessionId = body?.sessionId ? String(body.sessionId) : '';
+
       if (!questionId || !Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex > 3) {
         return errorResponse('INVALID_ANSWER', '문제 또는 답안이 올바르지 않습니다.', traceId, 400);
       }
 
-      // 채점은 한국어 콘텐츠 행 기준 (선택지 순서·정답 ID 일치)
       const { data, error } = await fetchContentAnswerRow(supabase, questionId);
       if (error) throw error;
 
@@ -220,18 +258,143 @@ export async function POST(request: NextRequest) {
       }
 
       const selectedOptionId = parsed.locale.options[selectedIndex].id;
+      const correct = selectedOptionId === row.answer_option_id;
       const uiText = await fetchUiExplanation(supabase, questionId, uiLocale);
+
+      if (sessionId) {
+        const { data: session, error: sessionError } = await loadOwnedSession(supabase, sessionId, deviceId);
+        if (sessionError) throw sessionError;
+        if (!session || session.status !== 'in_progress') {
+          return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
+        }
+
+        const { error: answerError } = await supabase.from('kiip_answers').upsert(
+          {
+            session_id: sessionId,
+            question_id: questionId,
+            selected_index: selectedIndex,
+            is_correct: correct,
+            topic_key: row.topic_key,
+            answered_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id,question_id' }
+        );
+        if (answerError) {
+          console.error('[kiip] answer upsert', answerError);
+          return errorResponse('DATABASE_UNAVAILABLE', '답안을 저장하지 못했습니다.', traceId, 503);
+        }
+
+        if (correct) {
+          await supabase
+            .from('kiip_sessions')
+            .update({
+              score: Number(session.score || 0) + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', sessionId)
+            .eq('device_id', deviceId)
+            .eq('status', 'in_progress');
+        }
+      }
 
       return NextResponse.json({
         success: true,
         payload: {
-          correct: selectedOptionId === row.answer_option_id,
+          correct,
           correctIndex: parsed.locale.options.findIndex((option) => option.id === row.answer_option_id),
           explanation: uiText?.explanation || parsed.locale.explanation,
           vocabulary: uiText?.vocabulary || parsed.locale.vocabulary,
           topic: row.topic_key,
           contentLocale: CONTENT_LOCALE,
           uiLocale,
+        },
+        traceId,
+      });
+    }
+
+    if (action === 'complete-session') {
+      const sessionId = String(body?.sessionId || '');
+      if (!sessionId) {
+        return errorResponse('INVALID_SESSION', '세션 ID가 필요합니다.', traceId, 400);
+      }
+
+      const { data: session, error: sessionError } = await loadOwnedSession(supabase, sessionId, deviceId);
+      if (sessionError) throw sessionError;
+      if (!session) {
+        return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
+      }
+
+      if (session.status === 'completed') {
+        return NextResponse.json({
+          success: true,
+          payload: {
+            sessionId,
+            stage: session.stage,
+            score: session.score,
+            questionCount: session.question_count,
+            status: 'completed',
+          },
+          traceId,
+        });
+      }
+
+      const { data: answers, error: answersError } = await supabase
+        .from('kiip_answers')
+        .select('is_correct, topic_key')
+        .eq('session_id', sessionId);
+      if (answersError) throw answersError;
+
+      const answerRows = (answers || []) as { is_correct: boolean; topic_key: string }[];
+      const score = answerRows.filter((a) => a.is_correct).length;
+      const wrongTopics = [
+        ...new Set(answerRows.filter((a) => !a.is_correct).map((a) => a.topic_key).filter(Boolean)),
+      ];
+
+      const { error: updateError } = await supabase
+        .from('kiip_sessions')
+        .update({
+          score,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId)
+        .eq('device_id', deviceId);
+
+      if (updateError) {
+        console.error('[kiip] complete session', updateError);
+        return errorResponse('DATABASE_UNAVAILABLE', '세션 완료를 저장하지 못했습니다.', traceId, 503);
+      }
+
+      return NextResponse.json({
+        success: true,
+        payload: {
+          sessionId,
+          stage: session.stage,
+          score,
+          questionCount: session.question_count,
+          wrongTopics,
+          status: 'completed',
+        },
+        traceId,
+      });
+    }
+
+    if (action === 'get-progress') {
+      const { data, error } = await supabase
+        .from('kiip_sessions')
+        .select('id, stage, question_count, score, status, started_at, completed_at')
+        .eq('device_id', deviceId)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        payload: {
+          recentSessions: data || [],
         },
         traceId,
       });
