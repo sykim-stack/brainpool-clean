@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUiLocale, normalizeUiLocale, type UiLocale } from '@/lib/locale';
+import { t, type MessageKey } from '@/lib/i18n/messages';
 import { KIIP_SESSION_QUESTION_COUNT } from '@/lib/kiip/constants';
 import styles from './KiipPractice.module.css';
 
@@ -30,17 +31,33 @@ interface KiipPracticeProps {
   locale?: UiLocale | string;
 }
 
-const TYPE_LABEL: Record<QuestionType, string> = {
-  meaning: '뜻 고르기',
-  context: '문맥 빈칸',
-  response: '상황 응답',
+class KiipRequestError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = 'KiipRequestError';
+  }
+}
+
+const API_ERROR_MESSAGES: Partial<Record<string, MessageKey>> = {
+  UNAUTHORIZED: 'kiip.error.unauthorized',
+  DATABASE_UNAVAILABLE: 'kiip.error.databaseUnavailable',
+  INVALID_ANSWER: 'kiip.error.invalidAnswer',
+  UNKNOWN_ACTION: 'kiip.error.unknownAction',
+  INVALID_REQUEST: 'kiip.error.invalidRequest',
+  REQUEST_FAILED: 'kiip.error.sessionLoad',
+};
+
+const TYPE_LABEL: Record<QuestionType, MessageKey> = {
+  meaning: 'kiip.questionType.meaning',
+  context: 'kiip.questionType.context',
+  response: 'kiip.questionType.response',
 };
 
 const STAGES = [
-  { id: 1, label: '1단계', sub: '초급 1 · 생활 인사', desc: '인사, 자기소개, 기본 표현' },
-  { id: 2, label: '2단계', sub: '초급 2 · 일상 대화', desc: '쇼핑, 교통, 약속 잡기' },
-  { id: 3, label: '3단계', sub: '중급 1 · 사회생활', desc: '직장, 병원, 공공기관' },
-  { id: 4, label: '4단계', sub: '중급 2 · 심화 표현', desc: '의견, 감정, 복잡한 상황' },
+  { id: 1, labelKey: 'kiip.stage.1.label', subKey: 'kiip.stage.1.sub', descriptionKey: 'kiip.stage.1.description' },
+  { id: 2, labelKey: 'kiip.stage.2.label', subKey: 'kiip.stage.2.sub', descriptionKey: 'kiip.stage.2.description' },
+  { id: 3, labelKey: 'kiip.stage.3.label', subKey: 'kiip.stage.3.sub', descriptionKey: 'kiip.stage.3.description' },
+  { id: 4, labelKey: 'kiip.stage.4.label', subKey: 'kiip.stage.4.sub', descriptionKey: 'kiip.stage.4.description' },
 ] as const;
 
 /** DB/시드에 이스케이프된 \\n 문자열이 들어와도 실제 줄바꿈으로 표시 */
@@ -69,6 +86,10 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   const [error, setError] = useState('');
 
   const current = questions[index];
+  const copy = useCallback(
+    (key: MessageKey, values?: Record<string, string | number>) => t(key, uiLocale, values),
+    [uiLocale],
+  );
   const completionPercent = questions.length
     ? isComplete
       ? 100
@@ -81,8 +102,11 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   );
 
   useEffect(() => {
-    if (localeProp) setUiLocaleState(normalizeUiLocale(localeProp));
-    else setUiLocaleState(getUiLocale());
+    const timer = window.setTimeout(() => {
+      if (localeProp) setUiLocaleState(normalizeUiLocale(localeProp));
+      else setUiLocaleState(getUiLocale());
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [localeProp]);
 
   const request = useCallback(
@@ -97,7 +121,8 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
       });
       const json = await response.json().catch(() => null);
       if (!response.ok || !json?.success) {
-        throw new Error(json?.error?.message || 'KIIP 연습을 불러오지 못했어요.');
+        const code = typeof json?.error?.code === 'string' ? json.error.code : 'REQUEST_FAILED';
+        throw new KiipRequestError(code);
       }
       return json.payload;
     },
@@ -123,13 +148,16 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         setWrongTopics([]);
         setIsComplete(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : '연습을 시작할 수 없어요.');
+        const messageKey = err instanceof KiipRequestError
+          ? API_ERROR_MESSAGES[err.code] || 'kiip.error.sessionStart'
+          : 'kiip.error.sessionStart';
+        setError(copy(messageKey));
         setQuestions([]);
       } finally {
         setIsLoading(false);
       }
     },
-    [deviceId, request]
+    [copy, deviceId, request]
   );
 
   const handleSelectStage = (stage: number) => {
@@ -152,9 +180,11 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
 
   // locale 변경 시 현재 단계가 있으면 다시 로드
   useEffect(() => {
-    if (deviceId && selectedStage !== null) {
-      startSession(selectedStage);
-    }
+    if (!deviceId || selectedStage === null) return;
+    const timer = window.setTimeout(() => {
+      void startSession(selectedStage);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [uiLocale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitAnswer = async (choiceIndex: number) => {
@@ -174,7 +204,10 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           topics.includes(answer.topic) ? topics : [...topics, answer.topic]
         );
     } catch (err) {
-      setError(err instanceof Error ? err.message : '답안을 확인하지 못했어요.');
+      const messageKey = err instanceof KiipRequestError
+        ? API_ERROR_MESSAGES[err.code] || 'kiip.error.answer'
+        : 'kiip.error.answer';
+      setError(copy(messageKey));
       setSelectedIndex(null);
     } finally {
       setIsSubmitting(false);
@@ -190,28 +223,28 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     }
   };
 
-  const scoreMessage = useMemo(() => {
-    if (score === questions.length) return '좋아요. 오늘 표현을 잘 익혔어요.';
-    if (score >= 3) return '기초가 잘 잡혀 있어요. 틀린 표현만 한 번 더 볼까요?';
-    return '괜찮아요. 실제 대화에서 다시 만나면 더 쉽게 기억할 수 있어요.';
+  const scoreMessageKey = useMemo<MessageKey>(() => {
+    if (score === questions.length) return 'kiip.result.scorePerfect';
+    if (score >= 3) return 'kiip.result.scoreHigh';
+    return 'kiip.result.scoreLow';
   }, [questions.length, score]);
 
   if (!deviceId) {
-    return <div className={styles.empty}>학습 공간을 준비하고 있어요...</div>;
+    return <div className={styles.empty}>{copy('kiip.device.preparing')}</div>;
   }
 
   // ─── 단계 선택 화면 ───────────────────────────────────────────
   if (selectedStage === null) {
     return (
-      <section className={styles.stageSelect} aria-label="KIIP 단계 선택">
+      <section className={styles.stageSelect} aria-label={copy('kiip.stageSelect.aria')}>
         <header className={styles.header}>
           <div>
             <p className={styles.eyebrow}>KIIP PRACTICE</p>
-            <h1>단계를 선택하세요</h1>
+            <h1>{copy('kiip.stageSelect.title')}</h1>
           </div>
         </header>
         <p className={styles.stageHint}>
-          사회통합프로그램(KIIP) 단계에 맞춰 생활 한국어를 연습해요.
+          {copy('kiip.stageSelect.intro')}
         </p>
         <div className={styles.stageGrid}>
           {STAGES.map((stage) => (
@@ -221,9 +254,9 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
               onClick={() => handleSelectStage(stage.id)}
               type="button"
             >
-              <span className={styles.stageNumber}>{stage.label}</span>
-              <strong className={styles.stageTitle}>{stage.sub}</strong>
-              <span className={styles.stageDesc}>{stage.desc}</span>
+              <span className={styles.stageNumber}>{copy(stage.labelKey)}</span>
+              <strong className={styles.stageTitle}>{copy(stage.subKey)}</strong>
+              <span className={styles.stageDesc}>{copy(stage.descriptionKey)}</span>
             </button>
           ))}
         </div>
@@ -234,7 +267,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   if (isLoading && !questions.length) {
     return (
       <div className={styles.empty}>
-        {stageMeta.label} 연습을 준비하고 있어요...
+        {copy('kiip.stage.preparing', { stage: copy(stageMeta.labelKey) })}
       </div>
     );
   }
@@ -245,10 +278,10 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         <p>{error}</p>
         <div className={styles.resultActions}>
           <button className={styles.primaryButton} onClick={() => startSession(selectedStage)}>
-            다시 시도
+            {copy('kiip.button.retry')}
           </button>
           <button className={styles.secondaryButton} onClick={handleChangeStage}>
-            단계 변경
+            {copy('kiip.button.changeStage')}
           </button>
         </div>
       </div>
@@ -257,17 +290,21 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
 
   if (isComplete) {
     return (
-      <section className={styles.resultWrap} aria-label="KIIP 연습 결과">
-        <div className={styles.resultBadge}>{stageMeta.label} 완료</div>
+      <section className={styles.resultWrap} aria-label={copy('kiip.result.aria')}>
+        <div className={styles.resultBadge}>
+          {copy('kiip.result.completed', { stage: copy(stageMeta.labelKey) })}
+        </div>
         <p className={styles.resultScore}>
           {score}
           <span> / {questions.length}</span>
         </p>
-        <h2>{scoreMessage}</h2>
-        <p className={styles.resultSub}>{stageMeta.sub} 표현을 연습했어요.</p>
+        <h2>{copy(scoreMessageKey)}</h2>
+        <p className={styles.resultSub}>
+          {copy('kiip.result.stagePractice', { stage: copy(stageMeta.subKey) })}
+        </p>
         {wrongTopics.length > 0 && (
           <div className={styles.reviewBox}>
-            <strong>다시 볼 주제</strong>
+            <strong>{copy('kiip.result.wrongTopics')}</strong>
             <span>{wrongTopics.join(' · ')}</span>
           </div>
         )}
@@ -276,12 +313,12 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
             className={styles.primaryButton}
             onClick={() => startSession(selectedStage)}
           >
-            다시 연습
+            {copy('kiip.result.practiceAgain')}
           </button>
           <button className={styles.secondaryButton} onClick={handleChangeStage}>
-            단계 변경
+            {copy('kiip.button.changeStage')}
           </button>
-          <p>오답 표현은 다음 단계에서 CorePhrase 단어장 연결로 확장할 수 있어요.</p>
+          <p>{copy('kiip.result.corePhraseHint')}</p>
         </div>
       </section>
     );
@@ -290,9 +327,9 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   if (!current) {
     return (
       <div className={styles.empty}>
-        <p>문제를 준비하지 못했어요.</p>
+        <p>{copy('kiip.question.unavailable')}</p>
         <button className={styles.secondaryButton} onClick={handleChangeStage}>
-          단계 변경
+          {copy('kiip.button.changeStage')}
         </button>
       </div>
     );
@@ -303,13 +340,16 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   const explanationText = result ? normalizeMultiline(result.explanation) : '';
 
   return (
-    <section className={styles.wrap} aria-label={`KIIP ${stageMeta.label} 연습`}>
+    <section
+      className={styles.wrap}
+      aria-label={copy('kiip.practice.aria', { stage: copy(stageMeta.labelKey) })}
+    >
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>
-            KIIP PRACTICE · STAGE {selectedStage}
+            {copy('kiip.practice.eyebrow', { stage: selectedStage })}
           </p>
-          <h1>{stageMeta.sub}</h1>
+          <h1>{copy(stageMeta.subKey)}</h1>
         </div>
         <div className={styles.headerRight}>
           <span className={styles.counter}>
@@ -320,7 +360,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
             className={styles.changeStageLink}
             onClick={handleChangeStage}
           >
-            단계 변경
+            {copy('kiip.practice.changeStage')}
           </button>
         </div>
       </header>
@@ -331,13 +371,13 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         />
       </div>
       <div className={styles.topicRow}>
-        <span>{TYPE_LABEL[current.type]}</span>
+        <span>{copy(TYPE_LABEL[current.type])}</span>
         <span>{current.topic}</span>
       </div>
       <article className={styles.questionCard}>
         <p className={styles.prompt}>{promptText}</p>
         {contextText ? <pre className={styles.context}>{contextText}</pre> : null}
-        <div className={styles.choices} role="radiogroup" aria-label="답 선택">
+        <div className={styles.choices} role="radiogroup" aria-label={copy('kiip.answer.select')}>
           {current.choices.map((choice, choiceIndex) => {
             const isSelected = selectedIndex === choiceIndex;
             const isCorrect = result && result.correctIndex === choiceIndex;
@@ -361,9 +401,11 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           <div
             className={`${styles.feedback} ${result.correct ? styles.feedbackCorrect : styles.feedbackIncorrect}`}
           >
-            <strong>{result.correct ? '정답이에요.' : '다시 생각해 볼까요?'}</strong>
+            <strong>
+              {result.correct ? copy('kiip.feedback.correct') : copy('kiip.feedback.incorrect')}
+            </strong>
             <p>{explanationText}</p>
-            <small>핵심 표현 · {result.vocabulary}</small>
+            <small>{copy('kiip.feedback.vocabulary', { vocabulary: result.vocabulary })}</small>
           </div>
         )}
       </article>
@@ -371,10 +413,12 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
       <footer className={styles.footer}>
         {result ? (
           <button className={styles.primaryButton} onClick={nextQuestion}>
-            {index === questions.length - 1 ? '결과 보기' : '다음 문제'}
+            {index === questions.length - 1
+              ? copy('kiip.result.view')
+              : copy('kiip.result.nextQuestion')}
           </button>
         ) : (
-          <p>실제 대화에서 자주 쓰는 표현을 골라 보세요.</p>
+          <p>{copy('kiip.practice.footer')}</p>
         )}
       </footer>
     </section>
