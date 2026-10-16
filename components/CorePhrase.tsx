@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import styles from './CorePhrase.module.css';
 import { speakNow } from '@/lib/tts';
+import {
+  getLearningDirection,
+  getUiLocale,
+  setLearningDirection,
+  setUiLocale,
+  type LearningLanguage,
+} from '@/lib/locale';
+import { t, type CorePhraseMessageKey } from '@/lib/i18n/messages';
 
 // word 필드가 한국어/베트남어 어느 쪽이든 저장될 수 있어(원문 메시지 그대로
 // 저장되는 구조), 재생 직전에 한글 포함 여부로 언어를 판단한다.
@@ -38,8 +46,34 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editMemo, setEditMemo] = useState('');
   const [editMeaning, setEditMeaning] = useState('');
+  const [uiLocale, setCurrentUiLocale] = useState<'ko' | 'vi'>('ko');
+  const [learningDirection, setCurrentLearningDirection] = useState<{
+    source: LearningLanguage;
+    target: LearningLanguage;
+  }>({ source: 'ko', target: 'vi' });
 
-  const fetchVocab = async () => {
+  const copy = (key: CorePhraseMessageKey, values?: Record<string, string | number>) =>
+    t(key, uiLocale, values);
+
+  const handleUiLocaleChange = (locale: 'ko' | 'vi') => {
+    setUiLocale(locale);
+    setCurrentUiLocale(locale);
+  };
+
+  const handleLearningDirectionChange = (value: 'ko-vi' | 'vi-ko') => {
+    const [source, target] = value.split('-') as [LearningLanguage, LearningLanguage];
+    setCurrentLearningDirection(setLearningDirection(source, target));
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setCurrentUiLocale(getUiLocale() === 'vi' ? 'vi' : 'ko');
+      setCurrentLearningDirection(getLearningDirection());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const fetchVocab = useCallback(async () => {
     setIsLoading(true);
     const res = await fetch('/api/phrase', {
       method: 'POST',
@@ -53,13 +87,16 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
     const json = await res.json().catch(() => null);
     if (json?.success && Array.isArray(json.payload)) setItems(json.payload);
     setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchVocab();
   }, [userId]);
 
-  const updateItem = async (item: VocabItem, fields: Record<string, any>) => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchVocab();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchVocab]);
+
+  const updateItem = async (item: VocabItem, fields: Record<string, unknown>) => {
     await fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -149,20 +186,20 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const isDone = studyIndex >= studyItems.length;
 
   const statusLabel: Record<string, string> = {
-    new: '새로운',
-    learning: '학습중',
-    done: '완료',
+    new: copy('status.new'),
+    learning: copy('status.learning'),
+    done: copy('status.done'),
   };
 
-  if (isLoading) return <div className={styles.empty}>불러오는 중...</div>;
+  if (isLoading) return <div className={styles.empty}>{copy('loading')}</div>;
 
   if (mode === 'study') {
     if (isDone)
       return (
         <div className={styles.studyDone}>
           <p className={styles.studyDoneEmoji}>🎉</p>
-          <p className={styles.studyDoneText}>오늘 학습 완료!</p>
-          <p className={styles.studyDoneSub}>{studiedToday}개 카드를 학습했어요</p>
+          <p className={styles.studyDoneText}>{copy('study.doneTitle')}</p>
+          <p className={styles.studyDoneSub}>{copy('study.doneCount', { count: studiedToday })}</p>
           <button
             className={styles.studyBackBtn}
             onClick={() => {
@@ -170,7 +207,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               setStudiedToday(0);
             }}
           >
-            목록으로
+            {copy('study.backToList')}
           </button>
         </div>
       );
@@ -178,7 +215,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       <div className={styles.studyWrap}>
         <div className={styles.studyHeader}>
           <button className={styles.studyBackBtn} onClick={() => setMode('list')}>
-            ← 목록
+            {copy('study.back')}
           </button>
           <span className={styles.studyProgress}>
             {studyIndex + 1} / {studyItems.length}
@@ -196,7 +233,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
         >
           <div className={styles.flipInner}>
             <div className={styles.flipFront}>
-              <p className={styles.flipLabel}>표현</p>
+              <p className={styles.flipLabel}>{copy('card.expression')}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                 <p className={styles.flipWord} style={{ margin: 0 }}>
                   {currentCard?.word}
@@ -214,15 +251,15 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     fontSize: '20px',
                     flexShrink: 0,
                   }}
-                  aria-label="발음 듣기"
+                  aria-label={copy('audio.listen')}
                 >
                   🔊
                 </button>
               </div>
-              <p className={styles.flipHint}>탭해서 뜻 확인</p>
+              <p className={styles.flipHint}>{copy('card.revealHint')}</p>
             </div>
             <div className={styles.flipBack}>
-              <p className={styles.flipLabel}>뜻</p>
+              <p className={styles.flipLabel}>{copy('card.meaning')}</p>
               <p className={styles.flipWord}>{currentCard?.memo || currentCard?.meaning_kr}</p>
             </div>
           </div>
@@ -233,10 +270,10 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               className={styles.dontKnowBtn}
               onClick={() => currentCard && handleDontKnow(currentCard)}
             >
-              모르겠어요
+              {copy('answer.dontKnow')}
             </button>
             <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>
-              알아요
+              {copy('answer.know')}
             </button>
           </div>
         )}
@@ -246,18 +283,42 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   return (
     <div className={styles.wrap}>
+      <div className={styles.preferences} role="group" aria-label={copy('settings.group')}>
+        <label className={styles.preferenceRow}>
+          <span>{copy('settings.uiLanguage')}</span>
+          <select
+            className={styles.preferenceSelect}
+            value={uiLocale}
+            onChange={(event) => handleUiLocaleChange(event.target.value as 'ko' | 'vi')}
+          >
+            <option value="ko">한국어</option>
+            <option value="vi">Tiếng Việt</option>
+          </select>
+        </label>
+        <label className={styles.preferenceRow}>
+          <span>{copy('settings.learningDirection')}</span>
+          <select
+            className={styles.preferenceSelect}
+            value={`${learningDirection.source}-${learningDirection.target}`}
+            onChange={(event) => handleLearningDirectionChange(event.target.value as 'ko-vi' | 'vi-ko')}
+          >
+            <option value="ko-vi">한국어 → Tiếng Việt</option>
+            <option value="vi-ko">Tiếng Việt → 한국어</option>
+          </select>
+        </label>
+      </div>
       <div className={styles.stats}>
         <div className={styles.statItem}>
           <span className={styles.statNum}>{totalCount}</span>
-          <span className={styles.statLabel}>전체</span>
+          <span className={styles.statLabel}>{copy('stats.total')}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statNum}>{doneCount}</span>
-          <span className={styles.statLabel}>완료</span>
+          <span className={styles.statLabel}>{copy('stats.done')}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statNum}>{reviewCount}</span>
-          <span className={styles.statLabel}>오늘 복습</span>
+          <span className={styles.statLabel}>{copy('stats.reviewToday')}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statNum}>
@@ -266,7 +327,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               🔥
             </span>
           </span>
-          <span className={styles.statLabel}>연속 학습</span>
+          <span className={styles.statLabel}>{copy('stats.streak')}</span>
         </div>
       </div>
 
@@ -276,19 +337,19 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
             className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`}
             onClick={() => setFilter('all')}
           >
-            전체 {items.length}
+            {copy('filter.all')} {items.length}
           </button>
           <button
             className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`}
             onClick={() => setFilter('bookmarked')}
           >
-            북마크 {items.filter((i) => i.is_bookmarked).length}
+            {copy('filter.bookmarked')} {items.filter((i) => i.is_bookmarked).length}
           </button>
           <button
             className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
             onClick={() => setFilter('review')}
           >
-            복습 {reviewCount}
+            {copy('filter.review')} {reviewCount}
           </button>
         </div>
         <button
@@ -296,14 +357,16 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           onClick={startStudy}
           disabled={studyItems.length === 0}
         >
-          학습 시작{studyItems.length > 0 ? ` (${studyItems.length})` : ''}
+          {studyItems.length > 0
+            ? copy('study.startCount', { count: studyItems.length })
+            : copy('study.start')}
         </button>
       </div>
 
       {filteredItems.length === 0 ? (
         <div className={styles.empty}>
-          <p>저장된 단어가 없어요</p>
-          <p className={styles.emptySub}>채팅 버블을 클릭해서 단어를 저장해보세요</p>
+          <p>{copy('empty.noItems')}</p>
+          <p className={styles.emptySub}>{copy('empty.hint')}</p>
         </div>
       ) : (
         <div className={styles.list}>
@@ -316,21 +379,21 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     className={styles.editInput}
                     value={editMeaning}
                     onChange={(e) => setEditMeaning(e.target.value)}
-                    placeholder="한국어 번역 수정"
+                    placeholder={copy('edit.meaningPlaceholder')}
                   />
                   <textarea
                     className={styles.editTextarea}
                     value={editMemo}
                     onChange={(e) => setEditMemo(e.target.value)}
-                    placeholder="메모 추가 (예: 더 자연스러운 표현, 사용 상황...)"
+                    placeholder={copy('edit.memoPlaceholder')}
                     rows={2}
                   />
                   <div className={styles.editBtns}>
                     <button className={styles.editSaveBtn} onClick={() => saveEdit(item)}>
-                      저장
+                      {copy('edit.save')}
                     </button>
                     <button className={styles.editCancelBtn} onClick={() => setEditingId(null)}>
-                      취소
+                      {copy('edit.cancel')}
                     </button>
                   </div>
                 </div>
@@ -355,7 +418,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                             flexShrink: 0,
                             marginTop: 2,
                           }}
-                          aria-label="발음 듣기"
+                          aria-label={copy('audio.listen')}
                         >
                           🔊
                         </button>
@@ -366,7 +429,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                     <button
                       className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
                       onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
-                      aria-label={item.is_bookmarked ? '북마크 해제' : '북마크'}
+                      aria-label={item.is_bookmarked ? copy('item.unbookmark') : copy('item.bookmark')}
                     >
                       {item.is_bookmarked ? '♥' : '♡'}
                     </button>
@@ -383,14 +446,18 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                         updateItem(item, { learn_status: next[item.learn_status] || 'new' });
                       }}
                     >
-                      {statusLabel[item.learn_status] || '새로운'}
+                      {statusLabel[item.learn_status] || copy('status.new')}
                     </button>
                     <div className={styles.cardActions}>
-                      <button className={styles.editBtn} onClick={() => startEdit(item)} aria-label="편집">
+                      <button
+                        className={styles.editBtn}
+                        onClick={() => startEdit(item)}
+                        aria-label={copy('edit.action')}
+                      >
                         ✎
                       </button>
                       <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>
-                        삭제
+                        {copy('item.delete')}
                       </button>
                     </div>
                   </div>
