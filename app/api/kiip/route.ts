@@ -41,6 +41,16 @@ type UiExplanationRow = {
   vocabulary: string | null;
 };
 
+/** Phase 2 tables are not in generated Supabase types yet. */
+type KiipSessionRow = {
+  id: string;
+  device_id: string;
+  stage: number;
+  question_count: number;
+  score: number;
+  status: string;
+};
+
 /** 문제 본문·선택지는 학습 콘텐츠 언어(한국어) 고정. 해설만 UI 언어. */
 const CONTENT_LOCALE: UiLocale = 'ko';
 
@@ -154,13 +164,17 @@ async function loadOwnedSession(
   supabase: SupabaseClient,
   sessionId: string,
   deviceId: string
-) {
-  return supabase
+): Promise<{ data: KiipSessionRow | null; error: unknown }> {
+  const result = await supabase
     .from('kiip_sessions')
     .select('id, device_id, stage, question_count, score, status')
     .eq('id', sessionId)
     .eq('device_id', deviceId)
     .maybeSingle();
+  return {
+    data: (result.data as KiipSessionRow | null) ?? null,
+    error: result.error,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -203,8 +217,8 @@ export async function POST(request: NextRequest) {
         .slice(0, questionCount)
         .map((item) => item.question);
 
-      // kiip_sessions는 generated Database 타입에 없음 → insert payload를 never로 단언
-      const { data: sessionRow, error: sessionError } = await supabase
+      // kiip_sessions는 generated Database 타입에 없음 → insert/result 모두 단언
+      const insertResult = await supabase
         .from('kiip_sessions')
         .insert({
           device_id: deviceId,
@@ -215,6 +229,9 @@ export async function POST(request: NextRequest) {
         } as never)
         .select('id')
         .single();
+
+      const sessionError = insertResult.error;
+      const sessionRow = insertResult.data as { id: string } | null;
 
       if (sessionError || !sessionRow?.id) {
         console.error('[kiip] session insert', sessionError);
@@ -229,7 +246,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         payload: {
-          sessionId: sessionRow.id as string,
+          sessionId: sessionRow.id,
           stage,
           contentLocale: CONTENT_LOCALE,
           uiLocale,
@@ -265,11 +282,9 @@ export async function POST(request: NextRequest) {
       if (sessionId) {
         const { data: session, error: sessionError } = await loadOwnedSession(supabase, sessionId, deviceId);
         if (sessionError) throw sessionError;
-        if (!session || (session as { status?: string }).status !== 'in_progress') {
+        if (!session || session.status !== 'in_progress') {
           return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
         }
-
-        const sessionScore = Number((session as { score?: number }).score || 0);
 
         const { error: answerError } = await supabase.from('kiip_answers').upsert(
           {
@@ -291,7 +306,7 @@ export async function POST(request: NextRequest) {
           await supabase
             .from('kiip_sessions')
             .update({
-              score: sessionScore + 1,
+              score: Number(session.score || 0) + 1,
               updated_at: new Date().toISOString(),
             } as never)
             .eq('id', sessionId)
@@ -327,21 +342,14 @@ export async function POST(request: NextRequest) {
         return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
       }
 
-      const sessionData = session as {
-        stage: number;
-        score: number;
-        question_count: number;
-        status: string;
-      };
-
-      if (sessionData.status === 'completed') {
+      if (session.status === 'completed') {
         return NextResponse.json({
           success: true,
           payload: {
             sessionId,
-            stage: sessionData.stage,
-            score: sessionData.score,
-            questionCount: sessionData.question_count,
+            stage: session.stage,
+            score: session.score,
+            questionCount: session.question_count,
             status: 'completed',
           },
           traceId,
@@ -380,9 +388,9 @@ export async function POST(request: NextRequest) {
         success: true,
         payload: {
           sessionId,
-          stage: sessionData.stage,
+          stage: session.stage,
           score,
-          questionCount: sessionData.question_count,
+          questionCount: session.question_count,
           wrongTopics,
           status: 'completed',
         },
