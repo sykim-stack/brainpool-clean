@@ -203,6 +203,7 @@ export async function POST(request: NextRequest) {
         .slice(0, questionCount)
         .map((item) => item.question);
 
+      // kiip_sessions는 generated Database 타입에 없음 → insert payload를 never로 단언
       const { data: sessionRow, error: sessionError } = await supabase
         .from('kiip_sessions')
         .insert({
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
           question_count: questions.length,
           score: 0,
           status: 'in_progress',
-        })
+        } as never)
         .select('id')
         .single();
 
@@ -264,9 +265,11 @@ export async function POST(request: NextRequest) {
       if (sessionId) {
         const { data: session, error: sessionError } = await loadOwnedSession(supabase, sessionId, deviceId);
         if (sessionError) throw sessionError;
-        if (!session || session.status !== 'in_progress') {
+        if (!session || (session as { status?: string }).status !== 'in_progress') {
           return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
         }
+
+        const sessionScore = Number((session as { score?: number }).score || 0);
 
         const { error: answerError } = await supabase.from('kiip_answers').upsert(
           {
@@ -276,7 +279,7 @@ export async function POST(request: NextRequest) {
             is_correct: correct,
             topic_key: row.topic_key,
             answered_at: new Date().toISOString(),
-          },
+          } as never,
           { onConflict: 'session_id,question_id' }
         );
         if (answerError) {
@@ -288,9 +291,9 @@ export async function POST(request: NextRequest) {
           await supabase
             .from('kiip_sessions')
             .update({
-              score: Number(session.score || 0) + 1,
+              score: sessionScore + 1,
               updated_at: new Date().toISOString(),
-            })
+            } as never)
             .eq('id', sessionId)
             .eq('device_id', deviceId)
             .eq('status', 'in_progress');
@@ -324,14 +327,21 @@ export async function POST(request: NextRequest) {
         return errorResponse('INVALID_SESSION', '유효하지 않은 연습 세션입니다.', traceId, 400);
       }
 
-      if (session.status === 'completed') {
+      const sessionData = session as {
+        stage: number;
+        score: number;
+        question_count: number;
+        status: string;
+      };
+
+      if (sessionData.status === 'completed') {
         return NextResponse.json({
           success: true,
           payload: {
             sessionId,
-            stage: session.stage,
-            score: session.score,
-            questionCount: session.question_count,
+            stage: sessionData.stage,
+            score: sessionData.score,
+            questionCount: sessionData.question_count,
             status: 'completed',
           },
           traceId,
@@ -357,7 +367,7 @@ export async function POST(request: NextRequest) {
           status: 'completed',
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
+        } as never)
         .eq('id', sessionId)
         .eq('device_id', deviceId);
 
@@ -370,9 +380,9 @@ export async function POST(request: NextRequest) {
         success: true,
         payload: {
           sessionId,
-          stage: session.stage,
+          stage: sessionData.stage,
           score,
-          questionCount: session.question_count,
+          questionCount: sessionData.question_count,
           wrongTopics,
           status: 'completed',
         },
