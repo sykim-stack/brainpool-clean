@@ -528,3 +528,56 @@
 .editBtn:hover {
   background: var(--color-surface);
 }
+
+/* ── Mobile: compact study chrome ── */
+@media (max-width: 480px) {
+  .studyWrap {
+    padding: var(--space-2) var(--space-3) var(--space-4);
+  }
+  .studyHeader {
+    margin-bottom: var(--space-2);
+    min-height: 36px;
+  }
+  .studyProgress {
+    font-size: var(--font-xs);
+  }
+  .studyBackBtn {
+    padding: 4px var(--space-2);
+    font-size: var(--font-xs);
+    min-height: 32px;
+  }
+  .progressBar {
+    height: 3px;
+    margin-bottom: var(--space-3);
+  }
+  .flipCard {
+    height: 200px;
+    margin-bottom: 0;
+  }
+  .flipWord {
+    font-size: var(--font-md);
+  }
+  .flipLabel {
+    font-size: 10px;
+  }
+  .studyBtns {
+    margin-top: var(--space-2);
+  }
+  .knowBtn,
+  .dontKnowBtn {
+    padding: var(--space-2);
+    font-size: var(--font-sm);
+  }
+  .stats {
+    padding: var(--space-2) var(--space-3);
+  }
+  .statNum {
+    font-size: var(--font-md);
+  }
+  .toolbar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .preferences {
+    padding: var(--space-1) var(--space-3);
+  }
+}
