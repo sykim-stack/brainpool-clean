@@ -133,7 +133,6 @@
   align-self: stretch;
 }
 
-/* ── CorePhrase 내부 탭: 단어장 | 설정 ── */
 .subTabs {
   display: flex;
   gap: var(--space-1);
@@ -296,7 +295,8 @@
 .flipCard {
   width: min(100%, 420px);
   max-width: 420px;
-  height: 240px;
+  height: min(55vh, 360px);
+  min-height: 180px;
   perspective: 1000px;
   cursor: pointer;
   margin-bottom: var(--space-1);
@@ -320,14 +320,18 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-3);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .flipBack {
@@ -336,7 +340,16 @@
   border-color: var(--color-accent);
 }
 
+.flipTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .flipLabel {
+  margin: 0;
   font-size: var(--font-xs);
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -345,16 +358,47 @@
 
 .flipBack .flipLabel {
   color: var(--color-bg);
+  opacity: 0.85;
+}
+
+.speakBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.speakBtnInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
   opacity: 0.7;
 }
 
+.meaningRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .flipWord {
-  font-size: var(--font-lg);
+  margin: 0;
+  flex: 1;
+  font-size: clamp(15px, 3.8vw, 18px);
   font-weight: var(--weight-bold);
   color: var(--color-text);
-  text-align: center;
-  line-height: var(--line-height);
+  text-align: left;
+  line-height: 1.55;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .flipBack .flipWord {
@@ -362,9 +406,12 @@
 }
 
 .flipHint {
+  margin: auto 0 0;
+  flex-shrink: 0;
   font-size: var(--font-xs);
   color: var(--color-text-muted);
   opacity: 0.6;
+  text-align: center;
 }
 
 .studyBtns {
@@ -570,11 +617,12 @@
     margin-bottom: var(--space-3);
   }
   .flipCard {
-    height: 200px;
+    height: min(52vh, 320px);
+    min-height: 160px;
     margin-bottom: 0;
   }
   .flipWord {
-    font-size: var(--font-md);
+    font-size: 15px;
   }
   .flipLabel {
     font-size: 10px;
