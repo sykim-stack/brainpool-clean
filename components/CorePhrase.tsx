@@ -165,7 +165,8 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
   const streakDays = (() => {
     const days = [
       ...new Set(items.filter((i) => i.review_at).map((i) => i.review_at!.split('T')[0])),
-    ].sort()
+    ]
+      .sort()
       .reverse();
     let streak = 0;
     const d = new Date();
@@ -189,7 +190,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   const studyItems = filteredItems;
   const currentCard = studyItems[studyIndex];
-  const meaningText = currentCard?.memo || currentCard?.meaning_kr || '';
+  const meaningText = currentCard ? currentCard.memo || currentCard.meaning_kr || '' : '';
 
   const statusLabel = (s: string) => {
     if (s === 'done') return copy('status.done');
@@ -246,6 +247,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     const text = currentCard?.word || '';
+                    // 앞면 = 학습 소스 언어 (KO→VI → ko-KR)
                     speakNow(text, langCode(learningDirection.source));
                   }}
                   aria-label={copy('audio.listen')}
@@ -264,6 +266,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   className={styles.speakBtn}
                   onClick={(e) => {
                     e.stopPropagation();
+                    // 뒷면 해설 = 학습 타깃 언어 (KO→VI → vi-VN 음성)
                     speakNow(meaningText, langCode(learningDirection.target));
                   }}
                   aria-label={copy('audio.listen')}
