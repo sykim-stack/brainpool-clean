@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUiLocale, normalizeUiLocale, type UiLocale } from '@/lib/locale';
 import { t, type MessageKey } from '@/lib/i18n/messages';
 import { KIIP_SESSION_QUESTION_COUNT } from '@/lib/kiip/constants';
+import { speakNow } from '@/lib/tts';
 import styles from './KiipPractice.module.css';
 
 type QuestionType = 'meaning' | 'context' | 'response';
@@ -27,7 +28,6 @@ type AnswerResult = {
 
 interface KiipPracticeProps {
   deviceId: string;
-  /** UI 설정 언어. 없으면 localStorage → 브라우저 언어 */
   locale?: UiLocale | string;
 }
 
@@ -61,7 +61,18 @@ const STAGES = [
   { id: 4, labelKey: 'kiip.stage.4.label', subKey: 'kiip.stage.4.sub', descriptionKey: 'kiip.stage.4.description' },
 ] as const;
 
-/** DB/시드에 이스케이프된 \\n 문자열이 들어와도 실제 줄바꿈으로 표시 */
+/** KIIP 본문은 생활 한국어 — TTS는 한국어 우선 */
+function detectSpeechLang(text: string): string {
+  if (/[가-힣]/.test(text)) return 'ko-KR';
+  if (/[ĂÂÊÔƠƯăâêôơưĐđÀ-ỹ]/.test(text)) return 'vi-VN';
+  return 'ko-KR';
+}
+
+function speakKoFirst(text: string) {
+  if (!text.trim()) return;
+  speakNow(text, detectSpeechLang(text));
+}
+
 function normalizeMultiline(value: string | undefined | null): string {
   if (!value) return '';
   return value
@@ -183,7 +194,6 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
     setError('');
   };
 
-  // locale 변경 시 현재 단계가 있으면 다시 로드
   useEffect(() => {
     if (!deviceId || selectedStage === null) return;
     const timer = window.setTimeout(() => {
@@ -235,7 +245,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
         setWrongTopics(payload.wrongTopics.filter((t: unknown): t is string => typeof t === 'string'));
       }
     } catch {
-      // 완료 저장 실패해도 결과 화면은 보여 준다 (로컬 점수 유지)
+      // keep local score
     } finally {
       setIsComplete(true);
     }
@@ -271,9 +281,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
             <h1>{copy('kiip.stageSelect.title')}</h1>
           </div>
         </header>
-        <p className={styles.stageHint}>
-          {copy('kiip.stageSelect.intro')}
-        </p>
+        <p className={styles.stageHint}>{copy('kiip.stageSelect.intro')}</p>
         <div className={styles.stageGrid}>
           {STAGES.map((stage) => (
             <button
@@ -337,10 +345,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           </div>
         )}
         <div className={styles.resultActions}>
-          <button
-            className={styles.primaryButton}
-            onClick={() => startSession(selectedStage)}
-          >
+          <button className={styles.primaryButton} onClick={() => startSession(selectedStage)}>
             {copy('kiip.result.practiceAgain')}
           </button>
           <button className={styles.secondaryButton} onClick={handleChangeStage}>
@@ -366,6 +371,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
   const promptText = normalizeMultiline(current.prompt);
   const contextText = normalizeMultiline(current.context);
   const explanationText = result ? normalizeMultiline(result.explanation) : '';
+  const listenAllText = [promptText, contextText].filter(Boolean).join('\n');
 
   return (
     <section
@@ -383,45 +389,78 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
           <span className={styles.counter}>
             {index + 1} / {questions.length}
           </span>
-          <button
-            type="button"
-            className={styles.changeStageLink}
-            onClick={handleChangeStage}
-          >
+          <button type="button" className={styles.changeStageLink} onClick={handleChangeStage}>
             {copy('kiip.practice.changeStage')}
           </button>
         </div>
       </header>
       <div className={styles.progressTrack}>
-        <div
-          className={styles.progressFill}
-          style={{ width: `${completionPercent}%` }}
-        />
+        <div className={styles.progressFill} style={{ width: `${completionPercent}%` }} />
       </div>
       <div className={styles.topicRow}>
         <span>{copy(TYPE_LABEL[current.type])}</span>
         <span>{current.topic}</span>
+        <button
+          type="button"
+          className={styles.listenAllBtn}
+          onClick={() => speakKoFirst(listenAllText)}
+          aria-label={copy('audio.listen')}
+        >
+          🔊 {copy('kiip.listen.question')}
+        </button>
       </div>
       <article className={styles.questionCard}>
-        <p className={styles.prompt}>{promptText}</p>
-        {contextText ? <pre className={styles.context}>{contextText}</pre> : null}
+        <div className={styles.promptRow}>
+          <p className={styles.prompt}>{promptText}</p>
+          <button
+            type="button"
+            className={styles.speakBtn}
+            onClick={() => speakKoFirst(promptText)}
+            aria-label={copy('audio.listen')}
+          >
+            🔊
+          </button>
+        </div>
+        {contextText ? (
+          <div className={styles.contextRow}>
+            <pre className={styles.context}>{contextText}</pre>
+            <button
+              type="button"
+              className={styles.speakBtn}
+              onClick={() => speakKoFirst(contextText)}
+              aria-label={copy('audio.listen')}
+            >
+              🔊
+            </button>
+          </div>
+        ) : null}
         <div className={styles.choices} role="radiogroup" aria-label={copy('kiip.answer.select')}>
           {current.choices.map((choice, choiceIndex) => {
             const isSelected = selectedIndex === choiceIndex;
             const isCorrect = result && result.correctIndex === choiceIndex;
             const className = `${styles.choice} ${isSelected ? styles.selected : ''} ${result && isCorrect ? styles.correct : ''} ${result && isSelected && !result.correct ? styles.incorrect : ''}`;
+            const choiceText = normalizeMultiline(choice);
             return (
-              <button
-                key={`${current.id}-${choiceIndex}`}
-                className={className}
-                onClick={() => submitAnswer(choiceIndex)}
-                disabled={selectedIndex !== null || isSubmitting}
-                role="radio"
-                aria-checked={isSelected}
-              >
-                <span>{String.fromCharCode(65 + choiceIndex)}</span>
-                {normalizeMultiline(choice)}
-              </button>
+              <div key={`${current.id}-${choiceIndex}`} className={styles.choiceRow}>
+                <button
+                  className={className}
+                  onClick={() => submitAnswer(choiceIndex)}
+                  disabled={selectedIndex !== null || isSubmitting}
+                  role="radio"
+                  aria-checked={isSelected}
+                >
+                  <span>{String.fromCharCode(65 + choiceIndex)}</span>
+                  {choiceText}
+                </button>
+                <button
+                  type="button"
+                  className={styles.speakBtnInline}
+                  onClick={() => speakKoFirst(choiceText)}
+                  aria-label={copy('audio.listen')}
+                >
+                  🔊
+                </button>
+              </div>
             );
           })}
         </div>
@@ -432,7 +471,19 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
             <strong>
               {result.correct ? copy('kiip.feedback.correct') : copy('kiip.feedback.incorrect')}
             </strong>
-            <p>{explanationText}</p>
+            <div className={styles.feedbackBody}>
+              <p>{explanationText}</p>
+              <button
+                type="button"
+                className={styles.speakBtnInline}
+                onClick={() =>
+                  speakKoFirst([explanationText, result.vocabulary].filter(Boolean).join('. '))
+                }
+                aria-label={copy('audio.listen')}
+              >
+                🔊
+              </button>
+            </div>
             <small>{copy('kiip.feedback.vocabulary', { vocabulary: result.vocabulary })}</small>
           </div>
         )}
@@ -446,7 +497,7 @@ export default function KiipPractice({ deviceId, locale: localeProp }: KiipPract
               : copy('kiip.result.nextQuestion')}
           </button>
         ) : (
-          <p>{copy('kiip.practice.footer')}</p>
+          <p>{copy('kiip.practice.footerListen')}</p>
         )}
       </footer>
     </section>
