@@ -121,7 +121,6 @@
   opacity: 0.6;
 }
 
-/* ── 전체 래퍼: 화면 가로 전체 사용 ── */
 .wrap {
   display: flex;
   flex-direction: column;
@@ -134,14 +133,42 @@
   align-self: stretch;
 }
 
+.subTabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) 0;
+  width: 100%;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border);
+}
+.subTab {
+  flex: 1;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.subTabActive {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}
+
 .preferences {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: none;
   width: 100%;
   box-sizing: border-box;
+  flex: 1;
 }
 
 .preferenceRow {
@@ -164,7 +191,6 @@
   font: inherit;
 }
 
-/* ── 툴바 ── */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -215,7 +241,6 @@
   cursor: default;
 }
 
-/* ── 학습 모드 ── */
 .studyWrap {
   display: flex;
   flex-direction: column;
@@ -251,7 +276,6 @@
   cursor: pointer;
 }
 
-/* ── 진행 바 ── */
 .progressBar {
   width: 100%;
   height: 4px;
@@ -268,11 +292,11 @@
   transition: width 0.3s ease;
 }
 
-/* ── 플립 카드 (학습 카드만 읽기 쉬운 폭) ── */
 .flipCard {
   width: min(100%, 420px);
   max-width: 420px;
-  height: 240px;
+  height: min(55vh, 360px);
+  min-height: 180px;
   perspective: 1000px;
   cursor: pointer;
   margin-bottom: var(--space-1);
@@ -296,14 +320,18 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-3);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .flipBack {
@@ -312,7 +340,16 @@
   border-color: var(--color-accent);
 }
 
+.flipTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .flipLabel {
+  margin: 0;
   font-size: var(--font-xs);
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -321,16 +358,47 @@
 
 .flipBack .flipLabel {
   color: var(--color-bg);
+  opacity: 0.85;
+}
+
+.speakBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.speakBtnInline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
   opacity: 0.7;
 }
 
+.meaningRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .flipWord {
-  font-size: var(--font-lg);
+  margin: 0;
+  flex: 1;
+  font-size: clamp(15px, 3.8vw, 18px);
   font-weight: var(--weight-bold);
   color: var(--color-text);
-  text-align: center;
-  line-height: var(--line-height);
+  text-align: left;
+  line-height: 1.55;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .flipBack .flipWord {
@@ -338,12 +406,14 @@
 }
 
 .flipHint {
+  margin: auto 0 0;
+  flex-shrink: 0;
   font-size: var(--font-xs);
   color: var(--color-text-muted);
   opacity: 0.6;
+  text-align: center;
 }
 
-/* ── 알아요/몰라요 버튼 ── */
 .studyBtns {
   display: flex;
   gap: var(--space-3);
@@ -373,7 +443,6 @@
   color: var(--color-text-sub);
 }
 
-/* ── 학습 완료 ── */
 .studyDone {
   display: flex;
   flex-direction: column;
@@ -401,7 +470,6 @@
   margin-bottom: var(--space-3);
 }
 
-/* ── 통계 카드 ── */
 .stats {
   display: flex;
   justify-content: space-around;
@@ -437,7 +505,6 @@
   background: var(--color-border);
 }
 
-/* ── 편집 모드 ── */
 .editBox {
   display: flex;
   flex-direction: column;
@@ -527,4 +594,64 @@
 
 .editBtn:hover {
   background: var(--color-surface);
+}
+
+@media (max-width: 480px) {
+  .studyWrap {
+    padding: var(--space-2) var(--space-3) var(--space-4);
+  }
+  .studyHeader {
+    margin-bottom: var(--space-2);
+    min-height: 36px;
+  }
+  .studyProgress {
+    font-size: var(--font-xs);
+  }
+  .studyBackBtn {
+    padding: 4px var(--space-2);
+    font-size: var(--font-xs);
+    min-height: 32px;
+  }
+  .progressBar {
+    height: 3px;
+    margin-bottom: var(--space-3);
+  }
+  .flipCard {
+    height: min(52vh, 320px);
+    min-height: 160px;
+    margin-bottom: 0;
+  }
+  .flipWord {
+    font-size: 15px;
+  }
+  .flipLabel {
+    font-size: 10px;
+  }
+  .studyBtns {
+    margin-top: var(--space-2);
+  }
+  .knowBtn,
+  .dontKnowBtn {
+    padding: var(--space-2);
+    font-size: var(--font-sm);
+  }
+  .stats {
+    padding: var(--space-2) var(--space-3);
+  }
+  .statNum {
+    font-size: var(--font-md);
+  }
+  .toolbar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .preferences {
+    padding: var(--space-2) var(--space-3);
+  }
+  .subTabs {
+    padding: var(--space-1) var(--space-3) 0;
+  }
+  .subTab {
+    min-height: 32px;
+    font-size: var(--font-xs);
+  }
 }
