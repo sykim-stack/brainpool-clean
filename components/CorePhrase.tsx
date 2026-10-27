@@ -12,51 +12,62 @@ import {
 } from '@/lib/locale';
 import { t, type CorePhraseMessageKey } from '@/lib/i18n/messages';
 
-const detectSpeechLang = (text: string) => (/[가-힣]/.test(text) ? 'ko-KR' : 'vi-VN');
+/** 텍스트 문자 기반 언어 추정. 한글 우선, 없으면 베트남어 부호, 그다음 기본 vi. */
+const detectSpeechLang = (text: string): string => {
+  if (/[가-힣]/.test(text)) return 'ko-KR';
+  if (/[ĂÂÊÔƠƯăâêôơưĐđàáảãạèéẻẽẹìíỉĩịòóỏõọùúủũụỳýỷỹỵ]/.test(text)) return 'vi-VN';
+  // 학습 해설이 무부호 라틴만 있어도 VI 쪽으로 (KO 기본 음성 오용 방지)
+  if (/[a-zA-Z]/.test(text)) return 'vi-VN';
+  return 'ko-KR';
+};
 
-interface VocabItem {
+const langCode = (lang: LearningLanguage) => (lang === 'ko' ? 'ko-KR' : 'vi-VN');
+
+type LearnStatus = 'new' | 'learning' | 'done';
+type PhraseItem = {
   id: string;
   word: string;
   meaning_kr?: string;
   memo?: string;
-  learn_status: string;
-  is_bookmarked: boolean;
-  created_at: string;
+  learn_status?: LearnStatus;
+  is_bookmarked?: boolean;
+  review_at?: string | null;
   source_session_id?: string;
-  review_at?: string;
-}
+};
 
 interface CorePhraseProps {
-  userId: string;
+  deviceId: string;
+  locale?: string;
 }
 
-type ViewMode = 'list' | 'study';
-type ListPanel = 'vocab' | 'settings';
-
-export default function CorePhrase({ userId }: CorePhraseProps) {
-  const [items, setItems] = useState<VocabItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [mode, setMode] = useState<ViewMode>('list');
-  const [listPanel, setListPanel] = useState<ListPanel>('vocab');
-  const [studyIndex, setStudyIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'bookmarked' | 'review'>('all');
-  const [studiedToday, setStudiedToday] = useState(0);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editMemo, setEditMemo] = useState('');
-  const [editMeaning, setEditMeaning] = useState('');
-  const [uiLocale, setCurrentUiLocale] = useState<'ko' | 'vi'>('ko');
+export default function CorePhrase({ deviceId, locale: localeProp }: CorePhraseProps) {
+  const [items, setItems] = useState<PhraseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uiLocale, setUiLocaleState] = useState<'ko' | 'vi'>(() =>
+    localeProp === 'vi' ? 'vi' : 'ko'
+  );
   const [learningDirection, setCurrentLearningDirection] = useState<{
     source: LearningLanguage;
     target: LearningLanguage;
   }>({ source: 'ko', target: 'vi' });
+  const [listPanel, setListPanel] = useState<'vocab' | 'settings'>('vocab');
+  const [filter, setFilter] = useState<'all' | 'bookmarked' | 'review'>('all');
+  const [mode, setMode] = useState<'list' | 'study'>('list');
+  const [studyItems, setStudyItems] = useState<PhraseItem[]>([]);
+  const [studyIndex, setStudyIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [studiedToday, setStudiedToday] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editMeaning, setEditMeaning] = useState('');
+  const [editMemo, setEditMemo] = useState('');
 
-  const copy = (key: CorePhraseMessageKey, values?: Record<string, string | number>) =>
-    t(key, uiLocale, values);
+  const copy = useCallback(
+    (key: CorePhraseMessageKey, values?: Record<string, string | number>) => t(key, uiLocale, values),
+    [uiLocale],
+  );
 
-  const handleUiLocaleChange = (locale: 'ko' | 'vi') => {
-    setUiLocale(locale);
-    setCurrentUiLocale(locale);
+  const handleUiLocaleChange = (value: 'ko' | 'vi') => {
+    setUiLocaleState(setUiLocale(value) === 'vi' ? 'vi' : 'ko');
   };
 
   const handleLearningDirectionChange = (value: 'ko-vi' | 'vi-ko') => {
@@ -66,138 +77,141 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setCurrentUiLocale(getUiLocale() === 'vi' ? 'vi' : 'ko');
+      setUiLocaleState(getUiLocale() === 'vi' ? 'vi' : 'ko');
       setCurrentLearningDirection(getLearningDirection());
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [localeProp]);
 
-  const fetchVocab = useCallback(async () => {
-    setIsLoading(true);
-    const res = await fetch('/api/phrase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'get-user-vocabulary', user_id: userId }),
-    }).catch(() => null);
-    if (!res || !res.ok) {
-      setIsLoading(false);
-      return;
+  const loadItems = useCallback(async () => {
+    if (!deviceId) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/corephrase', {
+        headers: { 'x-device-id': deviceId },
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.success && Array.isArray(json.items)) {
+        setItems(json.items);
+      } else if (Array.isArray(json)) {
+        setItems(json);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
     }
-    const json = await res.json().catch(() => null);
-    if (json?.success && Array.isArray(json.payload)) setItems(json.payload);
-    setIsLoading(false);
-  }, [userId]);
+  }, [deviceId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchVocab();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [fetchVocab]);
+    void loadItems();
+  }, [loadItems]);
 
-  const updateItem = async (item: VocabItem, fields: Record<string, unknown>) => {
-    await fetch('/api/phrase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'update-vocabulary', id: item.id, user_id: userId, ...fields }),
-    }).catch(() => null);
-    fetchVocab();
+  const updateItem = async (item: PhraseItem, patch: Partial<PhraseItem>) => {
+    const res = await fetch('/api/corephrase', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-device-id': deviceId,
+      },
+      body: JSON.stringify({ id: item.id, ...patch }),
+    });
+    if (!res.ok) return;
+    setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, ...patch } : row)));
+    setStudyItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, ...patch } : row)));
   };
 
-  const deleteItem = async (item: VocabItem) => {
-    await fetch('/api/phrase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ action: 'delete-vocabulary', id: item.id, user_id: userId }),
-    }).catch(() => null);
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
-  };
-
-  const startEdit = (item: VocabItem) => {
+  const startEdit = (item: PhraseItem) => {
     setEditingId(item.id);
     setEditMeaning(item.meaning_kr || '');
     setEditMemo(item.memo || '');
   };
 
-  const saveEdit = async (item: VocabItem) => {
+  const saveEdit = async (item: PhraseItem) => {
     await updateItem(item, { meaning_kr: editMeaning, memo: editMemo });
     setEditingId(null);
   };
 
-  const handleKnow = async (item: VocabItem) => {
-    const reviewAt = new Date();
-    reviewAt.setDate(reviewAt.getDate() + 7);
-    await updateItem(item, { learn_status: 'done', review_at: reviewAt.toISOString() });
-    setStudiedToday((prev) => prev + 1);
-    nextCard();
+  const deleteItem = async (item: PhraseItem) => {
+    const res = await fetch('/api/corephrase', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-device-id': deviceId,
+      },
+      body: JSON.stringify({ id: item.id }),
+    });
+    if (!res.ok) return;
+    setItems((prev) => prev.filter((row) => row.id !== item.id));
   };
 
-  const handleDontKnow = async (item: VocabItem) => {
-    const reviewAt = new Date();
-    reviewAt.setDate(reviewAt.getDate() + 1);
-    await updateItem(item, { learn_status: 'learning', review_at: reviewAt.toISOString() });
-    setStudiedToday((prev) => prev + 1);
-    nextCard();
+  const toggleBookmark = async (item: PhraseItem) => {
+    await updateItem(item, { is_bookmarked: !item.is_bookmarked });
   };
 
-  const nextCard = () => {
+  const markAnswer = async (know: boolean) => {
+    const current = studyItems[studyIndex];
+    if (!current) return;
+    const reviewAt = new Date();
+    if (know) {
+      reviewAt.setDate(reviewAt.getDate() + 3);
+      await updateItem(current, { learn_status: 'done', review_at: reviewAt.toISOString() });
+    } else {
+      reviewAt.setDate(reviewAt.getDate() + 1);
+      await updateItem(current, { learn_status: 'learning', review_at: reviewAt.toISOString() });
+    }
+    setStudiedToday((n) => n + 1);
     setFlipped(false);
-    setTimeout(() => setStudyIndex((prev) => prev + 1), 200);
+    if (studyIndex >= studyItems.length - 1) {
+      setStudyIndex(studyItems.length);
+    } else {
+      setStudyIndex((i) => i + 1);
+    }
   };
 
   const startStudy = () => {
+    const pool =
+      filter === 'bookmarked'
+        ? items.filter((i) => i.is_bookmarked)
+        : filter === 'review'
+          ? items.filter((i) => i.learn_status === 'learning' || i.learn_status === 'new')
+          : items;
+    if (!pool.length) return;
+    setStudyItems(pool);
     setStudyIndex(0);
     setFlipped(false);
+    setStudiedToday(0);
     setMode('study');
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const totalCount = items.length;
-  const doneCount = items.filter((i) => i.learn_status === 'done').length;
-  const reviewCount = items.filter((i) => i.review_at && i.review_at.split('T')[0] <= today).length;
-  const streakDays = (() => {
-    const dates = [
-      ...new Set(items.filter((i) => i.review_at).map((i) => i.review_at!.split('T')[0])),
-    ]
-      .sort()
-      .reverse();
-    let streak = 0;
-    let cursor = new Date();
-    for (const d of dates) {
-      const diff = Math.round((cursor.getTime() - new Date(d).getTime()) / 86400000);
-      if (diff <= 1) {
-        streak++;
-        cursor = new Date(d);
-      } else break;
-    }
-    return streak;
-  })();
-
-  const filteredItems = items.filter((item) => {
+  const filtered = items.filter((item) => {
     if (filter === 'bookmarked') return item.is_bookmarked;
-    if (filter === 'review') return item.review_at && item.review_at.split('T')[0] <= today;
+    if (filter === 'review') return item.learn_status === 'learning' || item.learn_status === 'new';
     return true;
   });
 
-  const studyItems = filteredItems.filter((i) => i.learn_status !== 'done');
-  const currentCard = studyItems[studyIndex];
-  const isDone = studyIndex >= studyItems.length;
+  const stats = {
+    total: items.length,
+    done: items.filter((i) => i.learn_status === 'done').length,
+    review: items.filter((i) => i.learn_status === 'learning' || i.learn_status === 'new').length,
+  };
 
-  const statusLabel: Record<string, string> = {
+  const statusLabel: Record<LearnStatus, string> = {
     new: copy('status.new'),
     learning: copy('status.learning'),
     done: copy('status.done'),
   };
 
-  if (isLoading) return <div className={styles.empty}>{copy('loading')}</div>;
+  if (!deviceId) {
+    return <div className={styles.empty}>{copy('loading')}</div>;
+  }
 
   if (mode === 'study') {
-    if (isDone)
+    if (studyIndex >= studyItems.length) {
       return (
-        <div className={styles.studyDone}>
-          <p className={styles.studyDoneEmoji}>🎉</p>
-          <p className={styles.studyDoneText}>{copy('study.doneTitle')}</p>
-          <p className={styles.studyDoneSub}>{copy('study.doneCount', { count: studiedToday })}</p>
+        <div className={styles.studyWrap}>
+          <h2>{copy('study.doneTitle')}</h2>
+          <p>{copy('study.doneCount', { count: studiedToday })}</p>
           <button
             className={styles.studyBackBtn}
             onClick={() => {
@@ -210,7 +224,9 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           </button>
         </div>
       );
+    }
 
+    const currentCard = studyItems[studyIndex];
     const meaningText = currentCard?.memo || currentCard?.meaning_kr || '';
 
     return (
@@ -243,7 +259,8 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     const text = currentCard?.word || '';
-                    speakNow(text, detectSpeechLang(text));
+                    // 앞면 = 학습 소스 언어 (KO→VI면 한국어)
+                    speakNow(text, langCode(learningDirection.source) || detectSpeechLang(text));
                   }}
                   aria-label={copy('audio.listen')}
                 >
@@ -261,7 +278,9 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   className={styles.speakBtn}
                   onClick={(e) => {
                     e.stopPropagation();
-                    speakNow(meaningText, detectSpeechLang(meaningText));
+                    // 뒷면(해설) = 학습 타깃 언어 (KO→VI면 베트남어 음성)
+                    const lang = langCode(learningDirection.target);
+                    speakNow(meaningText, lang);
                   }}
                   aria-label={copy('audio.listen')}
                 >
@@ -272,31 +291,26 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
             </div>
           </div>
         </div>
-        {flipped && (
-          <div className={styles.studyBtns}>
-            <button
-              className={styles.dontKnowBtn}
-              onClick={() => currentCard && handleDontKnow(currentCard)}
-            >
-              {copy('answer.dontKnow')}
-            </button>
-            <button className={styles.knowBtn} onClick={() => currentCard && handleKnow(currentCard)}>
-              {copy('answer.know')}
-            </button>
-          </div>
-        )}
+        <div className={styles.studyActions}>
+          <button className={styles.dontKnowBtn} onClick={() => void markAnswer(false)}>
+            {copy('answer.dontKnow')}
+          </button>
+          <button className={styles.knowBtn} onClick={() => void markAnswer(true)}>
+            {copy('answer.know')}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.subTabs} role="tablist" aria-label={copy('settings.group')}>
+      <div className={styles.subTabs} role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={listPanel === 'vocab'}
-          className={`${styles.subTab} ${listPanel === 'vocab' ? styles.subTabActive : ''}`}
+          className={listPanel === 'vocab' ? styles.subTabActive : styles.subTab}
           onClick={() => setListPanel('vocab')}
         >
           {copy('tab.vocab')}
@@ -305,19 +319,18 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
           type="button"
           role="tab"
           aria-selected={listPanel === 'settings'}
-          className={`${styles.subTab} ${listPanel === 'settings' ? styles.subTabActive : ''}`}
+          className={listPanel === 'settings' ? styles.subTabActive : styles.subTab}
           onClick={() => setListPanel('settings')}
         >
           {copy('tab.settings')}
         </button>
       </div>
 
-      {listPanel === 'settings' ? (
-        <div className={styles.preferences} role="group" aria-label={copy('settings.group')}>
-          <label className={styles.preferenceRow}>
+      {listPanel === 'settings' && (
+        <div className={styles.settingsPanel}>
+          <label className={styles.settingRow}>
             <span>{copy('settings.uiLanguage')}</span>
             <select
-              className={styles.preferenceSelect}
               value={uiLocale}
               onChange={(event) => handleUiLocaleChange(event.target.value as 'ko' | 'vi')}
             >
@@ -325,10 +338,9 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               <option value="vi">Tiếng Việt</option>
             </select>
           </label>
-          <label className={styles.preferenceRow}>
+          <label className={styles.settingRow}>
             <span>{copy('settings.learningDirection')}</span>
             <select
-              className={styles.preferenceSelect}
               value={`${learningDirection.source}-${learningDirection.target}`}
               onChange={(event) => handleLearningDirectionChange(event.target.value as 'ko-vi' | 'vi-ko')}
             >
@@ -337,94 +349,81 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
             </select>
           </label>
         </div>
-      ) : (
+      )}
+
+      {listPanel === 'vocab' && (
         <>
           <div className={styles.stats}>
-            <div className={styles.statItem}>
-              <span className={styles.statNum}>{totalCount}</span>
-              <span className={styles.statLabel}>{copy('stats.total')}</span>
+            <div>
+              <strong>{stats.total}</strong>
+              <span>{copy('stats.total')}</span>
             </div>
-            <div className={styles.statItem}>
-              <span className={styles.statNum}>{doneCount}</span>
-              <span className={styles.statLabel}>{copy('stats.done')}</span>
+            <div>
+              <strong>{stats.done}</strong>
+              <span>{copy('stats.done')}</span>
             </div>
-            <div className={styles.statItem}>
-              <span className={styles.statNum}>{reviewCount}</span>
-              <span className={styles.statLabel}>{copy('stats.reviewToday')}</span>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statNum}>
-                {streakDays}
-                <span className={styles.statNumAccent} aria-hidden>
-                  🔥
-                </span>
-              </span>
-              <span className={styles.statLabel}>{copy('stats.streak')}</span>
+            <div>
+              <strong>{stats.review}</strong>
+              <span>{copy('stats.reviewToday')}</span>
             </div>
           </div>
 
-          <div className={styles.toolbar}>
-            <div className={styles.filters}>
-              <button
-                className={`${styles.filterBtn} ${filter === 'all' ? styles.filterActive : ''}`}
-                onClick={() => setFilter('all')}
-              >
-                {copy('filter.all')} {items.length}
-              </button>
-              <button
-                className={`${styles.filterBtn} ${filter === 'bookmarked' ? styles.filterActive : ''}`}
-                onClick={() => setFilter('bookmarked')}
-              >
-                {copy('filter.bookmarked')} {items.filter((i) => i.is_bookmarked).length}
-              </button>
-              <button
-                className={`${styles.filterBtn} ${filter === 'review' ? styles.filterActive : ''}`}
-                onClick={() => setFilter('review')}
-              >
-                {copy('filter.review')} {reviewCount}
-              </button>
-            </div>
+          <div className={styles.filters}>
             <button
-              className={styles.studyStartBtn}
-              onClick={startStudy}
-              disabled={studyItems.length === 0}
+              type="button"
+              className={filter === 'all' ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter('all')}
             >
-              {studyItems.length > 0
-                ? copy('study.startCount', { count: studyItems.length })
-                : copy('study.start')}
+              {copy('filter.all')}
+            </button>
+            <button
+              type="button"
+              className={filter === 'bookmarked' ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter('bookmarked')}
+            >
+              {copy('filter.bookmarked')}
+            </button>
+            <button
+              type="button"
+              className={filter === 'review' ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter('review')}
+            >
+              {copy('filter.review')}
             </button>
           </div>
 
-          {filteredItems.length === 0 ? (
+          <button type="button" className={styles.studyStart} onClick={startStudy} disabled={!filtered.length}>
+            {copy('study.startCount', { count: filtered.length })}
+          </button>
+
+          {loading ? (
+            <p className={styles.empty}>{copy('loading')}</p>
+          ) : filtered.length === 0 ? (
             <div className={styles.empty}>
               <p>{copy('empty.noItems')}</p>
-              <p className={styles.emptySub}>{copy('empty.hint')}</p>
+              <p>{copy('empty.hint')}</p>
             </div>
           ) : (
-            <div className={styles.list}>
-              {filteredItems.map((item) => (
-                <div key={item.id} className={styles.card}>
+            <ul className={styles.list}>
+              {filtered.map((item) => (
+                <li key={item.id} className={styles.card}>
                   {editingId === item.id ? (
                     <div className={styles.editBox}>
-                      <p className={styles.editWord}>{item.word}</p>
                       <input
-                        className={styles.editInput}
                         value={editMeaning}
                         onChange={(e) => setEditMeaning(e.target.value)}
                         placeholder={copy('edit.meaningPlaceholder')}
                       />
                       <textarea
-                        className={styles.editTextarea}
                         value={editMemo}
                         onChange={(e) => setEditMemo(e.target.value)}
                         placeholder={copy('edit.memoPlaceholder')}
-                        rows={2}
                       />
-                      <div className={styles.editBtns}>
-                        <button className={styles.editSaveBtn} onClick={() => saveEdit(item)}>
+                      <div className={styles.editActions}>
+                        <button type="button" onClick={() => void saveEdit(item)}>
                           {copy('edit.save')}
                         </button>
-                        <button className={styles.editCancelBtn} onClick={() => setEditingId(null)}>
+                        <button type="button" onClick={() => setEditingId(null)}>
                           {copy('edit.cancel')}
                         </button>
                       </div>
@@ -432,102 +431,69 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   ) : (
                     <>
                       <div className={styles.cardTop}>
-                        <div className={styles.words}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                            <span className={styles.word}>{item.word}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                speakNow(item.word, detectSpeechLang(item.word));
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: '16px',
-                                opacity: 0.7,
-                                flexShrink: 0,
-                                marginTop: 2,
-                              }}
-                              aria-label={copy('audio.listen')}
-                            >
-                              🔊
-                            </button>
-                          </div>
-                          {item.meaning_kr && (
-                            <span className={styles.meaningRow}>
-                              <span className={styles.meaning}>{item.meaning_kr}</span>
-                              <button
-                                type="button"
-                                className={styles.speakBtnInline}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  speakNow(item.meaning_kr || '', detectSpeechLang(item.meaning_kr || ''));
-                                }}
-                                aria-label={copy('audio.listen')}
-                              >
-                                🔊
-                              </button>
-                            </span>
-                          )}
-                          {item.memo && (
-                            <span className={styles.meaningRow}>
-                              <span className={styles.memo}>{item.memo}</span>
-                              <button
-                                type="button"
-                                className={styles.speakBtnInline}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  speakNow(item.memo || '', detectSpeechLang(item.memo || ''));
-                                }}
-                                aria-label={copy('audio.listen')}
-                              >
-                                🔊
-                              </button>
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          className={`${styles.bookmark} ${item.is_bookmarked ? styles.bookmarked : ''}`}
-                          onClick={() => updateItem(item, { is_bookmarked: !item.is_bookmarked })}
-                          aria-label={item.is_bookmarked ? copy('item.unbookmark') : copy('item.bookmark')}
-                        >
-                          {item.is_bookmarked ? '♥' : '♡'}
-                        </button>
-                      </div>
-                      <div className={styles.cardBottom}>
-                        <button
-                          className={styles.statusBtn}
-                          onClick={() => {
-                            const next: Record<string, string> = {
-                              new: 'learning',
-                              learning: 'done',
-                              done: 'new',
-                            };
-                            updateItem(item, { learn_status: next[item.learn_status] || 'new' });
-                          }}
-                        >
-                          {statusLabel[item.learn_status] || copy('status.new')}
-                        </button>
-                        <div className={styles.cardActions}>
+                        <div className={styles.wordRow}>
+                          <strong>{item.word}</strong>
                           <button
-                            className={styles.editBtn}
-                            onClick={() => startEdit(item)}
-                            aria-label={copy('edit.action')}
+                            type="button"
+                            className={styles.speakBtnInline}
+                            onClick={() => {
+                              speakNow(item.word, detectSpeechLang(item.word));
+                            }}
+                            aria-label={copy('audio.listen')}
                           >
-                            ✎
+                            🔊
                           </button>
-                          <button className={styles.deleteBtn} onClick={() => deleteItem(item)}>
+                        </div>
+                        <div className={styles.cardActions}>
+                          <button type="button" onClick={() => startEdit(item)}>
+                            {copy('edit.action')}
+                          </button>
+                          <button type="button" onClick={() => void toggleBookmark(item)}>
+                            {item.is_bookmarked ? copy('item.unbookmark') : copy('item.bookmark')}
+                          </button>
+                          <button type="button" onClick={() => void deleteItem(item)}>
                             {copy('item.delete')}
                           </button>
                         </div>
                       </div>
+                      {item.meaning_kr && (
+                        <span className={styles.meaningRow}>
+                          <span className={styles.meaning}>{item.meaning_kr}</span>
+                          <button
+                            type="button"
+                            className={styles.speakBtnInline}
+                            onClick={() => {
+                              speakNow(item.meaning_kr || '', detectSpeechLang(item.meaning_kr || ''));
+                            }}
+                            aria-label={copy('audio.listen')}
+                          >
+                            🔊
+                          </button>
+                        </span>
+                      )}
+                      {item.memo && (
+                        <span className={styles.meaningRow}>
+                          <span className={styles.memo}>{item.memo}</span>
+                          <button
+                            type="button"
+                            className={styles.speakBtnInline}
+                            onClick={() => {
+                              speakNow(item.memo || '', detectSpeechLang(item.memo || ''));
+                            }}
+                            aria-label={copy('audio.listen')}
+                          >
+                            🔊
+                          </button>
+                        </span>
+                      )}
+                      <span className={styles.status}>
+                        {statusLabel[(item.learn_status as LearnStatus) || 'new']}
+                      </span>
                     </>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </>
       )}
