@@ -91,6 +91,8 @@ export const corePhraseMessages = {
     'kiip.practice.eyebrow': 'KIIP 연습 · {{stage}}단계',
     'kiip.practice.changeStage': '단계 변경',
     'kiip.practice.footer': '실제 대화에서 자주 쓰는 표현을 골라 보세요.',
+    'kiip.practice.footerListen': '🔊 문제·예문을 듣고 답을 골라 보세요.',
+    'kiip.listen.question': '문제 듣기',
   },
   vi: {
     loading: 'Đang tải...',
@@ -182,6 +184,8 @@ export const corePhraseMessages = {
     'kiip.practice.eyebrow': 'Luyện tập KIIP · Cấp độ {{stage}}',
     'kiip.practice.changeStage': 'Đổi cấp độ',
     'kiip.practice.footer': 'Hãy chọn cách diễn đạt thường dùng trong hội thoại thực tế.',
+    'kiip.practice.footerListen': '🔊 Nghe câu hỏi và ví dụ rồi chọn đáp án.',
+    'kiip.listen.question': 'Nghe câu hỏi',
   },
 } as const;
 
@@ -189,7 +193,6 @@ type CorePhraseLocale = keyof typeof corePhraseMessages;
 export type MessageKey = keyof typeof corePhraseMessages.ko;
 export type CorePhraseMessageKey = MessageKey;
 
-/** CorePhrase용 KO/VI 문구를 반환한다. 그 밖의 기존 UI locale은 KO로 대체한다. */
 export function t(
   key: MessageKey,
   locale: UiLocale = getUiLocale(),
