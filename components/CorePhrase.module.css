@@ -1,25 +1,22 @@
 .list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
   width: 100%;
   box-sizing: border-box;
 }
 
 .card {
-  background: var(--color-surface);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .cardTop {
@@ -31,36 +28,36 @@
 
 .words {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
+  align-items: flex-start;
+  gap: var(--space-2);
   flex: 1;
+  min-width: 0;
 }
 
 .word {
-  font-size: var(--font-md);
-  color: var(--color-text);
   font-weight: var(--weight-bold);
-  word-break: break-word;
+  color: var(--color-text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .meaning {
-  font-size: var(--font-sm);
   color: var(--color-text-muted);
-  word-break: break-word;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .bookmark {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
-  padding: 0;
-  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
 }
 
 .bookmarked {
-  filter: none;
+  color: var(--color-gold);
 }
 
 .cardBottom {
@@ -71,92 +68,72 @@
 }
 
 .statusBtn {
-  font-size: var(--font-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  background: none;
   border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text-sub);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: var(--transition-fast);
 }
 
 .statusBtn:hover {
-  background: var(--color-surface);
+  border-color: var(--color-gold);
 }
 
 .deleteBtn {
-  font-size: var(--font-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: transparent;
+  background: none;
+  border: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: var(--transition-fast);
+  font-size: var(--font-xs);
 }
 
 .deleteBtn:hover {
   color: var(--color-warn);
-  border-color: var(--color-warn);
 }
 
 .empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 200px;
-  width: 100%;
+  text-align: center;
+  padding: var(--space-5);
   color: var(--color-text-muted);
-  font-size: var(--font-md);
-  gap: var(--space-2);
-  box-sizing: border-box;
 }
 
 .emptySub {
   font-size: var(--font-sm);
-  color: var(--color-text-muted);
-  opacity: 0.6;
+  margin-top: var(--space-2);
 }
 
 .wrap {
-  display: flex;
-  flex-direction: column;
   width: 100%;
   max-width: none;
-  margin: 0;
-  min-height: 0;
-  flex: 1;
+  margin: 0 auto;
   box-sizing: border-box;
-  align-self: stretch;
+  padding-bottom: 80px;
 }
 
 .subTabs {
   display: flex;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3) 0;
-  width: 100%;
-  box-sizing: border-box;
+  gap: 0;
   border-bottom: 1px solid var(--color-border);
+  width: 100%;
 }
+
 .subTab {
   flex: 1;
-  min-height: 36px;
-  padding: var(--space-1) var(--space-2);
+  min-height: 40px;
+  background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  background: transparent;
   color: var(--color-text-muted);
   font: inherit;
   font-size: var(--font-sm);
   cursor: pointer;
-  margin-bottom: -1px;
 }
+
 .subTabActive {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  border-bottom-color: var(--color-gold);
   font-weight: var(--weight-bold);
 }
 
@@ -164,11 +141,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-3);
-  border-bottom: none;
+  padding: var(--space-3);
   width: 100%;
   box-sizing: border-box;
-  flex: 1;
 }
 
 .preferenceRow {
@@ -207,6 +182,7 @@
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
 }
 
 .filterBtn {
@@ -226,14 +202,18 @@
 }
 
 .studyStartBtn {
-  padding: var(--space-1) var(--space-3);
+  display: block;
+  width: calc(100% - 2 * var(--space-3));
+  margin: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   border: none;
-  background: var(--color-accent);
+  background: var(--color-accent, var(--color-gold));
   color: var(--color-bg);
   font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
   cursor: pointer;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .studyStartBtn:disabled {
@@ -247,10 +227,7 @@
   align-items: center;
   padding: var(--space-4);
   width: 100%;
-  max-width: none;
-  margin: 0;
   box-sizing: border-box;
-  align-self: stretch;
 }
 
 .studyHeader {
@@ -258,55 +235,52 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .studyProgress {
-  font-size: var(--font-sm);
   color: var(--color-text-muted);
+  font-size: var(--font-sm);
 }
 
 .studyBackBtn {
   background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-1) var(--space-3);
+  border: none;
   color: var(--color-text-muted);
-  font-size: var(--font-sm);
   cursor: pointer;
+  font: inherit;
+  font-size: var(--font-sm);
 }
 
 .progressBar {
   width: 100%;
   height: 4px;
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-5);
+  border-radius: 99px;
   overflow: hidden;
+  margin-bottom: var(--space-3);
 }
 
 .progressFill {
   height: 100%;
-  background: var(--color-accent);
-  border-radius: var(--radius-sm);
-  transition: width 0.3s ease;
+  background: var(--color-gold);
+  border-radius: inherit;
 }
 
 .flipCard {
-  width: min(100%, 420px);
-  max-width: 420px;
+  width: 100%;
+  max-width: 480px;
   height: min(55vh, 360px);
-  min-height: 180px;
   perspective: 1000px;
   cursor: pointer;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-3);
 }
 
 .flipInner {
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.5s ease;
+  transition: transform 0.4s;
   transform-style: preserve-3d;
 }
 
@@ -318,47 +292,37 @@
 .flipBack {
   position: absolute;
   inset: 0;
+  backface-visibility: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  gap: var(--space-2);
-  padding: var(--space-3);
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 
 .flipBack {
   transform: rotateY(180deg);
-  background: var(--color-accent);
-  border-color: var(--color-accent);
 }
 
 .flipTop {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  flex-shrink: 0;
+  align-items: center;
+  margin-bottom: var(--space-2);
 }
 
 .flipLabel {
   margin: 0;
   font-size: var(--font-xs);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
+  color: var(--color-gold);
   letter-spacing: 1px;
 }
 
 .flipBack .flipLabel {
-  color: var(--color-bg);
-  opacity: 0.85;
+  color: var(--color-text-muted);
 }
 
 .speakBtn {
@@ -366,108 +330,93 @@
   border: none;
   cursor: pointer;
   font-size: 18px;
-  padding: 4px;
   line-height: 1;
-  flex-shrink: 0;
-  opacity: 0.85;
+  padding: 4px;
 }
 
 .speakBtnInline {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
+  font-size: 15px;
   line-height: 1;
+  padding: 2px;
   flex-shrink: 0;
-  opacity: 0.7;
 }
 
 .meaningRow {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .flipWord {
   margin: 0;
-  flex: 1;
-  font-size: clamp(15px, 3.8vw, 18px);
+  font-size: clamp(16px, 4vw, 22px);
   font-weight: var(--weight-bold);
   color: var(--color-text);
-  text-align: left;
-  line-height: 1.55;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   word-break: break-word;
-  white-space: pre-wrap;
 }
 
 .flipBack .flipWord {
-  color: var(--color-bg);
+  font-weight: var(--weight-normal);
 }
 
 .flipHint {
-  margin: auto 0 0;
-  flex-shrink: 0;
+  margin-top: auto;
   font-size: var(--font-xs);
   color: var(--color-text-muted);
-  opacity: 0.6;
   text-align: center;
 }
 
 .studyBtns {
   display: flex;
-  gap: var(--space-3);
-  width: min(100%, 420px);
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 480px;
 }
 
 .knowBtn,
 .dontKnowBtn {
   flex: 1;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  font-size: var(--font-md);
-  cursor: pointer;
-  transition: var(--transition-fast);
   min-height: var(--touch-min-height);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
 }
 
 .knowBtn {
-  background: var(--color-success);
+  background: var(--color-gold);
+  border: 1px solid var(--color-gold);
   color: var(--color-bg);
-  border-color: var(--color-success);
+  font-weight: var(--weight-bold);
 }
 
 .dontKnowBtn {
-  background: var(--color-surface);
+  background: transparent;
+  border: 1px solid var(--color-border);
   color: var(--color-text-sub);
 }
 
 .studyDone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 280px;
-  gap: var(--space-2);
-  box-sizing: border-box;
+  text-align: center;
+  padding: var(--space-5);
 }
 
 .studyDoneEmoji {
-  font-size: 48px;
+  font-size: 40px;
 }
 
 .studyDoneText {
   font-size: var(--font-lg);
   font-weight: var(--weight-bold);
-  color: var(--color-text);
 }
 
 .studyDoneSub {
-  font-size: var(--font-sm);
   color: var(--color-text-muted);
-  margin-bottom: var(--space-3);
 }
 
 .stats {
@@ -509,37 +458,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-2) 0;
-  width: 100%;
 }
 
 .editWord {
-  font-size: var(--font-sm);
-  color: var(--color-text-muted);
-  margin: 0;
+  font-weight: var(--weight-bold);
 }
 
 .editInput {
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-accent);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-sm);
   width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
   box-sizing: border-box;
 }
 
 .editTextarea {
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-sm);
   width: 100%;
-  resize: none;
-  font-family: inherit;
+  min-height: 64px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
   box-sizing: border-box;
 }
 
@@ -549,106 +493,77 @@
 }
 
 .editSaveBtn {
-  flex: 1;
-  padding: var(--space-2);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
   border: none;
-  background: var(--color-accent);
+  background: var(--color-gold);
   color: var(--color-bg);
-  font-size: var(--font-sm);
   cursor: pointer;
 }
 
 .editCancelBtn {
-  flex: 1;
-  padding: var(--space-2);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-muted);
-  font-size: var(--font-sm);
   cursor: pointer;
 }
 
 .memo {
-  font-size: var(--font-xs);
-  color: var(--color-accent);
-  font-style: italic;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
 }
 
 .cardActions {
   display: flex;
-  gap: var(--space-2);
-  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .editBtn {
   background: none;
   border: none;
-  cursor: pointer;
-  font-size: 16px;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
   color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-xs);
 }
 
 .editBtn:hover {
-  background: var(--color-surface);
+  color: var(--color-gold);
+}
+
+.status {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+}
+
+.words,
+.word,
+.meaning,
+.flipWord {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (max-width: 480px) {
   .studyWrap {
-    padding: var(--space-2) var(--space-3) var(--space-4);
-  }
-  .studyHeader {
-    margin-bottom: var(--space-2);
-    min-height: 36px;
-  }
-  .studyProgress {
-    font-size: var(--font-xs);
-  }
-  .studyBackBtn {
-    padding: 4px var(--space-2);
-    font-size: var(--font-xs);
-    min-height: 32px;
-  }
-  .progressBar {
-    height: 3px;
-    margin-bottom: var(--space-3);
+    padding: var(--space-3);
   }
   .flipCard {
-    height: min(52vh, 320px);
-    min-height: 160px;
-    margin-bottom: 0;
-  }
-  .flipWord {
-    font-size: 15px;
-  }
-  .flipLabel {
-    font-size: 10px;
-  }
-  .studyBtns {
-    margin-top: var(--space-2);
-  }
-  .knowBtn,
-  .dontKnowBtn {
-    padding: var(--space-2);
-    font-size: var(--font-sm);
+    height: min(50vh, 320px);
   }
   .stats {
-    padding: var(--space-2) var(--space-3);
-  }
-  .statNum {
-    font-size: var(--font-md);
-  }
-  .toolbar {
-    padding: var(--space-2) var(--space-3);
-  }
-  .preferences {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
   }
   .subTabs {
-    padding: var(--space-1) var(--space-3) 0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-bg);
   }
   .subTab {
     min-height: 32px;
