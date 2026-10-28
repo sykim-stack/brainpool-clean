@@ -247,7 +247,6 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     const text = currentCard?.word || '';
-                    // 앞면 = 학습 소스 언어 (KO→VI → ko-KR)
                     speakNow(text, langCode(learningDirection.source));
                   }}
                   aria-label={copy('audio.listen')}
@@ -266,7 +265,6 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   className={styles.speakBtn}
                   onClick={(e) => {
                     e.stopPropagation();
-                    // 뒷면 해설 = 학습 타깃 언어 (KO→VI → vi-VN 음성)
                     speakNow(meaningText, langCode(learningDirection.target));
                   }}
                   aria-label={copy('audio.listen')}
@@ -278,7 +276,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
             </div>
           </div>
         </div>
-        <div className={styles.studyActions}>
+        <div className={styles.studyBtns}>
           <button className={styles.dontKnowBtn} onClick={() => void handleDontKnow(currentCard)}>
             {copy('answer.dontKnow')}
           </button>
@@ -314,10 +312,11 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
       </div>
 
       {listPanel === 'settings' ? (
-        <div className={styles.settingsPanel}>
-          <label className={styles.settingRow}>
+        <div className={styles.preferences}>
+          <label className={styles.preferenceRow}>
             <span>{copy('settings.uiLanguage')}</span>
             <select
+              className={styles.preferenceSelect}
               value={uiLocale}
               onChange={(event) => handleUiLocaleChange(event.target.value as 'ko' | 'vi')}
             >
@@ -325,9 +324,10 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
               <option value="vi">Tiếng Việt</option>
             </select>
           </label>
-          <label className={styles.settingRow}>
+          <label className={styles.preferenceRow}>
             <span>{copy('settings.learningDirection')}</span>
             <select
+              className={styles.preferenceSelect}
               value={`${learningDirection.source}-${learningDirection.target}`}
               onChange={(event) =>
                 handleLearningDirectionChange(event.target.value as 'ko-vi' | 'vi-ko')
@@ -387,7 +387,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
 
           <button
             type="button"
-            className={styles.studyStart}
+            className={styles.studyStartBtn}
             onClick={startStudy}
             disabled={!filteredItems.length}
           >
@@ -417,7 +417,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                         onChange={(e) => setEditMemo(e.target.value)}
                         placeholder={copy('edit.memoPlaceholder')}
                       />
-                      <div className={styles.editActions}>
+                      <div className={styles.editBtns}>
                         <button type="button" onClick={() => void saveEdit(item)}>
                           {copy('edit.save')}
                         </button>
@@ -429,7 +429,7 @@ export default function CorePhrase({ userId }: CorePhraseProps) {
                   ) : (
                     <>
                       <div className={styles.cardTop}>
-                        <div className={styles.wordRow}>
+                        <div className={styles.words}>
                           <strong>{item.word}</strong>
                           <button
                             type="button"
