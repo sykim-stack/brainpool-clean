@@ -1,5 +1,5 @@
-﻿# CORERING_STATUS.md
-_최종 업데이트: 2026-06-10_
+# CORERING_STATUS.md
+_최종 업데이트: 2026-10-30_
 
 ## 완료된 기능
 
@@ -68,3 +68,13 @@ tb_trans_logs      → 번역 이력 공유
 단어장: 사용 중
 음성DB: 수집 시작
 사용자: 아내(베트남), 숭실대 유학생
+
+## 2026-10-30 — Gemini model migration (P0)
+
+- **Before:** `gemini-2.5-flash` hardcoded in:
+  - `lib/analysis/providers/gemini.ts`
+  - `brain-engine/engines/emotion/analyze.js`
+  - `brain-engine/engines/dialect/detect.js`
+- **After:** `gemini-3.8-flash` (stable Flash; 2.5 is restricted / platform-dependent).
+- **Risk:** API failures fall back to keyword path → risk/meaning/cultural can show as 0/null while UI looks healthy. Check Vercel logs for `Gemini API error` / 404.
+- **Note:** `thinkingConfig: { thinkingBudget: 0 }` retained; if 3.8 rejects, remove and retest.
