@@ -1,22 +1,7 @@
 /**
  * CoreRing Gemini Analysis Provider
- * AI 기반 분석 구현체
- *
- * 담당 항목:
- *   - 의미 전달률 (1순위) — AI만 가능
- *   - 위험 지수 (2순위) — AI + 규칙 기반 hybrid
- *   - 방언 보완 (3순위) — 규칙 기반 결과가 neutral일 때만
- *   - 의도 분류 (4순위) — AI
- *   - 문화적 맥락 (5순위) — AI
- *
- * 설계 원칙:
- *   - 단일 Gemini 호출로 모든 분석을 한 번에 처리 (비용/속도 최적화)
- *   - 응답은 JSON strict mode
- *   - 실패 시 fallback 값으로 안전하게 처리
- *
- * 2026-10-30: model gemini-2.5-flash → gemini-3.8-flash (P0)
+ * 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
  */
-
 import type {
   AnalysisContext,
   AnalysisProvider,
@@ -24,9 +9,7 @@ import type {
   DialectType,
   IntentType,
 } from '../interface';
-import {
-  detectDialectFromContext,
-} from '../dialect';
+import { detectDialectFromContext } from '../dialect';
 
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
@@ -34,41 +17,14 @@ const GEMINI_ENDPOINT =
 function buildPrompt(ctx: AnalysisContext, ruleDialect: string): string {
   const directionLabel =
     ctx.direction === 'ko-vi' ? '한국어 → 베트남어' : '베트남어 → 한국어';
-
   return `당신은 한국-베트남 언어/문화 분석 전문가입니다.
-다음은 부부 사이의 메시지 번역입니다. (한국인 남편 ↔ 베트남 남부 출신 아내)
-
 번역 방향: ${directionLabel}
 원문: "${ctx.sourceText}"
 번역: "${ctx.translatedText}"
 ${ctx.southernText ? `남부 방언 번역: "${ctx.southernText}"` : ''}
 규칙 기반 방언 감지 결과: ${ruleDialect}
-
-아래 JSON 형식으로만 응답하세요. 설명이나 마크다운 없이 JSON만:
-
-{
-  "meaning_score": <0.0~1.0, 원문 의미가 번역에 얼마나 보존됐는가>,
-  "meaning_loss_reason": <점수가 0.7 미만일 때만 손실 원인 한 문장, 아니면 null>,
-  "risk_score": <0.0~1.0, 오해/갈등 유발 가능성>,
-  "conflict_count": <위험 표현/키워드 개수>,
-  "emotion": <"positive"|"neutral"|"negative"|"angry"|"sad"|"loving">,
-  "emotion_score": <0.0~1.0, 0=완전부정 0.5=중립 1.0=완전긍정>,
-  "intent": <"NEUTRAL"|"COMPLAINT"|"THREAT"|"AFFECTION"|"REQUEST">,
-  "intent_confidence": <"high"|"medium"|"inferred">,
-  "dialect": <"north"|"south"|"neutral"|"unknown", 규칙 기반 결과가 neutral일 때만 AI 판단>,
-  "dialect_final": <방언 설명 한 줄>,
-  "is_southern": <true|false>,
-  "is_cultural": <문화적 오해 가능성이 있으면 true>,
-  "cultural_note_ko": <한국인 남편에게 줄 문화 맥락 설명, 없으면 null>,
-  "cultural_note_vi": <베트남 아내에게 줄 문화 맥락 설명, 없으면 null>,
-  "cultural_warning": <즉각적 오해 경고, 없으면 null>
-}
-
-판단 기준:
-- 의미 전달률: 감정/뉘앙스/맥락이 번역에서 왜곡/소실됐는지 평가
-- 위험 지수: 부부 사이에서 이 표현이 싸움으로 이어질 가능성
-- 남부 방언: 베트남 남부 (메콩델타, 호치민) 특유 어휘/표현 기준
-- 문화 차이: 한국의 직접적 표현 vs 베트남의 간접적 표현 차이 등`;
+아래 JSON만 응답:
+{"meaning_score":0.0,"meaning_loss_reason":null,"risk_score":0.0,"conflict_count":0,"emotion":"neutral","emotion_score":0.5,"intent":"NEUTRAL","intent_confidence":"inferred","dialect":"neutral","dialect_final":"","is_southern":false,"is_cultural":false,"cultural_note_ko":null,"cultural_note_vi":null,"cultural_warning":null}`;
 }
 
 interface GeminiResponse {
@@ -103,37 +59,18 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
       },
     }),
   });
-
-  if (!res.ok) {
-    throw new Error(`Gemini API error: ${res.status}`);
-  }
-
+  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error('Gemini 응답 비어있음');
-  }
-
-  const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean) as GeminiResponse;
+  if (!text) throw new Error('Gemini 응답 비어있음');
+  return JSON.parse(text.replace(/```json|```/g, '').trim()) as GeminiResponse;
 }
 
 function fallbackResult(ctx: AnalysisContext): AnalysisResult {
-  const dialect = detectDialectFromContext(
-    ctx.sourceText,
-    ctx.translatedText,
-    ctx.direction
-  );
-
+  const dialect = detectDialectFromContext(ctx.sourceText, ctx.translatedText, ctx.direction);
   return {
     meaning: { score: 0.5, lossReason: '분석 실패 (fallback)' },
-    risk: {
-      riskScore: 0,
-      conflictCount: 0,
-      emotion: 'neutral',
-      emotionScore: 0.5,
-    },
+    risk: { riskScore: 0, conflictCount: 0, emotion: 'neutral', emotionScore: 0.5 },
     dialect,
     intent: { intent: 'NEUTRAL', confidence: 'inferred' },
     cultural: { isCultural: false, notes: null },
@@ -142,28 +79,19 @@ function fallbackResult(ctx: AnalysisContext): AnalysisResult {
 
 export class GeminiAnalysisProvider implements AnalysisProvider {
   private apiKey: string;
-
   constructor(apiKey: string) {
     if (!apiKey) throw new Error('GEMINI_API_KEY 필요');
     this.apiKey = apiKey;
   }
-
   async analyze(ctx: AnalysisContext): Promise<AnalysisResult> {
-    const ruleDialect = detectDialectFromContext(
-      ctx.sourceText,
-      ctx.translatedText,
-      ctx.direction
-    );
-
+    const ruleDialect = detectDialectFromContext(ctx.sourceText, ctx.translatedText, ctx.direction);
     let gemini: GeminiResponse;
     try {
-      const prompt = buildPrompt(ctx, ruleDialect.detectedDialect);
-      gemini = await callGemini(prompt, this.apiKey);
+      gemini = await callGemini(buildPrompt(ctx, ruleDialect.detectedDialect), this.apiKey);
     } catch (err) {
       console.error('[CoreRing Analysis] Gemini 실패, fallback 사용:', err);
       return fallbackResult(ctx);
     }
-
     const finalDialect =
       ruleDialect.detectedDialect !== 'neutral'
         ? ruleDialect
@@ -172,7 +100,6 @@ export class GeminiAnalysisProvider implements AnalysisProvider {
             finalDialect: gemini.dialect_final,
             isSouthern: gemini.is_southern,
           };
-
     return {
       meaning: {
         score: clamp(gemini.meaning_score, 0, 1),
