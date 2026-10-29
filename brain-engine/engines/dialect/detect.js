@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
 // 남부(south) 어휘 사전 -- 아내 실사용 패턴 + 남부 베트남어 일반 특성
 const SOUTH_LEXICON = [
