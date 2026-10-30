@@ -1,4 +1,4 @@
-﻿// brain-engine/engines/translation/cache.js
+// brain-engine/engines/translation/cache.js
 // -----------------------------------------------------------------
 // 번역 캐시 + DB 확인 / 저장
 // (ctx) => ctx 형태 준수, throw 금지
@@ -26,6 +26,12 @@ export async function findCache(ctx) {
 
   if (error || !data) return ctx; // 캐시 미스도 통과
 
+  // 오염된 Mock 캐시는 히트로 쓰지 않음 (P0-5)
+  if (typeof data.standard_vi === 'string' && data.standard_vi.startsWith('[Mock]')) {
+    console.warn('[TranslationCache] [Mock] 캐시 히트 무시');
+    return ctx;
+  }
+
   console.log(`[TranslationCache] 캐시 히트: "${text}"`);
 
   return {
@@ -50,7 +56,16 @@ export async function saveCache(ctx) {
   const { text, sourceLang, translatedText, translationSource } = ctx.payload;
 
   // 이미 캐시에서 온 것은 다시 저장하지 않음
+  // Mock / [Mock] 접두는 영구 캐시에 넣지 않음 — DeepL 실패 시 오염 방지 (P0-5)
   if (!text || !translatedText || translationSource === 'cache') return ctx;
+  if (translationSource === 'mock') {
+    console.warn('[TranslationCache] mock 결과 저장 스킵');
+    return ctx;
+  }
+  if (typeof translatedText === 'string' && translatedText.startsWith('[Mock]')) {
+    console.warn('[TranslationCache] [Mock] 접두 텍스트 저장 스킵');
+    return ctx;
+  }
 
   const direction = sourceLang === 'ko' ? 'KO_VI' : 'VI_KO';
 
