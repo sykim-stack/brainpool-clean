@@ -82,7 +82,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 className={`room-item ${styles.roomItem}`}
               >
                 <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
-                  {!room.isPublic && '🔒 '}{room.title}
+                  {room.title}
                   {room.inviteCode && (
                     <div className={`room-meta ${styles.inviteCode}`}>
                       코드: {room.inviteCode}
@@ -92,7 +92,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 {room.ownerDeviceId === deviceId && (
                   <button
                     className={styles.deleteBtn}
-                    onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+                    onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
                   >
                     삭제
                   </button>
@@ -155,7 +155,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
             {room.ownerDeviceId === deviceId && (
               <button
                 className={styles.deleteBtn}
-                onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+                onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
               >
                 삭제
               </button>
