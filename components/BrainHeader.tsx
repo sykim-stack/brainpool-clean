@@ -10,7 +10,7 @@ interface BrainHeaderProps {
   isTyping: boolean;
   onClear: () => void;
   onShare: () => void;
-  onInstall?: () => void;  // ← 추가
+  onInstall?: () => void;
 }
 
 export default function BrainHeader({
@@ -20,14 +20,18 @@ export default function BrainHeader({
   isTyping,
   onClear,
   onShare,
-  onInstall,  // ← 추가
+  onInstall,
 }: BrainHeaderProps) {
+  const handleLogoClick = () => {
+    window.location.reload();
+  };
+
   return (
     <header className={styles.header}>
       <div className={styles.row}>
 
-        {/* 좌측: 로고 */}
-        <BrainLogo project={project} isTyping={isTyping} />
+        {/* 좌측: 로고 — 클릭 시 새로고침 */}
+        <BrainLogo project={project} isTyping={isTyping} onClick={handleLogoClick} />
 
         {/* 우측: 액션 버튼 묶음 */}
         <div className={styles.actions}>
