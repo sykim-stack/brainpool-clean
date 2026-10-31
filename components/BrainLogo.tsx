@@ -5,9 +5,10 @@ import styles from './BrainLogo.module.css';
 interface BrainLogoProps {
   project?: 'ring' | 'null' | 'chat';
   isTyping: boolean;
+  onClick?: () => void;
 }
 
-export default function BrainLogo({ project = 'ring', isTyping }: BrainLogoProps) {
+export default function BrainLogo({ project = 'ring', isTyping, onClick }: BrainLogoProps) {
   const getProjectName = () => {
     switch (project) {
       case 'chat': return 'CHAT';
@@ -27,7 +28,15 @@ export default function BrainLogo({ project = 'ring', isTyping }: BrainLogoProps
   const pattern = getMorsePattern();
 
   return (
-    <div className={`brain-logo ${styles.wrapper}`}>
+    <div
+      className={`brain-logo ${styles.wrapper}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+      aria-label={onClick ? '홈으로 새로고침' : undefined}
+    >
       {/* 첫 줄: CORE + 프로젝트명 */}
       <div className={styles.title}>
         <span className={styles.core}>CORE</span>
