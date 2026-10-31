@@ -1,7 +1,7 @@
 // brain-engine/engines/emotion/analyze.js
-// 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
+// 2026-10-31: gemini-3.8-flash → gemini-3.5-flash-lite, drop thinkingConfig
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
 const KO_POSITIVE = ['기쁘', '좋', '사랑', '감사', '행복', '맛있', '잘', '예쁘', '최고', '고마워'];
 const KO_NEGATIVE = ['슬프', '화나', '싫', '나쁘', '힘들', '아프', '피곤', '짜증', '걱정', '속상'];
@@ -30,6 +30,13 @@ function buildPrompt(text, translatedText, sourceLang) {
 번역 방향: ${directionLabel}
 원문: "${text}"
 번역: "${translatedText || ''}"
+
+판단 기준:
+- risk_score: 오해/갈등 가능성 (0~1). 일상 인사는 0에 가깝게, 비난·명령·모호한 감정은 높게
+- emotion: positive|neutral|negative|angry|sad|loving|joy
+- intent: NEUTRAL|COMPLAINT|THREAT|AFFECTION|REQUEST
+- is_cultural: 문화적 오해 가능성이 있으면 true
+
 JSON만 출력:
 {"meaning_score":0.0,"meaning_reason":null,"risk_score":0.0,"risk_reason":null,"conflict_count":0,"emotion":"neutral","emotion_score":0.5,"intent":"NEUTRAL","intent_confidence":"inferred","is_cultural":false,"cultural_note":null,"context_type":"neutral","keywords":[]}`;
 }
@@ -44,7 +51,6 @@ async function callGemini(prompt, apiKey) {
         temperature: 0.2,
         maxOutputTokens: 800,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });

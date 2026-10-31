@@ -1,5 +1,5 @@
 # CORERING_STATUS.md
-_최종 업데이트: 2026-10-30_
+_최종 업데이트: 2026-10-31_
 
 ## 완료된 기능
 
@@ -71,10 +71,19 @@ tb_trans_logs      → 번역 이력 공유
 
 ## 2026-10-30 — Gemini model migration (P0)
 
-- **Before:** `gemini-2.5-flash` hardcoded in:
+- **Before:** `gemini-2.5-flash` hardcoded in analysis / emotion / dialect.
+- **After (then):** `gemini-3.8-flash`.
+- **Risk noted:** API failures → keyword fallback → risk/meaning 0 while UI looks fine.
+
+## 2026-10-31 — Gemini safe recovery (risk bar 0)
+
+- **Symptom:** WordModal `⚠ 위험 분석` hidden because `riskScore === 0` (fallback or failed analysis), not a deleted UI section.
+- **Changes:**
+  - Model: `gemini-3.8-flash` → **`gemini-3.5-flash-lite`** (high-volume JSON; default thinking minimal; official stable).
+  - Removed `thinkingConfig: { thinkingBudget: 0 }` from all three call sites (Gemini 3.x prefers `thinking_level`; budget 0 can reject requests).
+  - Stronger judgment criteria in analysis/emotion prompts; error body logging on analysis provider.
+- **Files:**
   - `lib/analysis/providers/gemini.ts`
   - `brain-engine/engines/emotion/analyze.js`
   - `brain-engine/engines/dialect/detect.js`
-- **After:** `gemini-3.8-flash` (stable Flash; 2.5 is restricted / platform-dependent).
-- **Risk:** API failures fall back to keyword path → risk/meaning/cultural can show as 0/null while UI looks healthy. Check Vercel logs for `Gemini API error` / 404.
-- **Note:** `thinkingConfig: { thinkingBudget: 0 }` retained; if 3.8 rejects, remove and retest.
+- **Verify:** Vercel logs — no `Gemini API error`; new message with mild tension should show `riskScore > 0` and the risk bar.

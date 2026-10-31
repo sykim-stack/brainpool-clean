@@ -6,10 +6,11 @@
 // 기존 dialect/index.js(saveDialect)와는 역할이 다름:
 //   - saveDialect: 신규 단어를 tp_translations에 저장 (라이브 경로 미연결, 유지)
 //   - detect(이 파일): 방언을 실제로 감지해서 ctx.payload에 채움 (신규, 라이브 연결)
+// 2026-10-31: gemini-3.8-flash → gemini-3.5-flash-lite, drop thinkingConfig
 // -----------------------------------------------------------------
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
 // 남부(south) 어휘 사전 -- 아내 실사용 패턴 + 남부 베트남어 일반 특성
 const SOUTH_LEXICON = [
@@ -71,7 +72,6 @@ JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason":
         temperature: 0.1,
         maxOutputTokens: 400,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });
