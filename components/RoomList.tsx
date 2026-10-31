@@ -55,7 +55,6 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
     <div className="room-overlay">
       <div className={styles.inner}>
 
-        {/* 초대코드 입장 */}
         <div className={styles.joinSection}>
           <div className={styles.joinRow}>
             <input
@@ -72,7 +71,6 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
           {codeError && <p className={styles.joinError}>{codeError}</p>}
         </div>
 
-        {/* 내가 참여한 방 */}
         {myRooms.length > 0 && (
           <>
             <div className={styles.divider}>내가 참여한 방</div>
@@ -82,7 +80,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 className={`room-item ${styles.roomItem}`}
               >
                 <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
-                  {!room.isPublic && '🔒 '}{room.title}
+                  {room.title}
                   {room.inviteCode && (
                     <div className={`room-meta ${styles.inviteCode}`}>
                       코드: {room.inviteCode}
@@ -92,7 +90,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 {room.ownerDeviceId === deviceId && (
                   <button
                     className={styles.deleteBtn}
-                    onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+                    onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
                   >
                     삭제
                   </button>
@@ -104,7 +102,6 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
 
         <div className={styles.divider}>공개 방 목록</div>
 
-        {/* 방 생성 폼 */}
         {!showCreateForm ? (
           <button onClick={() => setShowCreateForm(true)} className={styles.createBtn}>
             + 새 채팅방 만들기
@@ -135,7 +132,6 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
           </div>
         )}
 
-        {/* 공개 방 목록 */}
         {rooms.length === 0 && (
           <p className={styles.empty}>공개 방이 없습니다</p>
         )}
@@ -155,7 +151,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
             {room.ownerDeviceId === deviceId && (
               <button
                 className={styles.deleteBtn}
-                onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.roomId); }}
+                onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
               >
                 삭제
               </button>
