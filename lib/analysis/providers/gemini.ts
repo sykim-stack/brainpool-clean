@@ -1,6 +1,6 @@
 /**
  * CoreRing Gemini Analysis Provider
- * 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
+ * 2026-10-31: gemini-3.8-flash → gemini-3.5-flash-lite, drop thinkingConfig
  */
 import type {
   AnalysisContext,
@@ -12,18 +12,26 @@ import type {
 import { detectDialectFromContext } from '../dialect';
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
 function buildPrompt(ctx: AnalysisContext, ruleDialect: string): string {
   const directionLabel =
     ctx.direction === 'ko-vi' ? '한국어 → 베트남어' : '베트남어 → 한국어';
-  return `당신은 한국-베트남 언어/문화 분석 전문가입니다.
+  return `당신은 한국-베트남 부부 메시지 언어/문화 분석 전문가입니다.
 번역 방향: ${directionLabel}
 원문: "${ctx.sourceText}"
 번역: "${ctx.translatedText}"
 ${ctx.southernText ? `남부 방언 번역: "${ctx.southernText}"` : ''}
 규칙 기반 방언 감지 결과: ${ruleDialect}
-아래 JSON만 응답:
+
+판단 기준:
+- meaning_score: 원문 의미가 번역에 얼마나 보존됐는가 (0~1)
+- risk_score: 부부 사이에서 오해/갈등으로 이어질 가능성 (0~1). 일상 인사면 0, 비난·명령·모호한 감정은 높게
+- emotion: positive|neutral|negative|angry|sad|loving
+- intent: NEUTRAL|COMPLAINT|THREAT|AFFECTION|REQUEST
+- is_cultural: 문화적 오해 가능성이 있으면 true
+
+설명 없이 JSON만 응답:
 {"meaning_score":0.0,"meaning_loss_reason":null,"risk_score":0.0,"conflict_count":0,"emotion":"neutral","emotion_score":0.5,"intent":"NEUTRAL","intent_confidence":"inferred","dialect":"neutral","dialect_final":"","is_southern":false,"is_cultural":false,"cultural_note_ko":null,"cultural_note_vi":null,"cultural_warning":null}`;
 }
 
@@ -55,11 +63,13 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
         temperature: 0.2,
         maxOutputTokens: 1000,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   });
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Gemini API error: ${res.status} body=${errBody.slice(0, 300)}`);
+  }
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Gemini 응답 비어있음');
