@@ -1,5 +1,5 @@
 # CORERING_STATUS.md
-_최종 업데이트: 2026-10-30_
+_최종 업데이트: 2026-11-01_
 
 ## 완료된 기능
 
@@ -8,6 +8,8 @@ _최종 업데이트: 2026-10-30_
 - [x] 번역 캐시 (tb_trans_logs)
 - [x] 번역기 모드 (방 없이 번역)
 - [x] 양방향 감지 → 채팅방 유도 배너
+- [x] Mock/[Mock] 캐시 저장·히트 차단 (P0-5, #29)
+- [x] Gemini 3.x thinkingBudget 제거 → riskScore 경로 복구 (#32/#33/#34)
 
 ### CoreChat (채팅)
 - [x] 실시간 채팅 (2초 폴링)
@@ -17,6 +19,7 @@ _최종 업데이트: 2026-10-30_
 - [x] 푸시 알림 (Web Push)
 - [x] 음성 메시지 + 🔊 재생
 - [x] 메시지 삭제 (휴지통)
+- [x] 방 삭제 confirm (P0-3, #30)
 
 ### CorePhrase (단어장)
 - [x] 단어 저장/조회/삭제
@@ -47,9 +50,11 @@ _최종 업데이트: 2026-10-30_
 - [ ] 카카오 공유 → 크롬으로 열기 안내
 
 ### 우선순위 중간
+- [ ] **tb_trans_logs legacy [Mock] 행 삭제** — `scripts/cleanup-mock-trans-logs.sql` (Supabase에서 SELECT 후 DELETE)
 - [ ] 모바일 음성 녹음 불안정
 - [ ] audio_contributions 기여 횟수 표시
 - [ ] WordModal 발음 버튼 UX 개선
+- [ ] Gemini 분석 이중 경로 통합 (emotion engine vs lib/analysis)
 
 ### 나중에
 - [ ] tp_translations 데이터 추가
@@ -69,12 +74,11 @@ tb_trans_logs      → 번역 이력 공유
 음성DB: 수집 시작
 사용자: 아내(베트남), 숭실대 유학생
 
-## 2026-10-30 — Gemini model migration (P0)
+## 2026-11-01 — Gemini risk bar recovery
 
-- **Before:** `gemini-2.5-flash` hardcoded in:
-  - `lib/analysis/providers/gemini.ts`
-  - `brain-engine/engines/emotion/analyze.js`
-  - `brain-engine/engines/dialect/detect.js`
-- **After:** `gemini-3.8-flash` (stable Flash; 2.5 is restricted / platform-dependent).
-- **Risk:** API failures fall back to keyword path → risk/meaning/cultural can show as 0/null while UI looks healthy. Check Vercel logs for `Gemini API error` / 404.
-- **Note:** `thinkingConfig: { thinkingBudget: 0 }` retained; if 3.8 rejects, remove and retest.
+- **Cause:** `thinkingConfig: { thinkingBudget: 0 }` is Gemini **2.5-only**; on `gemini-3.8-flash` API rejects → fallback `riskScore: 0` → WordModal hides ⚠ section.
+- **Fix:**
+  - #32 `lib/analysis/providers/gemini.ts`
+  - #33 `brain-engine/engines/emotion|dialect` (live path)
+  - #34 analysis prompt criteria aligned with emotion
+- **Ops:** After DeepL outages, run `scripts/cleanup-mock-trans-logs.sql` if mock rows were written before P0-5.
