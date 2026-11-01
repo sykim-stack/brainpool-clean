@@ -1,6 +1,7 @@
 /**
  * CoreRing Gemini Analysis Provider
  * 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
+ * 2026-11-01: remove thinkingConfig.thinkingBudget (2.5-only; breaks Gemini 3.x)
  */
 import type {
   AnalysisContext,
@@ -11,6 +12,8 @@ import type {
 } from '../interface';
 import { detectDialectFromContext } from '../dialect';
 
+// Stable Flash for new projects (Gemini 3.x). Do NOT pass thinkingBudget here —
+// that field is Gemini 2.5-only and causes 4xx → silent fallback (riskScore 0).
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
@@ -55,11 +58,17 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
         temperature: 0.2,
         maxOutputTokens: 1000,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
+        // No thinkingConfig: Gemini 3.x uses thinking_level, not thinkingBudget.
+        // Omitting is the safest path for structured JSON analysis.
       },
     }),
   });
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `Gemini API error: ${res.status}${body ? ` — ${body.slice(0, 300)}` : ''}`
+    );
+  }
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Gemini 응답 비어있음');
