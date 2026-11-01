@@ -6,6 +6,7 @@
 // 기존 dialect/index.js(saveDialect)와는 역할이 다름:
 //   - saveDialect: 신규 단어를 tp_translations에 저장 (라이브 경로 미연결, 유지)
 //   - detect(이 파일): 방언을 실제로 감지해서 ctx.payload에 채움 (신규, 라이브 연결)
+// 2026-11-01: remove thinkingConfig.thinkingBudget (Gemini 3.x 호환)
 // -----------------------------------------------------------------
 
 const GEMINI_ENDPOINT =
@@ -71,7 +72,7 @@ JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason":
         temperature: 0.1,
         maxOutputTokens: 400,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
+        // No thinkingConfig: Gemini 3.x rejects thinkingBudget (2.5-only).
       },
     }),
   });
