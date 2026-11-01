@@ -1,5 +1,7 @@
 // brain-engine/engines/emotion/analyze.js
 // 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
+// 2026-11-01: remove thinkingConfig.thinkingBudget (2.5-only; breaks Gemini 3.x)
+//            live path for WordModal riskScore — was still falling back to 0
 const GEMINI_ENDPOINT =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
@@ -30,7 +32,15 @@ function buildPrompt(text, translatedText, sourceLang) {
 번역 방향: ${directionLabel}
 원문: "${text}"
 번역: "${translatedText || ''}"
-JSON만 출력:
+
+판단 기준:
+- risk_score: 부부 사이에서 오해·갈등·상처로 이어질 가능성 (0=없음, 0.3~0.5=가벼운 긴장, 0.6+=주의 필요). 불만·비난·강요·무시·비교 표현이면 0보다 크게.
+- emotion: positive|neutral|negative|angry|sad|loving
+- intent: NEUTRAL|COMPLAINT|THREAT|AFFECTION|REQUEST
+- meaning_score: 원문 의미가 번역에 보존된 정도
+- is_cultural: 문화 차이로 오해 가능하면 true, cultural_note에 한 문장
+
+아래 스키마의 JSON만 출력하세요. 예시 숫자는 형식이니 문장에 맞게 실제 값을 넣으세요:
 {"meaning_score":0.0,"meaning_reason":null,"risk_score":0.0,"risk_reason":null,"conflict_count":0,"emotion":"neutral","emotion_score":0.5,"intent":"NEUTRAL","intent_confidence":"inferred","is_cultural":false,"cultural_note":null,"context_type":"neutral","keywords":[]}`;
 }
 
@@ -44,7 +54,7 @@ async function callGemini(prompt, apiKey) {
         temperature: 0.2,
         maxOutputTokens: 800,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
+        // No thinkingConfig: Gemini 3.x rejects thinkingBudget (2.5-only).
       },
     }),
   });
