@@ -6,6 +6,12 @@
 
 import { getStorage } from '../../connectors/storage.js';
 
+function isMockTranslation(text) {
+  if (typeof text !== 'string') return false;
+  // [Mock] / [mock] / leading whitespace variants
+  return /^\s*\[\s*mock\s*\]/i.test(text);
+}
+
 export async function findCache(ctx) {
   const { text, sourceLang } = ctx.payload;
   if (!text || !sourceLang) return ctx;
@@ -27,7 +33,7 @@ export async function findCache(ctx) {
   if (error || !data) return ctx; // 캐시 미스도 통과
 
   // 오염된 Mock 캐시는 히트로 쓰지 않음 (P0-5)
-  if (typeof data.standard_vi === 'string' && data.standard_vi.startsWith('[Mock]')) {
+  if (isMockTranslation(data.standard_vi)) {
     console.warn('[TranslationCache] [Mock] 캐시 히트 무시');
     return ctx;
   }
@@ -62,7 +68,7 @@ export async function saveCache(ctx) {
     console.warn('[TranslationCache] mock 결과 저장 스킵');
     return ctx;
   }
-  if (typeof translatedText === 'string' && translatedText.startsWith('[Mock]')) {
+  if (isMockTranslation(translatedText)) {
     console.warn('[TranslationCache] [Mock] 접두 텍스트 저장 스킵');
     return ctx;
   }
