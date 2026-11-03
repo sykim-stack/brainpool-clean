@@ -2,17 +2,12 @@
 // -----------------------------------------------------------------
 // 방언 감지 -- 사전 우선, 불확실할 때만 Gemini 보완
 // (ctx) => ctx 형태 준수, throw 금지
-//
-// 기존 dialect/index.js(saveDialect)와는 역할이 다름:
-//   - saveDialect: 신규 단어를 tp_translations에 저장 (라이브 경로 미연결, 유지)
-//   - detect(이 파일): 방언을 실제로 감지해서 ctx.payload에 채움 (신규, 라이브 연결)
 // 2026-11-01: remove thinkingConfig.thinkingBudget (Gemini 3.x 호환)
+// 2026-11-03: GEMINI_GENERATE_URL from shared geminiConfig
 // -----------------------------------------------------------------
 
-const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+import { GEMINI_GENERATE_URL } from '../../connectors/geminiConfig.js';
 
-// 남부(south) 어휘 사전 -- 아내 실사용 패턴 + 남부 베트남어 일반 특성
 const SOUTH_LEXICON = [
   'tui', 'mầy', 'ổng', 'bả', 'ảnh', 'chỉ',
   'hen', 'hén', 'nhen', 'nha', 'dzậy', 'dzô', 'dzề', 'dzo',
@@ -21,7 +16,6 @@ const SOUTH_LEXICON = [
   'hủ tiếu', 'miền tây',
 ];
 
-// 북부(north) 어휘 -- 남부와 대조되는 표준/북부 표현
 const NORTH_LEXICON = [
   'nhé', 'thật', 'bố', 'không', 'này', 'vào', 'về', 'xem', 'xấu hổ', 'lạ',
 ];
@@ -63,7 +57,7 @@ async function geminiDetect(text, apiKey) {
   const prompt = `다음 베트남어 문장의 방언을 분석하세요: "${text}"
 JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason": "한 문장 설명", "is_southern": true|false}`;
 
-  const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+  const res = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -98,24 +92,18 @@ JSON으로만 응답: {"dialect": "south"|"north"|"neutral"|"unknown", "reason":
   };
 }
 
-// ---------------------------------------------------------------
-// 메인 detect (router.js에 등록되어 route('dialect', ctx)로 호출됨)
-// ---------------------------------------------------------------
 export async function detect(ctx) {
   const { text, translatedText, sourceLang } = ctx.payload || {};
-  // ko->vi 방향이면 번역 결과(vi)를 보고, vi->ko 방향이면 원문(vi)을 본다
   const viText = sourceLang === 'ko' ? translatedText : text;
 
   if (!viText) return ctx;
 
   const ruleResult = ruleBasedDetect(viText);
 
-  // 사전으로 확정됐으면 바로 반환 (Gemini 호출 안 함 -- 비용/속도 절약)
   if (ruleResult.detectedDialect !== 'neutral') {
     return mergeDialect(ctx, ruleResult);
   }
 
-  // neutral이면 Gemini로 보완
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return mergeDialect(ctx, { ...ruleResult, finalDialect: '방언 불명확 (Gemini 키 없음)' });

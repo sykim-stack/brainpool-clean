@@ -2,8 +2,8 @@
 // 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
 // 2026-11-01: remove thinkingConfig.thinkingBudget (2.5-only; breaks Gemini 3.x)
 //            live path for WordModal riskScore — was still falling back to 0
-const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+// 2026-11-03: GEMINI_GENERATE_URL from shared geminiConfig
+import { GEMINI_GENERATE_URL } from '../../connectors/geminiConfig.js';
 
 const KO_POSITIVE = ['기쁘', '좋', '사랑', '감사', '행복', '맛있', '잘', '예쁘', '최고', '고마워'];
 const KO_NEGATIVE = ['슬프', '화나', '싫', '나쁘', '힘들', '아프', '피곤', '짜증', '걱정', '속상'];
@@ -45,7 +45,7 @@ function buildPrompt(text, translatedText, sourceLang) {
 }
 
 async function callGemini(prompt, apiKey) {
-  const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+  const res = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
