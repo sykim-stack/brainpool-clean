@@ -3,6 +3,7 @@
  * 2026-10-30: gemini-2.5-flash → gemini-3.8-flash (P0)
  * 2026-11-01: remove thinkingConfig.thinkingBudget (2.5-only; breaks Gemini 3.x)
  * 2026-11-01: align prompt criteria with brain-engine emotion path
+ * 2026-11-03: GEMINI_GENERATE_URL from shared geminiConfig
  */
 import type {
   AnalysisContext,
@@ -12,11 +13,7 @@ import type {
   IntentType,
 } from '../interface';
 import { detectDialectFromContext } from '../dialect';
-
-// Stable Flash for new projects (Gemini 3.x). Do NOT pass thinkingBudget here —
-// that field is Gemini 2.5-only and causes 4xx → silent fallback (riskScore 0).
-const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+import { GEMINI_GENERATE_URL } from '../../../brain-engine/connectors/geminiConfig.js';
 
 function buildPrompt(ctx: AnalysisContext, ruleDialect: string): string {
   const directionLabel =
@@ -59,7 +56,7 @@ interface GeminiResponse {
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<GeminiResponse> {
-  const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+  const res = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -69,7 +66,6 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeminiRespons
         maxOutputTokens: 1000,
         responseMimeType: 'application/json',
         // No thinkingConfig: Gemini 3.x uses thinking_level, not thinkingBudget.
-        // Omitting is the safest path for structured JSON analysis.
       },
     }),
   });
