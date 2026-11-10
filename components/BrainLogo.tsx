@@ -5,9 +5,10 @@ import styles from './BrainLogo.module.css';
 interface BrainLogoProps {
   project?: 'ring' | 'null' | 'chat';
   isTyping: boolean;
+  onClick?: () => void;
 }
 
-export default function BrainLogo({ project = 'ring', isTyping }: BrainLogoProps) {
+export default function BrainLogo({ project = 'ring', isTyping, onClick }: BrainLogoProps) {
   const getProjectName = () => {
     switch (project) {
       case 'chat': return 'CHAT';
@@ -26,15 +27,30 @@ export default function BrainLogo({ project = 'ring', isTyping }: BrainLogoProps
 
   const pattern = getMorsePattern();
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+      return;
+    }
+    // 기본: 앱 홈으로 새로고침 (상태·탭 초기화)
+    if (typeof window !== 'undefined') {
+      window.location.assign('/');
+    }
+  };
+
   return (
-    <div className={`brain-logo ${styles.wrapper}`}>
-      {/* 첫 줄: CORE + 프로젝트명 */}
+    <button
+      type="button"
+      className={`brain-logo ${styles.wrapper}`}
+      onClick={handleClick}
+      aria-label="홈으로 새로고침"
+      title="홈으로 새로고침"
+    >
       <div className={styles.title}>
         <span className={styles.core}>CORE</span>
         <span className={styles.project}>{getProjectName()}</span>
       </div>
 
-      {/* 둘째 줄: 모스 부호 */}
       <div className={styles.morseRow}>
         {pattern.map((type, i) => (
           <div
@@ -43,6 +59,6 @@ export default function BrainLogo({ project = 'ring', isTyping }: BrainLogoProps
           />
         ))}
       </div>
-    </div>
+    </button>
   );
 }

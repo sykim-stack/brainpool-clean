@@ -1,11 +1,30 @@
 /* BrainLogo.module.css — 토큰 완전 적용 */
 
-/* ── 래퍼 ── */
+/* ── 래퍼 (버튼) ── */
 .wrapper {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wrapper:focus-visible {
+  outline: 2px solid var(--color-accent, var(--color-gold));
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.wrapper:active {
+  opacity: 0.75;
 }
 
 /* ── 타이틀 행 ── */
