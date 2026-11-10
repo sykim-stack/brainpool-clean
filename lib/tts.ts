@@ -9,8 +9,13 @@
 //
 // v3: utterance.lang만 주면 일부 기기(한국어 기본)가 베트남어 문장을
 // 한국어 음성으로 읽어 억양이 틀린다. lang에 맞는 voice를 명시 지정.
+//
+// v4 (2026-11-10): 녹음 파일 재생용 playAudioUrl — iOS playsinline 단일
+// HTMLAudioElement 재사용. MediaRecorder mime은 iOS에서 webm 미지원이
+// 많으므로 mp4/aac를 우선 고른다.
 
 let cachedVoices: SpeechSynthesisVoice[] = [];
+let sharedAudio: HTMLAudioElement | null = null;
 
 function refreshVoicesCache() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -58,6 +63,73 @@ export function speakNow(text: string, lang: string, rate = 0.9): boolean {
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
   return true;
+}
+
+/**
+ * 녹음/스토리지 URL 재생. 클릭 핸들러에서 호출.
+ * iOS: playsinline + 단일 Audio 재사용 (DOM append 불필요).
+ * 실패 시 false — 호출측에서 TTS 폴백 가능.
+ */
+export function playAudioUrl(url: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !url) return Promise.resolve(false);
+
+  try {
+    if (!sharedAudio) {
+      sharedAudio = new Audio();
+      sharedAudio.setAttribute('playsinline', 'true');
+      sharedAudio.setAttribute('webkit-playsinline', 'true');
+      sharedAudio.preload = 'auto';
+    }
+
+    // TTS와 겹치면 끊기
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+    sharedAudio.pause();
+    try {
+      sharedAudio.currentTime = 0;
+    } catch {
+      /* ignore seek errors on fresh src */
+    }
+    sharedAudio.src = url;
+
+    const playResult = sharedAudio.play();
+    if (playResult && typeof playResult.then === 'function') {
+      return playResult.then(() => true).catch(() => false);
+    }
+    return Promise.resolve(true);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+/**
+ * MediaRecorder MIME — iOS Safari는 webm 미지원인 경우가 많아 mp4/aac 우선.
+ * 지원 목록이 비면 undefined (브라우저 기본).
+ */
+export function pickRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === 'undefined') return undefined;
+  const candidates = [
+    'audio/mp4',
+    'audio/aac',
+    'audio/webm;codecs=opus',
+    'audio/webm',
+  ];
+  for (const type of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
+export function recorderFileExt(mimeType: string): string {
+  if (mimeType.includes('mp4') || mimeType.includes('aac') || mimeType.includes('m4a')) {
+    return 'm4a';
+  }
+  if (mimeType.includes('ogg')) return 'ogg';
+  return 'webm';
 }
 
 // ── 아래는 v1 호환용 (비동기 버전). 클릭 핸들러에는 사용하지 말 것 —

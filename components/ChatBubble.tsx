@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import styles from './ChatBubble.module.css';
 import { tokenizeForLearning, type LearningToken } from '@/lib/language/tokenize';
+import { playAudioUrl, speakNow } from '@/lib/tts';
 
 interface ChatBubbleProps {
   original: string;
@@ -97,6 +98,21 @@ export default function ChatBubble({
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+  };
+
+  const handleSpeak = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const ttsLang = targetLang === 'vi' ? 'vi-VN' : 'ko-KR';
+
+    if (audioUrl) {
+      // 제스처 안에서 play 시작 (await 전에 동기 호출 체인)
+      void playAudioUrl(audioUrl).then((ok) => {
+        if (!ok) speakNow(translated, ttsLang);
+      });
+      return;
+    }
+
+    speakNow(translated, ttsLang);
   };
 
   const langLabel = sourceLang && targetLang
@@ -199,27 +215,23 @@ export default function ChatBubble({
           </span>
         )}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (audioUrl) {
-              const audio = document.createElement('audio');
-              audio.src = audioUrl;
-              audio.controls = false;
-              audio.setAttribute('playsinline', '');
-              document.body.appendChild(audio);
-              audio.play().catch(() => { window.open(audioUrl, '_blank'); });
-              audio.onended = () => document.body.removeChild(audio);
-            } else if (typeof window !== 'undefined' && window.speechSynthesis) {
-              const utterance = new SpeechSynthesisUtterance(translated);
-              utterance.lang = targetLang === 'vi' ? 'vi-VN' : 'ko-KR';
-              utterance.rate = 0.9;
-              window.speechSynthesis.cancel();
-              window.speechSynthesis.speak(utterance);
-            }
+          type="button"
+          onClick={handleSpeak}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '16px',
+            padding: '0 4px',
+            opacity: audioUrl ? 1 : 0.5,
+            minWidth: 32,
+            minHeight: 32,
           }}
-          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "0 4px", opacity: audioUrl ? 1 : 0.5 }}
           title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
-        >🔊</button>
+          aria-label={audioUrl ? '원어민 발음 듣기' : 'TTS 발음 듣기'}
+        >
+          🔊
+        </button>
         <span>{new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
