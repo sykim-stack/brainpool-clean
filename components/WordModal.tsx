@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import styles from './WordModal.module.css';
-import { speakNow } from '@/lib/tts';
+import { playAudioUrl, pickRecorderMimeType, recorderFileExt, speakNow } from '@/lib/tts';
 
 interface WordModalProps {
   data: {
@@ -32,7 +32,7 @@ const saveWord = async (payload: { user_id?: string; word: string; meaning_kr?: 
 };
 
 const uploadVoice = async (blob: Blob, mimeType: string, userId: string) => {
-  const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const ext = recorderFileExt(mimeType);
   const fileName = `voice/${userId}/${Date.now()}.${ext}`;
   const formData = new FormData();
   formData.append('file', blob, fileName);
@@ -163,20 +163,23 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const usage = intent ? (intentLabel[intent] || null) : null;
 
   const handlePlayAudio = () => {
+    const ttsLang = sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
+
     if (audioUrl) {
-      // iOS 호환: new Audio() 직접 재생이 실패하는 경우가 있어 playsInline 적용
-      const audio = document.createElement('audio');
-      audio.src = audioUrl;
-      audio.controls = false;
-      (audio as any).playsInline = true;
-      document.body.appendChild(audio);
-      audio.play().catch(() => { window.open(audioUrl, '_blank'); });
-      audio.onended = () => document.body.removeChild(audio);
+      void playAudioUrl(audioUrl).then((ok) => {
+        if (!ok && word) {
+          const played = speakNow(word, ttsLang);
+          if (!played) {
+            setTtsUnavailable(true);
+            setTimeout(() => setTtsUnavailable(false), 2500);
+          }
+        }
+      });
       return;
     }
+
     if (!word) return;
-    const lang = sourceLang === 'ko' ? 'vi-VN' : 'ko-KR';
-    const played = speakNow(word, lang);
+    const played = speakNow(word, ttsLang);
     if (!played) {
       setTtsUnavailable(true);
       setTimeout(() => setTtsUnavailable(false), 2500);
@@ -223,16 +226,22 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
       audioChunks.current = [];
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm';
-      const recorder = new MediaRecorder(stream, { mimeType });
+
+      // iOS: webm 미지원 → mp4/aac 우선
+      const mimeType = pickRecorderMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
       mediaRecorder.current = recorder;
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.current.push(e.data); };
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.current.push(e.data);
+      };
       recorder.onstop = async () => {
-        streamRef.current?.getTracks().forEach(t => t.stop());
+        streamRef.current?.getTracks().forEach((t) => t.stop());
         setIsUploading(true);
         try {
-          const mType = recorder.mimeType || mimeType;
+          const mType = recorder.mimeType || mimeType || 'audio/webm';
           const blob = new Blob(audioChunks.current, { type: mType });
           if (blob.size <= 1000) {
             alert('녹음이 제대로 저장되지 않았어요. 이 기기에서는 녹음 기능이 원활하지 않을 수 있습니다.');
@@ -292,10 +301,26 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <h2 className={styles.title}>📖 {word}</h2>
           <button
+            type="button"
             onClick={handlePlayAudio}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: audioUrl ? 1 : 0.5, minWidth: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '5px' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '20px',
+              opacity: audioUrl ? 1 : 0.5,
+              minWidth: '36px',
+              minHeight: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginTop: '5px',
+            }}
             title={audioUrl ? '원어민 발음' : '기계음 발음 (TTS)'}
-          >🔊</button>
+          >
+            🔊
+          </button>
         </div>
         <p className={styles.subtitle}>단어 학습 카드</p>
         {ttsUnavailable && (
@@ -343,7 +368,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             </div>
           )}
           {usage && <Row label="쓰임새" value={usage} />}
-          {/* tp_phrases: context_type / frequency (tb_trans_log_id 연결) */}
           {phrase?.contextType && (
             <Row
               label="맥락"
@@ -353,7 +377,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
               }
             />
           )}
-          {/* meaning_score UI — Phase 1 */}
           {detail?.meaningScore != null && (
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)' }}>
               {detail.meaningScore >= 0.8
@@ -381,7 +404,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
                 {Math.round(riskScore * 100)}%
               </span>
             </div>
-            {/* risk_reason 표시 — Phase 1 */}
             {detail?.riskReason && Array.isArray(detail.riskReason) && detail.riskReason.length > 0 && (
               <ul style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-sub)', paddingLeft: '16px' }}>
                 {detail.riskReason.map((r: string, i: number) => (
@@ -404,7 +426,6 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           </Section>
         )}
 
-        {/* 발음 녹음 섹션 */}
         <Section title="🎤 친구에게 발음을 알려주세요">
           <p className={styles.culturalNote} style={{ marginBottom: '8px' }}>
             {pronunciationTarget}
@@ -412,6 +433,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           {audioUrl ? (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
+                type="button"
                 onClick={handlePlayAudio}
                 className={styles.saveBtn}
                 style={{ flex: 1 }}
@@ -419,7 +441,10 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
                 🔊 발음 듣기
               </button>
               <button
-                onClick={() => { setAudioUrl(null); }}
+                type="button"
+                onClick={() => {
+                  setAudioUrl(null);
+                }}
                 className={styles.closeBtn}
                 style={{ flex: 1, marginTop: 0 }}
               >
@@ -428,12 +453,20 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             </div>
           ) : (
             <button
-              onClick={() => { if (isRecording) stopRecording(); else startRecording(); }}
+              type="button"
+              onClick={() => {
+                if (isRecording) stopRecording();
+                else void startRecording();
+              }}
               style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}
               disabled={isUploading}
               className={`${styles.saveBtn} ${isRecording ? styles.recordingBtn : ''}`}
             >
-              {isUploading ? '⏳ 저장 중...' : isRecording ? '🔴 녹음 중... (다시 눌러 종료)' : '🎤 눌러서 녹음 시작'}
+              {isUploading
+                ? '⏳ 저장 중...'
+                : isRecording
+                  ? '🔴 녹음 중... (다시 눌러 종료)'
+                  : '🎤 눌러서 녹음 시작'}
             </button>
           )}
         </Section>
@@ -441,6 +474,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
         <div className={styles.btnRow}>
           {!isUnknownWord && (
             <button
+              type="button"
               onClick={handleSave}
               disabled={isSaved || isSaving}
               className={`${styles.saveBtn} ${isSaved ? styles.savedBtn : ''}`}
@@ -448,7 +482,9 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
               {isSaving ? '저장 중...' : isSaved ? '✅ 저장됨' : '🔖 단어장에 저장'}
             </button>
           )}
-          <button onClick={onClose} className={styles.closeBtn}>확인</button>
+          <button type="button" onClick={onClose} className={styles.closeBtn}>
+            확인
+          </button>
         </div>
 
       </div>
