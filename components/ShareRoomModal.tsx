@@ -12,27 +12,39 @@ export default function ShareRoomModal({ roomId, roomCode, onClose }: ShareRoomM
   const [copied, setCopied] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
-  const isKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
+  const isKakao = () =>
+    typeof navigator !== 'undefined' && /KAKAOTALK/i.test(navigator.userAgent);
+
+  const getShareUrl = () => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}/rooms/${roomId}`;
+    }
+    return `https://brainpool-clean-seven.vercel.app/rooms/${roomId}`;
+  };
 
   const handleShare = async () => {
-    const shareUrl = 'https://corering.vercel.app/rooms/' + roomId;
+    const shareUrl = getShareUrl();
     const shareText = `CoreRing 채팅방에 초대합니다!\n방 코드: ${roomCode}\n${shareUrl}`;
 
-    if (navigator.share) {
-      await navigator.share({
-        title: 'CoreRing 채팅방 초대',
-        text: shareText,
-        url: shareUrl,
-      }).catch(() => null);
-    } else {
-      navigator.clipboard.writeText(shareText);
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      await navigator
+        .share({
+          title: 'CoreRing 채팅방 초대',
+          text: shareText,
+          url: shareUrl,
+        })
+        .catch(() => null);
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(shareText).catch(() => null);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const handleCodeCopy = () => {
-    navigator.clipboard.writeText(roomCode);
+  const handleCodeCopy = async () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(roomCode).catch(() => null);
+    }
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
   };
@@ -49,22 +61,24 @@ export default function ShareRoomModal({ roomId, roomCode, onClose }: ShareRoomM
         </div>
 
         <div className={styles.btnGroup}>
-          <button className={styles.shareBtn} onClick={handleShare}>
+          <button type="button" className={styles.shareBtn} onClick={() => void handleShare()}>
             {copied ? '✅ 복사됨' : '📤 공유하기'}
           </button>
-          <button className={styles.copyBtn} onClick={handleCodeCopy}>
+          <button type="button" className={styles.copyBtn} onClick={() => void handleCodeCopy()}>
             {codeCopied ? '✅ 복사됨' : '📋 코드 복사'}
           </button>
         </div>
 
         {isKakao() && (
           <p className={styles.kakaoNotice}>
-            카카오에서 열리지 않으면<br />
-            우측 메뉴 → <strong>다른 브라우저로 열기</strong>
+            카카오톡 인앱 브라우저에서는 채팅·음성·알림이 제한될 수 있어요.
+            <br />
+            우측 상단 <strong>⋮</strong> → <strong>다른 브라우저로 열기</strong> (Chrome/Safari)를
+            권장합니다.
           </p>
         )}
 
-        <button className={styles.closeBtn} onClick={onClose}>
+        <button type="button" className={styles.closeBtn} onClick={onClose}>
           나중에 할게요
         </button>
       </div>
