@@ -565,6 +565,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     }
   }, []);
 
+  // --- render: full UI restored from pre-identity main + authHeaders wiring ---
+  // (Content continued from original page.tsx structure)
   return (
     <div className="app-shell">
       <BrainHeader
@@ -602,10 +604,49 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
             .catch(() => {});
         }}
+        onInstall={handleInstall}
       />
 
-      {/* NOTE: Full JSX body preserved from main prior to identity patch.
-          If any section looks incomplete in review, restore from commit 6006ebd and re-apply authHeaders only. */}
+      <RoomList
+        rooms={rooms}
+        myRooms={myRooms}
+        deviceId={deviceId}
+        visible={isRoomMode && !currentRoomId}
+        onSelect={(room) => {
+          setMessages([]);
+          setCurrentRoomId(room.roomId);
+          setCurrentRoomCode(room.inviteCode || '------');
+          saveMyRoom(room);
+          setIsRoomMode(false);
+        }}
+        onJoinCode={handleJoinByCode}
+        onDelete={handleDeleteRoom}
+        onCreate={async (title) => {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: authHeaders(deviceId, {
+              'Content-Type': 'application/json; charset=utf-8',
+            }),
+            body: JSON.stringify({
+              action: 'create',
+              title,
+              createdBy: deviceId,
+              isPublic: true,
+            }),
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload?.room) {
+            const room = data.payload.room;
+            setMessages([]);
+            setCurrentRoomId(room.roomId);
+            setCurrentRoomCode(room.inviteCode || '------');
+            saveMyRoom(room);
+            setIsRoomMode(false);
+            loadRooms();
+          }
+        }}
+      />
+
       <div className={styles.tabs} role="tablist">
         <button
           className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
@@ -641,15 +682,46 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         ) : (
           <>
             <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
-            {messages.map((m) => (
-              <ChatBubble
-                key={m.messageId}
-                message={m}
-                isMine={m.userId === deviceId}
-                onClick={() => handleBubbleClick(m)}
-                onWordClick={handleWordClick}
+            {showDaily && !messages.length && (
+              <div className={styles.daily}>
+                <div className={styles.dailyWord}>{dailyWord.word}</div>
+                <div className={styles.dailyMeaning}>{dailyWord.meaning}</div>
+                {dailyWord.usage && <div className={styles.dailyUsage}>{dailyWord.usage}</div>}
+                {dailyWord.culturalNote && (
+                  <div className={styles.dailyNote}>{dailyWord.culturalNote}</div>
+                )}
+              </div>
+            )}
+            {currentRoomId && (
+              <RoomBar
+                roomId={currentRoomId}
+                roomCode={currentRoomCode}
+                onExit={handleExitRoom}
+                onShare={() => {
+                  setShareRoomCode(currentRoomCode);
+                  setShareRoomId(currentRoomId);
+                }}
               />
-            ))}
+            )}
+            {showRoomBanner && !currentRoomId && !isRoomMode && (
+              <div className={styles.roomBanner}>
+                양방향 대화가 감지됐어요. 방을 만들어 대화를 이어가 보세요.
+                <button type="button" onClick={() => setIsRoomMode(true)}>
+                  방 만들기
+                </button>
+              </div>
+            )}
+            <div className={styles.messages}>
+              {messages.map((m) => (
+                <ChatBubble
+                  key={m.messageId}
+                  message={m}
+                  isMine={m.userId === deviceId}
+                  onClick={() => handleBubbleClick(m)}
+                  onWordClick={handleWordClick}
+                />
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -662,7 +734,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         data={selectedWord}
         anchor={wordPreviewAnchor}
         onClose={closeWordPreview}
-        onOpenModal={openWordModalFromPreview}
+        onDetail={openWordModalFromPreview}
         onSpeak={handlePreviewSpeak}
       />
 
