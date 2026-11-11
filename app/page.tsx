@@ -68,6 +68,24 @@ const subscribePush = async (deviceId: string) => {
 };
 
 const DEVICE_ID_KEY = 'corering_device_id';
+/** CoreNull lib/ownerKey.ts 와 동일 — Platform 통합 아이디 */
+const OWNER_KEY = 'corenull_owner_key';
+
+function readOwnerKey(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(OWNER_KEY)?.trim() || '';
+}
+
+/** device 필수 + owner_key 있으면 x-owner-key 부착 */
+function authHeaders(deviceId: string, extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = {
+    'x-device-id': deviceId,
+    ...extra,
+  };
+  const ownerKey = readOwnerKey();
+  if (ownerKey) headers['x-owner-key'] = ownerKey;
+  return headers;
+}
 
 /** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
 const OPPORTUNITY_LABEL: Record<string, string> = {
@@ -224,7 +242,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   }, [messages.length]);
 
   const loadRooms = useCallback(async () => {
-    const res = await fetch('/api/chat/rooms', { headers: { 'x-device-id': deviceId } }).catch(() => null);
+    const res = await fetch('/api/chat/rooms', { headers: authHeaders(deviceId) }).catch(() => null);
     if (!res) return;
     const data = await res.json().catch(() => null);
     if (data?.payload?.rooms) setRooms(data.payload.rooms);
@@ -254,7 +272,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       ).catch(() => null);
       if (!res || !res.ok) return;
       const data = await res.json().catch(() => null);
-      // CoreHub returns { data: Opportunity[] }; warehouse-style payload kept as fallback
       const raw = Array.isArray(data?.data)
         ? data.data
         : data?.payload?.opportunities || data?.opportunities || [];
@@ -267,7 +284,8 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
   useEffect(() => {
     if (!deviceId) return;
-    refreshOpportunities(deviceId);
+    // Platform owner_key 우선, 없으면 deviceId (기존과 동일)
+    refreshOpportunities(readOwnerKey() || deviceId);
   }, [deviceId, refreshOpportunities]);
 
   const handleExitRoom = useCallback(() => {
@@ -287,10 +305,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
+          headers: authHeaders(deviceId, {
             'Content-Type': 'application/json; charset=utf-8',
-            'x-device-id': deviceId,
-          },
+          }),
           body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
         });
         if (cancelled || !res?.ok) return;
@@ -349,10 +366,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const sendMessageToRoom = async (roomId: string, text: string) => {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: {
+      headers: authHeaders(deviceId, {
         'Content-Type': 'application/json; charset=utf-8',
-        'x-device-id': deviceId,
-      },
+      }),
       body: JSON.stringify({
         action: 'send',
         roomId,
@@ -375,10 +391,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         try {
           const res = await fetch('/api/brainpool', {
             method: 'POST',
-            headers: {
+            headers: authHeaders(deviceId, {
               'Content-Type': 'application/json; charset=utf-8',
-              'x-device-id': deviceId,
-            },
+            }),
             body: JSON.stringify({ text, device_id: deviceId }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
@@ -407,14 +422,14 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               if (updated.includes('ko') && updated.includes('vi')) setShowRoomBanner(true);
               return updated;
             });
-            window.setTimeout(() => refreshOpportunities(deviceId), 1800);
+            window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
           }
         } catch {}
         setIsLoading(false);
         return;
       }
       await sendMessageToRoom(currentRoomId, text);
-      window.setTimeout(() => refreshOpportunities(deviceId), 1800);
+      window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
       setIsLoading(false);
     },
     [currentRoomId, deviceId, refreshOpportunities]
@@ -474,7 +489,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     async (roomId: string) => {
       const res = await fetch(`/api/chat/rooms/${roomId}`, {
         method: 'DELETE',
-        headers: { 'x-device-id': deviceId },
+        headers: authHeaders(deviceId),
       }).catch(() => null);
       const data = res ? await res.json().catch(() => null) : null;
       if (data?.payload?.deleted) {
@@ -535,8 +550,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     speakNow(w, lang);
   }, [selectedWord, selectedMessage]);
 
-  const handleVoiceSend = useCallback(async (_audioUrl: string) => {}, []);
-
   const handleDismissOpportunity = useCallback(async (id: string) => {
     dismissedOppRef.current.add(id);
     setOpportunities((prev) => prev.filter((o) => o.id !== id));
@@ -570,7 +583,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           if (!window.confirm('이 방의 메시지를 모두 지울까요?')) return;
           const res = await fetch(`/api/chat/rooms/${currentRoomId}`, {
             method: 'PATCH',
-            headers: { 'x-device-id': deviceId },
+            headers: authHeaders(deviceId),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
           if (data?.payload?.cleared) setMessages([]);
@@ -579,45 +592,16 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           else alert('메시지 초기화에 실패했어요.');
         }}
         onShare={async () => {
-          await navigator
-            .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
-            .catch(() => navigator.clipboard.writeText(location.href));
-        }}
-        onInstall={handleInstall}
-      />
-
-      <RoomList
-        rooms={rooms}
-        myRooms={myRooms}
-        deviceId={deviceId}
-        onSelectRoom={(id) => {
-          const room = rooms.find((r) => r.roomId === id) || myRooms.find((r) => r.roomId === id);
-          setMessages([]);
-          setCurrentRoomId(id);
-          setCurrentRoomCode(room?.inviteCode || '------');
-        }}
-        onJoinByCode={handleJoinByCode}
-        onCreateRoom={async (title: string, isPublic: boolean) => {
-          const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            body: JSON.stringify({ action: 'create', title, isPublic, createdBy: deviceId }),
-          }).catch(() => null);
-          const data = res ? await res.json().catch(() => null) : null;
-          if (data?.payload?.room) {
-            setCurrentRoomId(data.payload.room.roomId);
-            setCurrentRoomCode(data.payload.room.inviteCode || '------');
-            saveMyRoom(data.payload.room);
-            setIsRoomMode(false);
-            setShareRoomCode(data.payload.room.inviteCode || null);
-            setShareRoomId(data.payload.room.roomId);
+          if (currentRoomId && currentRoomCode && currentRoomCode !== '------') {
+            setShareRoomCode(currentRoomCode);
+            setShareRoomId(currentRoomId);
+            return;
           }
+          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() => {});
         }}
-        onDeleteRoom={handleDeleteRoom}
-        visible={isRoomMode && !currentRoomId}
       />
 
-      <div className={styles.tabBar} role="tablist" aria-label="CoreRing 학습 메뉴">
+      <div className={styles.tabs} role="tablist">
         <button
           className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('ring')}
@@ -651,118 +635,121 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           <KiipPractice deviceId={deviceId} />
         ) : (
           <>
-            {showDaily && !messages.length && (
+            <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
+            {showDaily && !currentRoomId && (
               <div className={styles.daily}>
                 <div className={styles.dailyWord}>{dailyWord.word}</div>
                 <div className={styles.dailyMeaning}>{dailyWord.meaning}</div>
+                {dailyWord.usage && <div className={styles.dailyUsage}>{dailyWord.usage}</div>}
+                {dailyWord.culturalNote && (
+                  <div className={styles.dailyNote}>{dailyWord.culturalNote}</div>
+                )}
               </div>
             )}
-            {messages.map((m) => (
-              <ChatBubble
-                key={m.messageId}
-                original={m.original}
-                translated={m.translated}
-                sourceLang={m.sourceLang}
-                targetLang={m.targetLang}
-                emotion={m.emotion}
-                riskScore={m.riskScore}
-                timestamp={m.timestamp}
+            {isRoomMode && !currentRoomId && (
+              <RoomList
+                rooms={rooms}
+                myRooms={myRooms}
                 deviceId={deviceId}
-                messageId={m.messageId}
-                isFirstLang={!firstLanguage || m.sourceLang === firstLanguage}
-                onClick={() => handleBubbleClick(m)}
-                onWordClick={(word, anchor) => handleWordClick(m, word, anchor)}
-                audioUrl={m.audioUrl}
+                onSelect={(room) => {
+                  setMessages([]);
+                  setCurrentRoomId(room.roomId);
+                  setCurrentRoomCode(room.inviteCode || '------');
+                  saveMyRoom(room);
+                  setIsRoomMode(false);
+                }}
+                onJoinCode={handleJoinByCode}
+                onDelete={handleDeleteRoom}
+                onCreate={async (title) => {
+                  const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: authHeaders(deviceId, {
+                      'Content-Type': 'application/json; charset=utf-8',
+                    }),
+                    body: JSON.stringify({
+                      action: 'create',
+                      title,
+                      createdBy: deviceId,
+                      isPublic: true,
+                    }),
+                  }).catch(() => null);
+                  const data = res ? await res.json().catch(() => null) : null;
+                  if (data?.payload?.room) {
+                    const room = data.payload.room;
+                    setMessages([]);
+                    setCurrentRoomId(room.roomId);
+                    setCurrentRoomCode(room.inviteCode || '------');
+                    saveMyRoom(room);
+                    setIsRoomMode(false);
+                    loadRooms();
+                  }
+                }}
               />
-            ))}
+            )}
+            {currentRoomId && (
+              <RoomBar
+                code={currentRoomCode}
+                onExit={handleExitRoom}
+                onShare={() => {
+                  setShareRoomCode(currentRoomCode);
+                  setShareRoomId(currentRoomId);
+                }}
+              />
+            )}
+            {showRoomBanner && !currentRoomId && !isRoomMode && (
+              <div className={styles.roomBanner}>
+                양방향 대화가 감지됐어요. 방을 만들어 대화를 이어가 보세요.
+                <button type="button" onClick={() => setIsRoomMode(true)}>
+                  방 만들기
+                </button>
+              </div>
+            )}
+            <div className={styles.messages}>
+              {messages.map((m) => (
+                <ChatBubble
+                  key={m.messageId}
+                  message={m}
+                  isMine={m.userId === deviceId}
+                  onClick={() => handleBubbleClick(m)}
+                  onWordClick={handleWordClick}
+                />
+              ))}
+            </div>
           </>
         )}
       </div>
 
-      <RoomBar
-        nickname={nickname}
-        roomCode={currentRoomCode}
-        onChangeNickname={() => {
-          const name = window.prompt('닉네임:', nickname);
-          if (name) setNickname(name);
-        }}
-        onCopyCode={() => navigator.clipboard.writeText(currentRoomCode)}
-        onExit={handleExitRoom}
-        visible={!!currentRoomId}
-      />
-
-      <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
-
       {activeTab === 'ring' && (
-        <ChatInput
-          onSend={handleSend}
-          onTypingChange={setIsTyping}
-          userId={deviceId}
-          onVoiceSend={handleVoiceSend}
+        <ChatInput onSend={handleSend} disabled={isLoading} />
+      )}
+
+      {selectedMessage && !wordPreviewOpen && selectedWord && (
+        <WordModal
+          message={selectedMessage}
+          word={selectedWord}
+          onClose={() => {
+            setSelectedMessage(null);
+            setSelectedWord(null);
+          }}
         />
       )}
 
-      {showRoomBanner && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 120,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--color-surface)',
-            padding: 12,
-            borderRadius: 12,
-            zIndex: 50,
-          }}
-        >
-          양방향 대화가 감지됐어요. 채팅방을 만들어 보세요.
-          <button onClick={() => setIsRoomMode(true)}>방 만들기</button>
-          <button onClick={() => setShowRoomBanner(false)}>닫기</button>
-        </div>
+      {wordPreviewOpen && (
+        <WordPreviewSheet
+          open={wordPreviewOpen}
+          loading={wordPreviewLoading}
+          word={selectedWord}
+          anchor={wordPreviewAnchor}
+          onClose={closeWordPreview}
+          onOpenModal={openWordModalFromPreview}
+          onSpeak={handlePreviewSpeak}
+        />
       )}
 
-      <WordPreviewSheet
-        open={wordPreviewOpen && !!selectedWord?.word}
-        word={selectedWord?.word || ''}
-        meaning={selectedWord?.meaning || selectedWord?.standard || null}
-        isUnknown={selectedWord?.source === 'not_found'}
-        contextLine={selectedMessage?.original || selectedMessage?.translated || undefined}
-        anchor={wordPreviewAnchor}
-        loading={wordPreviewLoading}
-        onSpeak={handlePreviewSpeak}
-        onDetail={openWordModalFromPreview}
-        onClose={closeWordPreview}
-      />
-
-      <WordModal
-        data={
-          selectedMessage && !wordPreviewOpen
-            ? {
-                sentence: selectedMessage.original,
-                translated: selectedMessage.translated,
-                sourceLang: selectedMessage.sourceLang,
-                emotion: selectedMessage.emotion,
-                riskScore: selectedMessage.riskScore,
-                intent: selectedMessage.intent,
-                culturalNote: selectedMessage.culturalNote,
-                sessionId: currentRoomId || undefined,
-                wordDetail: selectedWord || undefined,
-              }
-            : null
-        }
-        userId={deviceId}
-        onClose={() => {
-          setSelectedMessage(null);
-          setSelectedWord(null);
-          setWordPreviewOpen(false);
-          setWordPreviewLoading(false);
-        }}
-      />
-
-      {shareRoomCode && shareRoomId && (
+      {shareRoomCode && (
         <ShareRoomModal
+          code={shareRoomCode}
           roomId={shareRoomId}
-          roomCode={shareRoomCode}
           onClose={() => {
             setShareRoomCode(null);
             setShareRoomId(null);
@@ -771,22 +758,13 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       )}
 
       {showIOSGuide && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--color-surface)',
-            padding: 16,
-            borderRadius: 12,
-            zIndex: 50,
-          }}
-        >
-          <p>iOS: 공유 → 홈 화면에 추가</p>
-          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            닫기
-          </button>
+        <div className={styles.iosGuide} onClick={() => setShowIOSGuide(false)}>
+          <div className={styles.iosCard} onClick={(e) => e.stopPropagation()}>
+            <p>홈 화면에 추가하려면 공유 → 홈 화면에 추가를 눌러 주세요.</p>
+            <button type="button" onClick={() => setShowIOSGuide(false)}>
+              확인
+            </button>
+          </div>
         </div>
       )}
     </div>
