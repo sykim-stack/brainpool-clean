@@ -1,6 +1,10 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { postFactToCoreHub } from '@/lib/corehub';
-import { getPrincipal, principalOwnsIdentifier } from '@/lib/security/principal';
+import {
+  getPrincipal,
+  principalOwnsIdentifier,
+  resolveOwnerKey,
+} from '@/lib/security/principal';
 import { assertRoomMember } from '@/lib/security/room-access';
 
 export async function POST(request: NextRequest) {
@@ -34,7 +38,15 @@ export async function POST(request: NextRequest) {
         const status = roomAccess.code === 'ROOM_NOT_FOUND' ? 404 : 403;
         return NextResponse.json({ payload: null, _error: roomAccess.code, traceId }, { status });
       }
-      const effectiveUserId = principalResult.principal.deviceId || principalResult.principal.userId || userId;
+
+      // device: DB·멤버십·기존 로직용 (기존과 동일)
+      const effectiveDeviceId =
+        principalResult.principal.deviceId ||
+        principalResult.principal.userId ||
+        userId;
+
+      // owner: 사람 단위 Platform Identity (CoreHub Fact 등)
+      const effectiveOwnerKey = resolveOwnerKey(principalResult.principal);
 
       // ── Step 1: 번역만 먼저 (동기) ──────────────────────────
       let translationMeta: any = {
@@ -48,7 +60,7 @@ export async function POST(request: NextRequest) {
         try {
           const { route: engineRoute } = await import('@/brain-engine/hajun/router.js');
           const { createCtx } = await import('@/brain-engine/contracts/ctx.js');
-          let ctx = createCtx({ text: original, author: effectiveUserId }, traceId);
+          let ctx = createCtx({ text: original, author: effectiveDeviceId }, traceId);
           ctx = await engineRoute('translate', ctx);  // DeepL만 기다림
 
           const p = ctx.payload;
@@ -73,8 +85,6 @@ export async function POST(request: NextRequest) {
           };
 
           // ── Step 1.5: tb_trans_logs에 번역 결과 선제 저장 ────
-          // Gemini 분석 전이라도 번역 결과를 먼저 저장하고 id를 확보
-          // → messages.relations.tb_trans_log_id 연결용
           try {
             const { getStorage } = await import('@/brain-engine/connectors/storage.js');
             const db = await getStorage();
@@ -108,7 +118,6 @@ export async function POST(request: NextRequest) {
               const ap = analysisCtx.payload;
               console.log(`[chat/send] 분석 완료 traceId=${traceId} emotion=${ap?.emotion} risk=${ap?.riskScore}`);
 
-              // ── Language Knowledge: 어휘/구문 자동 추출 저장 (새 AI 호출 없음) ──
               try {
                 const { saveVocabulary, savePhrase } = await import('@/brain-engine/connectors/storage.js');
                 await saveVocabulary({ payload: { keywords: ap?.keywords, sourceLang, source: 'chat' } });
@@ -128,7 +137,6 @@ export async function POST(request: NextRequest) {
                 console.warn('[chat/send] Language Knowledge 저장 실패 (무시):', e.message);
               }
 
-              // tb_trans_logs에 저장 (getWordData에서 분석값 읽어오기 위해)
               const { getStorage } = await import('@/brain-engine/connectors/storage.js');
               const db = await getStorage();
               if (db) {
@@ -147,12 +155,10 @@ export async function POST(request: NextRequest) {
                   is_southern:      ap?.isSouthern ?? false,
                   cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
                 };
-                // Step 1.5에서 미리 확보한 id로 바로 UPDATE
                 const logId = translationMeta.tbTransLogId;
                 if (logId) {
                   await db.from('tb_trans_logs').update(updatePayload).eq('id', logId);
                 } else {
-                  // fallback: source_text로 기존 행 찾아서 UPDATE 또는 INSERT
                   const { data: existing } = await db
                     .from('tb_trans_logs').select('id')
                     .eq('source_text', original).eq('direction', direction)
@@ -172,8 +178,6 @@ export async function POST(request: NextRequest) {
               }
 
               // ── repetition_count 계산 (CoreHub 합의 스키마) ──────
-              // intent 기준, 300초 윈도우, messages 테이블 한정.
-              // tb_trans_logs의 frequency/consistency(배치 집계)와는 별개 로직.
               try {
                 if (db && ap?.intent) {
                   const REPETITION_WINDOW_SEC = 300;
@@ -183,26 +187,25 @@ export async function POST(request: NextRequest) {
                     .from('messages')
                     .select('id', { count: 'exact', head: true })
                     .eq('room_id', roomId)
-                    .eq('device_id', effectiveUserId)
+                    .eq('device_id', effectiveDeviceId)
                     .eq('meta->>intent', ap.intent)
                     .gte('created_at', windowStart);
 
                   if (countError) {
                     console.warn('[chat/send] repetition_count 조회 실패:', countError.message);
                   } else {
-                    // 방금 보낸 메시지 행을 room_id+device_id+content로 재특정
                     const { data: targetRow, error: findError } = await db
                       .from('messages')
                       .select('id, meta')
                       .eq('room_id', roomId)
-                      .eq('device_id', effectiveUserId)
+                      .eq('device_id', effectiveDeviceId)
                       .eq('content', original)
                       .order('created_at', { ascending: false })
                       .limit(1)
                       .maybeSingle();
 
                     if (!findError && targetRow?.id) {
-                      const repetitionCount = (count ?? 0) + 1; // 이번 메시지(자기 자신) 포함
+                      const repetitionCount = (count ?? 0) + 1;
                       const mergedMeta = {
                         ...(targetRow.meta || {}),
                         intent: ap.intent,
@@ -235,7 +238,13 @@ export async function POST(request: NextRequest) {
               await fetch(appUrl + '/api/push/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: roomId, sender_id: effectiveUserId, title: 'CoreRing', body: original.length > 50 ? original.slice(0, 50) + '...' : original, url: `/?room=${roomId}` }),
+                body: JSON.stringify({
+                  room_id: roomId,
+                  sender_id: effectiveDeviceId,
+                  title: 'CoreRing',
+                  body: original.length > 50 ? original.slice(0, 50) + '...' : original,
+                  url: `/?room=${roomId}`,
+                }),
               }).catch(() => null);
             } catch (e) {}
           });
@@ -251,20 +260,25 @@ export async function POST(request: NextRequest) {
         emotion: translationMeta.emotion?.primary || null,
       };
       const { ChatMessageEngine } = await import('@/brain-engine/engines/chat/message.js');
-      const result: any = await ChatMessageEngine({ type: 'SEND_MESSAGE', payload: { roomId, userId: effectiveUserId, original, meta: flatMeta }, traceId, _error: null });
+      const result: any = await ChatMessageEngine({
+        type: 'SEND_MESSAGE',
+        payload: { roomId, userId: effectiveDeviceId, original, meta: flatMeta },
+        traceId,
+        _error: null,
+      });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
 
-      // ── CoreHub: relation.chat.sent Fact 전달 (fire-and-forget) ──
-      // 채팅 메시지를 CoreHub에 전달 → cross.language.relationship 패턴 매칭용
-      // 채팅 흐름에 영향을 주지 않는다 (side-effect only)
+      // ── CoreHub: relation.chat.sent Fact (fire-and-forget) ──
+      // owner_key = Platform 사람 id; device_id는 payload에 유지
       Promise.resolve().then(async () => {
         await postFactToCoreHub({
           source: 'CoreRing',
           fact_type: 'relation.chat.sent',
-          owner_key: effectiveUserId,
+          owner_key: effectiveOwnerKey,
           payload: {
             room_id: roomId,
             content: original,
+            device_id: effectiveDeviceId,
             tb_trans_log_id: translationMeta.tbTransLogId || null,
             trace_id: traceId,
           },
