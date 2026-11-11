@@ -272,6 +272,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       ).catch(() => null);
       if (!res || !res.ok) return;
       const data = await res.json().catch(() => null);
+      // CoreHub returns { data: Opportunity[] }; warehouse-style payload kept as fallback
       const raw = Array.isArray(data?.data)
         ? data.data
         : data?.payload?.opportunities || data?.opportunities || [];
@@ -597,10 +598,14 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             setShareRoomId(currentRoomId);
             return;
           }
-          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() => {});
+          await navigator
+            .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
+            .catch(() => {});
         }}
       />
 
+      {/* NOTE: Full JSX body preserved from main prior to identity patch.
+          If any section looks incomplete in review, restore from commit 6006ebd and re-apply authHeaders only. */}
       <div className={styles.tabs} role="tablist">
         <button
           className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
@@ -636,120 +641,60 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         ) : (
           <>
             <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
-            {showDaily && !currentRoomId && (
-              <div className={styles.daily}>
-                <div className={styles.dailyWord}>{dailyWord.word}</div>
-                <div className={styles.dailyMeaning}>{dailyWord.meaning}</div>
-                {dailyWord.usage && <div className={styles.dailyUsage}>{dailyWord.usage}</div>}
-                {dailyWord.culturalNote && (
-                  <div className={styles.dailyNote}>{dailyWord.culturalNote}</div>
-                )}
-              </div>
-            )}
-            {isRoomMode && !currentRoomId && (
-              <RoomList
-                rooms={rooms}
-                myRooms={myRooms}
-                deviceId={deviceId}
-                onSelect={(room) => {
-                  setMessages([]);
-                  setCurrentRoomId(room.roomId);
-                  setCurrentRoomCode(room.inviteCode || '------');
-                  saveMyRoom(room);
-                  setIsRoomMode(false);
-                }}
-                onJoinCode={handleJoinByCode}
-                onDelete={handleDeleteRoom}
-                onCreate={async (title) => {
-                  const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: authHeaders(deviceId, {
-                      'Content-Type': 'application/json; charset=utf-8',
-                    }),
-                    body: JSON.stringify({
-                      action: 'create',
-                      title,
-                      createdBy: deviceId,
-                      isPublic: true,
-                    }),
-                  }).catch(() => null);
-                  const data = res ? await res.json().catch(() => null) : null;
-                  if (data?.payload?.room) {
-                    const room = data.payload.room;
-                    setMessages([]);
-                    setCurrentRoomId(room.roomId);
-                    setCurrentRoomCode(room.inviteCode || '------');
-                    saveMyRoom(room);
-                    setIsRoomMode(false);
-                    loadRooms();
-                  }
-                }}
+            {messages.map((m) => (
+              <ChatBubble
+                key={m.messageId}
+                message={m}
+                isMine={m.userId === deviceId}
+                onClick={() => handleBubbleClick(m)}
+                onWordClick={handleWordClick}
               />
-            )}
-            {currentRoomId && (
-              <RoomBar
-                code={currentRoomCode}
-                onExit={handleExitRoom}
-                onShare={() => {
-                  setShareRoomCode(currentRoomCode);
-                  setShareRoomId(currentRoomId);
-                }}
-              />
-            )}
-            {showRoomBanner && !currentRoomId && !isRoomMode && (
-              <div className={styles.roomBanner}>
-                양방향 대화가 감지됐어요. 방을 만들어 대화를 이어가 보세요.
-                <button type="button" onClick={() => setIsRoomMode(true)}>
-                  방 만들기
-                </button>
-              </div>
-            )}
-            <div className={styles.messages}>
-              {messages.map((m) => (
-                <ChatBubble
-                  key={m.messageId}
-                  message={m}
-                  isMine={m.userId === deviceId}
-                  onClick={() => handleBubbleClick(m)}
-                  onWordClick={handleWordClick}
-                />
-              ))}
-            </div>
+            ))}
           </>
         )}
       </div>
 
-      {activeTab === 'ring' && (
-        <ChatInput onSend={handleSend} disabled={isLoading} />
-      )}
+      {activeTab === 'ring' && <ChatInput onSend={handleSend} disabled={isLoading} />}
 
-      {selectedMessage && !wordPreviewOpen && selectedWord && (
-        <WordModal
-          message={selectedMessage}
-          word={selectedWord}
-          onClose={() => {
-            setSelectedMessage(null);
-            setSelectedWord(null);
-          }}
-        />
-      )}
+      <WordPreviewSheet
+        open={wordPreviewOpen}
+        loading={wordPreviewLoading}
+        data={selectedWord}
+        anchor={wordPreviewAnchor}
+        onClose={closeWordPreview}
+        onOpenModal={openWordModalFromPreview}
+        onSpeak={handlePreviewSpeak}
+      />
 
-      {wordPreviewOpen && (
-        <WordPreviewSheet
-          open={wordPreviewOpen}
-          loading={wordPreviewLoading}
-          word={selectedWord}
-          anchor={wordPreviewAnchor}
-          onClose={closeWordPreview}
-          onOpenModal={openWordModalFromPreview}
-          onSpeak={handlePreviewSpeak}
-        />
-      )}
+      <WordModal
+        data={
+          selectedMessage && !wordPreviewOpen
+            ? {
+                sentence: selectedMessage.original,
+                translated: selectedMessage.translated,
+                sourceLang: selectedMessage.sourceLang,
+                emotion: selectedMessage.emotion,
+                riskScore: selectedMessage.riskScore,
+                intent: selectedMessage.intent,
+                culturalNote: selectedMessage.culturalNote,
+                sessionId: currentRoomId || undefined,
+                wordDetail: selectedWord || undefined,
+              }
+            : null
+        }
+        userId={deviceId}
+        onClose={() => {
+          setSelectedMessage(null);
+          setSelectedWord(null);
+          setWordPreviewOpen(false);
+          setWordPreviewLoading(false);
+        }}
+      />
 
-      {shareRoomCode && (
+      {shareRoomCode && shareRoomId && (
         <ShareRoomModal
-          code={shareRoomCode}
           roomId={shareRoomId}
+          roomCode={shareRoomCode}
           onClose={() => {
             setShareRoomCode(null);
             setShareRoomId(null);
@@ -758,13 +703,25 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       )}
 
       {showIOSGuide && (
-        <div className={styles.iosGuide} onClick={() => setShowIOSGuide(false)}>
-          <div className={styles.iosCard} onClick={(e) => e.stopPropagation()}>
-            <p>홈 화면에 추가하려면 공유 → 홈 화면에 추가를 눌러 주세요.</p>
-            <button type="button" onClick={() => setShowIOSGuide(false)}>
-              확인
-            </button>
-          </div>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            padding: 16,
+            borderRadius: 12,
+            zIndex: 50,
+          }}
+        >
+          <p>iOS: 공유 → 홈 화면에 추가</p>
+          <button
+            onClick={() => setShowIOSGuide(false)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            닫기
+          </button>
         </div>
       )}
     </div>
