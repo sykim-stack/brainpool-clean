@@ -59,6 +59,7 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [contributionCount, setContributionCount] = useState(0);
   const [wordDetail, setWordDetail] = useState<any>(null);
   const [userMeaning, setUserMeaning] = useState('');
   const [isMeaningSaved, setIsMeaningSaved] = useState(false);
@@ -109,23 +110,28 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
 
     fetchWordData();
   }, [word_for_effect]);
+
   useEffect(() => {
     if (!word_for_effect) return;
     setAudioUrl(null);
+    setContributionCount(0);
     const dialect = sourceLang_for_effect === 'ko' ? 'vietnamese' : 'korean';
     fetch('/api/phrase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ action: 'get-audio', word: word_for_effect, dialect }),
     })
-      .then(r => r.json())
+      .then((r) => r.json())
       .catch(() => null)
-      .then(json => {
-        if (json?.payload?.audio_url) {
-          setAudioUrl(json.payload.audio_url);
+      .then((json) => {
+        const payload = json?.payload;
+        if (!payload) return;
+        if (payload.audio_url) setAudioUrl(payload.audio_url);
+        if (typeof payload.contribution_count === 'number') {
+          setContributionCount(payload.contribution_count);
         }
       });
-  }, [word_for_effect]);
+  }, [word_for_effect, sourceLang_for_effect]);
 
   if (!data) return null;
 
@@ -250,18 +256,25 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
             const url = await uploadVoice(blob, mType, userId || 'anon');
             if (url) {
               setAudioUrl(url);
-              fetch('/api/phrase', {
+              const dialect = sourceLang === 'ko' ? 'korean' : 'vietnamese';
+              const saveRes = await fetch('/api/phrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
                 body: JSON.stringify({
                   action: 'save-audio',
                   user_id: userId,
                   word: word,
-                  dialect: sourceLang === 'ko' ? 'korean' : 'vietnamese',
+                  dialect,
                   audio_url: url,
                   session_id: data.sessionId || null,
                 }),
               }).catch(() => null);
+              const saveJson = saveRes ? await saveRes.json().catch(() => null) : null;
+              if (typeof saveJson?.payload?.contribution_count === 'number') {
+                setContributionCount(saveJson.payload.contribution_count);
+              } else {
+                setContributionCount((c) => c + 1);
+              }
             }
           }
         } finally {
@@ -430,6 +443,12 @@ export default function WordModal({ data, onClose, userId }: WordModalProps) {
           <p className={styles.culturalNote} style={{ marginBottom: '8px' }}>
             {pronunciationTarget}
           </p>
+          {contributionCount > 0 && (
+            <p className={styles.wordLoadingText} style={{ margin: '0 0 8px', textAlign: 'left' }}>
+              이 표현 발음 기여 {contributionCount}건
+              {audioUrl ? ' · 원어민 녹음 있음' : ''}
+            </p>
+          )}
           {audioUrl ? (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
