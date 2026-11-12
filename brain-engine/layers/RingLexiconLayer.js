@@ -343,6 +343,18 @@ export class RingLexiconLayer {
     return { ...ctx, result: { success: true, id } };
   }
 
+  async countAudioContributions(ctx, word, dialect) {
+    if (!word) return 0;
+    let q = ctx.supabase
+      .from('audio_contributions')
+      .select('id', { count: 'exact', head: true })
+      .eq('word', word);
+    if (dialect) q = q.eq('dialect', dialect);
+    const { count, error } = await q;
+    if (error) return 0;
+    return count ?? 0;
+  }
+
   async saveAudio(ctx) {
     const { user_id, word, dialect, audio_url, session_id, trans_id } = ctx.payload;
     if (!user_id || !audio_url) return { ...ctx, _error: { code: 'MISSING_PARAMS', message: 'user_id and audio_url required' } };
@@ -352,12 +364,16 @@ export class RingLexiconLayer {
       .select()
       .single();
     if (error) return { ...ctx, _error: { code: 'DB_INSERT_ERROR', message: error.message } };
-    return { ...ctx, result: data };
+    const contribution_count = await this.countAudioContributions(ctx, word || '', dialect || 'standard');
+    return { ...ctx, result: { ...data, contribution_count } };
   }
 
   async getAudio(ctx) {
     const { word, dialect } = ctx.payload;
     if (!word) return { ...ctx, _error: { code: 'MISSING_WORD', message: 'word is required' } };
+
+    const contribution_count = await this.countAudioContributions(ctx, word, dialect || null);
+
     let query = ctx.supabase
       .from('audio_contributions')
       .select('audio_url, user_id, created_at')
@@ -367,8 +383,17 @@ export class RingLexiconLayer {
     if (dialect) query = query.eq('dialect', dialect);
     const { data, error } = await query.maybeSingle();
     if (error) return { ...ctx, _error: { code: 'DB_ERROR', message: error.message } };
-    if (!data) return { ...ctx, result: null };
-    return { ...ctx, result: { audio_url: data.audio_url } };
+
+    if (!data) {
+      return { ...ctx, result: { audio_url: null, contribution_count } };
+    }
+    return {
+      ...ctx,
+      result: {
+        audio_url: data.audio_url,
+        contribution_count,
+      },
+    };
   }
 
   async reportConflict(ctx) {
