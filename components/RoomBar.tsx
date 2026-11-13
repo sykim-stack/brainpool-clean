@@ -10,7 +10,6 @@ interface RoomBarProps {
 }
 
 export default function RoomBar({
-  roomId,
   roomCode,
   onExit,
   onShare,
@@ -31,11 +30,6 @@ export default function RoomBar({
         <button className="room-code" onClick={handleCodeClick} title="공유 / 복사">
           ● {roomCode}
         </button>
-        {roomId ? (
-          <span className={styles.roomIdHint} title={roomId}>
-            방
-          </span>
-        ) : null}
       </div>
       <button className="icon-btn" onClick={onExit} title="나가기">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
