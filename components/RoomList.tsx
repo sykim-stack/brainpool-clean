@@ -8,21 +8,30 @@ interface Room {
   inviteCode?: string;
   messageCount?: number;
   isPublic?: boolean;
-  ownerDeviceId?: string; 
+  ownerDeviceId?: string;
 }
 
 interface RoomListProps {
   rooms: Room[];
   myRooms?: Room[];
-  onSelectRoom: (roomId: string) => void;
-  onCreateRoom: (title: string, isPublic: boolean) => void;
-  onJoinByCode: (inviteCode: string) => void;
-  onDeleteRoom: (roomId: string) => void;
+  onSelect: (room: Room) => void;
+  onCreate: (title: string, isPublic?: boolean) => void;
+  onJoinCode: (inviteCode: string) => void;
+  onDelete: (roomId: string) => void;
   visible: boolean;
   deviceId?: string;
 }
 
-export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRoom, onJoinByCode, onDeleteRoom, visible, deviceId }: RoomListProps) {
+export default function RoomList({
+  rooms,
+  myRooms = [],
+  onSelect,
+  onCreate,
+  onJoinCode,
+  onDelete,
+  visible,
+  deviceId,
+}: RoomListProps) {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -38,14 +47,14 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
       return;
     }
     setCodeError('');
-    onJoinByCode(trimmed);
+    onJoinCode(trimmed);
     setCode('');
   };
 
   const handleCreate = () => {
     const trimmed = newTitle.trim();
     if (!trimmed) return;
-    onCreateRoom(trimmed, isPublic);
+    onCreate(trimmed, isPublic);
     setNewTitle('');
     setIsPublic(true);
     setShowCreateForm(false);
@@ -79,7 +88,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 key={room.roomId}
                 className={`room-item ${styles.roomItem}`}
               >
-                <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
+                <div onClick={() => onSelect(room)} style={{ flex: 1 }}>
                   {room.title}
                   {room.inviteCode && (
                     <div className={`room-meta ${styles.inviteCode}`}>
@@ -90,7 +99,11 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
                 {room.ownerDeviceId === deviceId && (
                   <button
                     className={styles.deleteBtn}
-                    onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.'))
+                        onDelete(room.roomId);
+                    }}
                   >
                     삭제
                   </button>
@@ -126,8 +139,22 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
               비공개방으로 만들기
             </label>
             <div className={styles.createActions}>
-              <button className={styles.cancelBtn} onClick={() => { setShowCreateForm(false); setNewTitle(''); }}>취소</button>
-              <button className={styles.confirmBtn} onClick={handleCreate} disabled={!newTitle.trim()}>만들기</button>
+              <button
+                className={styles.cancelBtn}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewTitle('');
+                }}
+              >
+                취소
+              </button>
+              <button
+                className={styles.confirmBtn}
+                onClick={handleCreate}
+                disabled={!newTitle.trim()}
+              >
+                만들기
+              </button>
             </div>
           </div>
         )}
@@ -140,7 +167,7 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
             key={room.roomId}
             className={`room-item ${styles.roomItem}`}
           >
-            <div onClick={() => onSelectRoom(room.roomId)} style={{ flex: 1 }}>
+            <div onClick={() => onSelect(room)} style={{ flex: 1 }}>
               {room.title}
               {room.inviteCode && (
                 <div className={`room-meta ${styles.inviteCode}`}>
@@ -151,7 +178,11 @@ export default function RoomList({ rooms, myRooms = [], onSelectRoom, onCreateRo
             {room.ownerDeviceId === deviceId && (
               <button
                 className={styles.deleteBtn}
-                onClick={(e) => { e.stopPropagation(); if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.')) onDeleteRoom(room.roomId); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('이 채팅방을 삭제할까요? 메시지도 함께 삭제됩니다.'))
+                    onDelete(room.roomId);
+                }}
               >
                 삭제
               </button>
