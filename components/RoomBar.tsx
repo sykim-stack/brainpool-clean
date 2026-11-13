@@ -3,33 +3,39 @@
 import styles from './RoomBar.module.css';
 
 interface RoomBarProps {
-  nickname: string;
+  roomId?: string;
   roomCode: string;
-  onChangeNickname: () => void;
-  onCopyCode: () => void;
   onExit: () => void;
-  visible: boolean;
+  onShare?: () => void;
 }
 
 export default function RoomBar({
-  nickname,
+  roomId,
   roomCode,
-  onChangeNickname,
-  onCopyCode,
   onExit,
-  visible,
+  onShare,
 }: RoomBarProps) {
-  if (!visible) return null;
+  const handleCodeClick = () => {
+    if (onShare) {
+      onShare();
+      return;
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(roomCode).catch(() => {});
+    }
+  };
 
   return (
     <div className="room-bar">
       <div className={styles.left}>
-        <button onClick={onChangeNickname} className={styles.nicknameBtn}>
-          ✎ {nickname}
-        </button>
-        <button className="room-code" onClick={onCopyCode}>
+        <button className="room-code" onClick={handleCodeClick} title="공유 / 복사">
           ● {roomCode}
         </button>
+        {roomId ? (
+          <span className={styles.roomIdHint} title={roomId}>
+            방
+          </span>
+        ) : null}
       </div>
       <button className="icon-btn" onClick={onExit} title="나가기">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
