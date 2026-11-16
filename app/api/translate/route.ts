@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
     session_id?: string;
     user_id?: string;
     partner_device_id?: string;
+    message_id?: string | null;
+    message_source?: string | null;
   };
 
   try {
@@ -157,6 +159,12 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. tb_trans_logs 저장
+  // W-2: message_source + message_id (요청에 없으면 null, 추측 생성 금지)
+  const messageId = body.message_id ?? null;
+  const messageSource = body.message_source || 'post';
+  if (!messageId) {
+    console.log('[translate] message_id absent — recording null');
+  }
   const logPayload = {
     source_text: text,
     standard_vi: direction === 'ko-vi' ? translated : text,
@@ -165,6 +173,8 @@ export async function POST(req: NextRequest) {
     user_id: user_id ?? null,
     partner_device_id: partner_device_id ?? null,
     marriage_type: 'vn-kr',
+    message_source: messageSource,
+    message_id: messageId,
     // 분석 결과 (없으면 기본값 유지)
     ...analysisPayload,
   };
