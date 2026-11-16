@@ -224,3 +224,43 @@
   color: var(--color-text);
   border-color: var(--color-accent);
 }
+
+/* ── 채팅 메시지 목록 (말풍선 좌우 정렬용) ──
+   .main 이 align-items:center 이므로 자식이 축소됨.
+   messages 를 가로 100% flex column 으로 두어
+   ChatBubble 의 wrapperMine/wrapperOther (align-self) 가 동작하게 한다. */
+.messages {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+/* page.tsx 는 styles.tabs 를 사용 (구 tabBar 와 동일 역할) */
+.tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.roomBanner {
+  width: min(480px, 100%);
+  margin: var(--space-2) auto;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--color-text-sub);
+  font-size: var(--font-sm);
+  text-align: center;
+  box-sizing: border-box;
+}
