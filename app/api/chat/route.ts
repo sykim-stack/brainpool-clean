@@ -171,11 +171,11 @@ export async function POST(request: NextRequest) {
                   if (existingId) {
                     await db.from('tb_trans_logs').update(updatePayload).eq('id', existingId);
                   } else {
+                    // updatePayload already includes message_source — do not duplicate key
                     await db.from('tb_trans_logs').insert({
                       source_text: original,
                       standard_vi: ctx.payload?.translatedText || original,
                       direction,
-                      message_source: 'chat',
                       ...updatePayload,
                     });
                   }
