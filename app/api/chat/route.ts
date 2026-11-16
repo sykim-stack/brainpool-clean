@@ -299,8 +299,16 @@ export async function POST(request: NextRequest) {
       }
 
       // ── CoreHub: relation.chat.sent Fact (fire-and-forget) ──
-      // A-1: owner_key = Platform 사람 id; device_id는 payload에 유지 (이미 준수)
+      // A-1: owner_key = Platform 사람 id; device_id는 payload에 유지
       // A-7: content(원문) 제거 — 식별자+파생값만
+      // W-3: owner_key_source 로 폴백 추적 (인증 대기 문제가 아니라 헤더 전달 공백)
+      const ownerKeySource =
+        principalResult.principal.ownerKey ? 'header' : 'device_fallback';
+      if (ownerKeySource === 'device_fallback') {
+        console.warn(
+          `[chat/send] owner_key device_fallback deviceId=${effectiveDeviceId} traceId=${traceId}`
+        );
+      }
       Promise.resolve().then(async () => {
         await postFactToCoreHub({
           source: 'CoreRing',
@@ -312,6 +320,7 @@ export async function POST(request: NextRequest) {
             device_id: effectiveDeviceId,
             message_id: messageId,
             tb_trans_log_id: translationMeta.tbTransLogId || null,
+            owner_key_source: ownerKeySource,
             trace_id: traceId,
           },
         });
@@ -344,7 +353,7 @@ export async function POST(request: NextRequest) {
     // ── join ──
     if (action === 'join') {
       const { inviteCode } = body;
-      if (!inviteCode) return NextResponse.json({ payload: null, _error: 'inviteCode required', traceId }, { status: 400 });
+      if (!inviteCode) return NextResponse.json({ payload: null, _error: 'inviteCode required', traceId }, { status: 404 });
       const { ChatRoomEngine } = await import('@/brain-engine/engines/chat/room.js');
       const result: any = await ChatRoomEngine({ type: 'FIND_BY_CODE', payload: { inviteCode }, traceId, _error: null });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 404 });
