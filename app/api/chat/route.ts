@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
           };
 
           // ── Step 1.5: tb_trans_logs에 번역 결과 선제 저장 ────
+          // A-2: message_id + message_source 기록 (message_id는 메시지 생성 후 갱신)
           try {
             const { getStorage } = await import('@/brain-engine/connectors/storage.js');
             const db = await getStorage();
@@ -97,6 +98,8 @@ export async function POST(request: NextRequest) {
                   standard_vi: translated,
                   direction,
                   trace_id: traceId,
+                  message_source: 'chat',
+                  // message_id는 Step 3 이후 UPDATE로 채움
                 })
                 .select('id')
                 .single();
@@ -154,6 +157,7 @@ export async function POST(request: NextRequest) {
                   detected_dialect: ap?.detectedDialect || 'unknown',
                   is_southern:      ap?.isSouthern ?? false,
                   cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
+                  message_source:   'chat',
                 };
                 const logId = translationMeta.tbTransLogId;
                 if (logId) {
@@ -171,6 +175,7 @@ export async function POST(request: NextRequest) {
                       source_text: original,
                       standard_vi: ctx.payload?.translatedText || original,
                       direction,
+                      message_source: 'chat',
                       ...updatePayload,
                     });
                   }
@@ -268,8 +273,29 @@ export async function POST(request: NextRequest) {
       });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
 
+      const messageId = result.message?.id || result.message?.message_id || null;
+
+      // A-2: 메시지 생성 후 tb_trans_logs에 message_id 채우기
+      if (messageId && translationMeta.tbTransLogId) {
+        Promise.resolve().then(async () => {
+          try {
+            const { getStorage } = await import('@/brain-engine/connectors/storage.js');
+            const db = await getStorage();
+            if (db) {
+              await db.from('tb_trans_logs').update({
+                message_id: messageId,
+                message_source: 'chat',
+              }).eq('id', translationMeta.tbTransLogId);
+            }
+          } catch (e: any) {
+            console.warn('[chat/send] message_id 백필 실패:', e.message);
+          }
+        });
+      }
+
       // ── CoreHub: relation.chat.sent Fact (fire-and-forget) ──
-      // owner_key = Platform 사람 id; device_id는 payload에 유지
+      // A-1: owner_key = Platform 사람 id; device_id는 payload에 유지 (이미 준수)
+      // A-7: content(원문) 제거 — 식별자+파생값만
       Promise.resolve().then(async () => {
         await postFactToCoreHub({
           source: 'CoreRing',
@@ -277,8 +303,9 @@ export async function POST(request: NextRequest) {
           owner_key: effectiveOwnerKey,
           payload: {
             room_id: roomId,
-            content: original,
+            // A-7: content 제거 (복제 위반 해소)
             device_id: effectiveDeviceId,
+            message_id: messageId,
             tb_trans_log_id: translationMeta.tbTransLogId || null,
             trace_id: traceId,
           },

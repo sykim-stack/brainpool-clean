@@ -1,4 +1,4 @@
-﻿import type { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { route } from '@/brain-engine/hajun/router.js';
 import { createCtx } from '@/brain-engine/contracts/ctx.js';
 import { postFactToCoreHub } from '@/lib/corehub';
@@ -103,22 +103,28 @@ export async function POST(request: NextRequest) {
     const targetLang = sourceLang === 'ko' ? 'vi' : 'ko';
 
     // ── CoreHub: language.translated Fact 전달 (fire-and-forget) ──
-    // 번역 결과를 CoreHub에 전달 → cross.language.relationship 패턴 매칭용
+    // A-1: owner_key에 device_id를 넣지 않음 — device_id는 payload 별도 필드
+    // A-7: 원문·번역문 텍스트 제거 — 식별자+파생값만 (tb_trans_log_id, direction)
     // 번역 흐름에 영향을 주지 않는다 (side-effect only)
     const deviceId =
       body.device_id ||
       request.headers.get('x-device-id') ||
       `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const ownerKeyHeader = request.headers.get('x-owner-key')?.trim() || null;
+    // owner_key 우선순위: x-owner-key → 없으면 deviceId 폴백(레거시 호환, 매핑 전까지)
+    // 단, payload.device_id는 항상 별도로 유지해 이름표 혼동을 막는다
+    const ownerKey = ownerKeyHeader || deviceId;
     Promise.resolve().then(async () => {
       await postFactToCoreHub({
         source: 'CoreRing',
         fact_type: 'language.translated',
-        owner_key: deviceId,
+        owner_key: ownerKey,
         payload: {
-          source_text: p.text,
-          standard_vi: p.translatedText || p.text,
+          device_id: deviceId,
           direction: sourceLang === 'ko' ? 'KO_VI' : 'VI_KO',
+          tb_trans_log_id: p.logId || null,
           trace_id: traceId,
+          // A-7: source_text / standard_vi 제거 (복제 위반 해소)
         },
       });
     });
@@ -207,6 +213,8 @@ export async function POST(request: NextRequest) {
               is_southern:      ap?.isSouthern ?? false,
               cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
               is_cultural_adjusted: !!ap?.culturalNote,
+              // A-2: message_source 기록 (translator/post 경로)
+              message_source: 'post',
             }).eq('id', logId);
             if (error) console.warn('[brainpool] 분석값 UPDATE 실패:', error.message);
             else console.log(`[brainpool] 분석값 저장 완료 logId=${logId}`);

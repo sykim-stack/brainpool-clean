@@ -78,6 +78,11 @@ export async function saveCache(ctx) {
   const db = await getStorage();
   if (!db) return ctx;
 
+  // A-2: message_id + message_source 기록
+  // translator/post 경로: message_source='post', message_id는 보통 없음
+  const messageSource = ctx.payload.messageSource || ctx.payload.message_source || 'post';
+  const messageId = ctx.payload.messageId || ctx.payload.message_id || null;
+
   const { data, error } = await db.from('tb_trans_logs').insert({
     source_text: text,
     standard_vi: translatedText,
@@ -94,6 +99,8 @@ export async function saveCache(ctx) {
     cultural_notes: ctx.payload.culturalNote ? { warning: ctx.payload.culturalNote } : null,
     is_cultural_adjusted: !!ctx.payload.culturalNote,
     trace_id: ctx.traceId || null,
+    message_source: messageSource,
+    message_id: messageId,
   }).select('id').single();
 
   if (error) {
