@@ -13,6 +13,7 @@ import CorePhrase from '@/components/CorePhrase';
 import KiipPractice from '@/components/KiipPractice';
 import ShareRoomModal from '@/components/ShareRoomModal';
 import { speakNow } from '@/lib/tts';
+import styles from './page.module.css';
 
 interface Message {
   messageId: string;
@@ -67,6 +68,7 @@ const subscribePush = async (deviceId: string) => {
 };
 
 const DEVICE_ID_KEY = 'corering_device_id';
+/** CoreNull lib/ownerKey.ts 와 동일 — Platform 통합 아이디 */
 const OWNER_KEY = 'corenull_owner_key';
 
 function readOwnerKey(): string {
@@ -74,13 +76,18 @@ function readOwnerKey(): string {
   return localStorage.getItem(OWNER_KEY)?.trim() || '';
 }
 
+/** device 필수 + owner_key 있으면 x-owner-key 부착 */
 function authHeaders(deviceId: string, extra?: Record<string, string>): Record<string, string> {
-  const headers: Record<string, string> = { 'x-device-id': deviceId, ...extra };
+  const headers: Record<string, string> = {
+    'x-device-id': deviceId,
+    ...extra,
+  };
   const ownerKey = readOwnerKey();
   if (ownerKey) headers['x-owner-key'] = ownerKey;
   return headers;
 }
 
+/** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
 const OPPORTUNITY_LABEL: Record<string, string> = {
   'suggest.corering': '💬 번역 도움이 필요하신가요?',
   'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
@@ -93,7 +100,10 @@ function mapOpportunities(raw: any[]): OpportunityItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 3).map((item: any) => ({
     id: String(item.id),
-    label: OPPORTUNITY_LABEL[item.action_type] || item.payload?.message || '발견',
+    label:
+      OPPORTUNITY_LABEL[item.action_type] ||
+      item.payload?.message ||
+      '발견',
   }));
 }
 
@@ -141,6 +151,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [currentRoomCode, setCurrentRoomCode] = useState('------');
   const [isRoomMode, setIsRoomMode] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [nickname, setNickname] = useState('익명');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [selectedWord, setSelectedWord] = useState<any>(null);
   const [wordPreviewOpen, setWordPreviewOpen] = useState(false);
@@ -157,6 +168,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     culturalNote: '남부에서는 "chào" 만으로도 자연스러워요',
   });
   const [showDaily, setShowDaily] = useState(true);
+  const [showRoomBanner, setShowRoomBanner] = useState(false);
   const [shareRoomCode, setShareRoomCode] = useState<string | null>(null);
   const [shareRoomId, setShareRoomId] = useState<string | null>(null);
   const [langHistory, setLangHistory] = useState<string[]>([]);
@@ -201,7 +213,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 150) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  useEffect(() => { setDeviceId(readOrCreateDeviceId()); }, []);
+  useEffect(() => {
+    setDeviceId(readOrCreateDeviceId());
+  }, []);
 
   useEffect(() => {
     try {
@@ -234,13 +248,17 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     if (data?.payload?.rooms) setRooms(data.payload.rooms);
   }, [deviceId]);
 
-  useEffect(() => { loadRooms(); }, [loadRooms]);
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
 
   useEffect(() => {
     if (!deviceId) return;
     if (typeof Notification !== 'undefined' && Notification.requestPermission) {
       Notification.requestPermission()
-        .then((p) => { if (p === 'granted') subscribePush(deviceId); })
+        .then((p) => {
+          if (p === 'granted') subscribePush(deviceId);
+        })
         .catch(() => {});
     }
   }, [deviceId]);
@@ -250,7 +268,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     try {
       const res = await fetch(
         `${COREHUB_OPP_URL}?owner_key=${encodeURIComponent(ownerKey)}&status=open&limit=5`,
-        { cache: 'no-store' },
+        { cache: 'no-store' }
       ).catch(() => null);
       if (!res || !res.ok) return;
       const data = await res.json().catch(() => null);
@@ -286,7 +304,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: authHeaders(deviceId, { 'Content-Type': 'application/json; charset=utf-8' }),
+          headers: authHeaders(deviceId, {
+            'Content-Type': 'application/json; charset=utf-8',
+          }),
           body: JSON.stringify({ action: 'poll', roomId: currentRoomId, limit: 50 }),
         });
         if (cancelled || !res?.ok) return;
@@ -305,7 +325,11 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           return {
             messageId: m.messageId || m.id,
             original: m.original || '',
-            translated: m.translated || m.translations?.[tgtLang] || m.translations?.[srcLang] || m.original,
+            translated:
+              m.translated ||
+              m.translations?.[tgtLang] ||
+              m.translations?.[srcLang] ||
+              m.original,
             sourceLang: srcLang,
             targetLang: tgtLang,
             emotion: typeof m.emotion === 'string' ? m.emotion : m.emotion?.primary || 'neutral',
@@ -326,7 +350,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     };
     poll();
     const interval = setInterval(poll, 2000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [currentRoomId, deviceId, handleExitRoom]);
 
   useEffect(() => {
@@ -338,8 +365,16 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const sendMessageToRoom = async (roomId: string, text: string) => {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: authHeaders(deviceId, { 'Content-Type': 'application/json; charset=utf-8' }),
-      body: JSON.stringify({ action: 'send', roomId, userId: deviceId, original: text, analyze: true }),
+      headers: authHeaders(deviceId, {
+        'Content-Type': 'application/json; charset=utf-8',
+      }),
+      body: JSON.stringify({
+        action: 'send',
+        roomId,
+        userId: deviceId,
+        original: text,
+        analyze: true,
+      }),
     }).catch(() => null);
     const data = res ? await res.json().catch(() => null) : null;
     if (data?._error === 'ROOM_DELETED') {
@@ -355,7 +390,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         try {
           const res = await fetch('/api/brainpool', {
             method: 'POST',
-            headers: authHeaders(deviceId, { 'Content-Type': 'application/json; charset=utf-8' }),
+            headers: authHeaders(deviceId, {
+              'Content-Type': 'application/json; charset=utf-8',
+            }),
             body: JSON.stringify({ text, device_id: deviceId }),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
@@ -381,9 +418,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             ]);
             setLangHistory((prev) => {
               const updated = [...prev, srcLang || 'unknown'];
-              if (updated.includes('ko') && updated.includes('vi')) {
-                /* show room banner handled elsewhere */
-              }
+              if (updated.includes('ko') && updated.includes('vi')) setShowRoomBanner(true);
               return updated;
             });
             window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
@@ -396,7 +431,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
       setIsLoading(false);
     },
-    [currentRoomId, deviceId, refreshOpportunities],
+    [currentRoomId, deviceId, refreshOpportunities]
   );
 
   const handleJoinByCode = useCallback(async (inviteCode: string) => {
@@ -467,7 +502,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         alert('방장만 삭제할 수 있어요.');
       }
     },
-    [deviceId, loadRooms],
+    [deviceId, loadRooms]
   );
 
   const handleBubbleClick = useCallback((msg: Message) => {
@@ -514,6 +549,18 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     speakNow(w, lang);
   }, [selectedWord, selectedMessage]);
 
+  const handleDismissOpportunity = useCallback(async (id: string) => {
+    dismissedOppRef.current.add(id);
+    setOpportunities((prev) => prev.filter((o) => o.id !== id));
+    try {
+      await fetch(`${COREHUB_OPP_URL}?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'dismissed' }),
+      }).catch(() => null);
+    } catch {}
+  }, []);
+
   return (
     <div className="app-shell">
       <BrainHeader
@@ -533,113 +580,154 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           if (!window.confirm('이 방의 메시지를 모두 지울까요?')) return;
           const res = await fetch(`/api/chat/rooms/${currentRoomId}`, {
             method: 'PATCH',
-            headers: { 'x-device-id': deviceId },
+            headers: authHeaders(deviceId),
           }).catch(() => null);
           const data = res ? await res.json().catch(() => null) : null;
           if (data?.payload?.cleared) setMessages([]);
-          else if (String(data?._error || '').startsWith('FORBIDDEN')) alert('방장만 메시지를 초기화할 수 있어요.');
+          else if (String(data?._error || '').startsWith('FORBIDDEN'))
+            alert('방장만 메시지를 초기화할 수 있어요.');
+          else alert('메시지 초기화에 실패했어요.');
         }}
         onShare={async () => {
-          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() =>
-            navigator.clipboard.writeText(location.href),
-          );
+          if (currentRoomId && currentRoomCode && currentRoomCode !== '------') {
+            setShareRoomCode(currentRoomCode);
+            setShareRoomId(currentRoomId);
+            return;
+          }
+          await navigator
+            .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
+            .catch(() => {});
         }}
         onInstall={handleInstall}
       />
 
-      {opportunities.length > 0 && (
-        <OpportunityBanner
-          items={opportunities}
-          onDismiss={(id) => {
-            dismissedOppRef.current.add(id);
-            setOpportunities((prev) => prev.filter((o) => o.id !== id));
-          }}
-        />
-      )}
+      <RoomList
+        rooms={rooms}
+        myRooms={myRooms}
+        deviceId={deviceId}
+        visible={isRoomMode && !currentRoomId}
+        onSelect={(room) => {
+          setMessages([]);
+          setCurrentRoomId(room.roomId);
+          setCurrentRoomCode(room.inviteCode || '------');
+          saveMyRoom(room);
+          setIsRoomMode(false);
+        }}
+        onJoinCode={handleJoinByCode}
+        onDelete={handleDeleteRoom}
+        onCreate={async (title) => {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: authHeaders(deviceId, {
+              'Content-Type': 'application/json; charset=utf-8',
+            }),
+            body: JSON.stringify({
+              action: 'create',
+              title,
+              createdBy: deviceId,
+              isPublic: true,
+            }),
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload?.room) {
+            const room = data.payload.room;
+            setMessages([]);
+            setCurrentRoomId(room.roomId);
+            setCurrentRoomCode(room.inviteCode || '------');
+            saveMyRoom(room);
+            setIsRoomMode(false);
+            loadRooms();
+          }
+        }}
+      />
 
-      <div style={{ display: 'flex', gap: 8, padding: '8px 12px' }}>
-        <button type="button" onClick={() => setActiveTab('ring')}>Ring</button>
-        <button type="button" onClick={() => setActiveTab('phrase')}>Phrase</button>
-        <button type="button" onClick={() => setActiveTab('kiip')}>KIIP</button>
+      <div className={styles.tabs} role="tablist">
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'ring' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('ring')}
+          role="tab"
+          aria-selected={activeTab === 'ring'}
+        >
+          CoreRing
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'phrase' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('phrase')}
+          role="tab"
+          aria-selected={activeTab === 'phrase'}
+        >
+          CorePhrase
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'kiip' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('kiip')}
+          role="tab"
+          aria-selected={activeTab === 'kiip'}
+        >
+          KIIP 연습
+        </button>
       </div>
 
-      {activeTab === 'phrase' && <CorePhrase userId={deviceId} />}
-      {activeTab === 'kiip' && <KiipPractice deviceId={deviceId} />}
-
-      {activeTab === 'ring' && (
-        <>
-          <RoomList
-            rooms={rooms}
-            myRooms={myRooms}
-            deviceId={deviceId}
-            visible={isRoomMode && !currentRoomId}
-            onSelect={(room) => {
-              setMessages([]);
-              setCurrentRoomId(room.roomId);
-              setCurrentRoomCode(room.inviteCode || '------');
-              saveMyRoom(room);
-              setIsRoomMode(false);
-            }}
-            onJoinCode={handleJoinByCode}
-            onCreate={async (title, isPublic) => {
-              const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: authHeaders(deviceId, { 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ action: 'create', title, isPublic, createdBy: deviceId }),
-              }).catch(() => null);
-              const data = res ? await res.json().catch(() => null) : null;
-              if (data?.payload?.room) {
-                setShareRoomCode(data.payload.room.inviteCode);
-                setShareRoomId(data.payload.room.roomId);
-                saveMyRoom(data.payload.room);
-                loadRooms();
-                setIsRoomMode(false);
-              }
-            }}
-            onDelete={handleDeleteRoom}
-          />
-
-          {currentRoomId && (
-            <RoomBar
-              roomCode={currentRoomCode}
-              roomId={currentRoomId}
-              onExit={handleExitRoom}
-              onShare={() => {
-                setShareRoomId(currentRoomId);
-                setShareRoomCode(currentRoomCode);
-              }}
-            />
-          )}
-
-          <div ref={chatRef} style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-            {!currentRoomId && showDaily && dailyWord.word && (
-              <div style={{ padding: 12, opacity: 0.85 }}>
-                <strong>{dailyWord.word}</strong>
-                {dailyWord.meaning && <span> — {dailyWord.meaning}</span>}
+      <div className={styles.main} ref={chatRef}>
+        {activeTab === 'phrase' ? (
+          <CorePhrase userId={deviceId} />
+        ) : activeTab === 'kiip' ? (
+          <KiipPractice deviceId={deviceId} />
+        ) : (
+          <>
+            <OpportunityBanner items={opportunities} onDismiss={handleDismissOpportunity} />
+            {showDaily && !messages.length && (
+              <div className={styles.daily}>
+                <div className={styles.dailyWord}>{dailyWord.word}</div>
+                <div className={styles.dailyMeaning}>{dailyWord.meaning}</div>
+                {dailyWord.usage && <div className={styles.dailyUsage}>{dailyWord.usage}</div>}
+                {dailyWord.culturalNote && (
+                  <div className={styles.dailyNote}>{dailyWord.culturalNote}</div>
+                )}
               </div>
             )}
-            {messages.map((m) => (
-              <ChatBubble
-                key={m.messageId}
-                original={m.original}
-                translated={m.translated}
-                sourceLang={m.sourceLang}
-                targetLang={m.targetLang}
-                emotion={m.emotion}
-                riskScore={m.riskScore}
-                timestamp={m.timestamp}
-                deviceId={deviceId}
-                messageId={m.messageId}
-                isFirstLang={!!firstLanguage && m.sourceLang === firstLanguage}
-                onClick={() => handleBubbleClick(m)}
-                onWordClick={(word, anchor) => { void handleWordClick(m, word, anchor); }}
-                audioUrl={m.audioUrl}
+            {currentRoomId && (
+              <RoomBar
+                roomId={currentRoomId}
+                roomCode={currentRoomCode}
+                onExit={handleExitRoom}
+                onShare={() => {
+                  setShareRoomCode(currentRoomCode);
+                  setShareRoomId(currentRoomId);
+                }}
               />
-            ))}
-          </div>
+            )}
+            {showRoomBanner && !currentRoomId && !isRoomMode && (
+              <div className={styles.roomBanner}>
+                양방향 대화가 감지됐어요. ROOM을 켜서 방을 만들어 보세요.
+              </div>
+            )}
+            <div className={styles.messages}>
+              {messages.map((m) => (
+                <ChatBubble
+                  key={m.messageId}
+                  original={m.original}
+                  translated={m.translated}
+                  sourceLang={m.sourceLang}
+                  targetLang={m.targetLang}
+                  emotion={m.emotion}
+                  riskScore={m.riskScore}
+                  timestamp={m.timestamp}
+                  deviceId={deviceId}
+                  messageId={m.messageId}
+                  isFirstLang={!!firstLanguage && m.sourceLang === firstLanguage}
+                  onClick={() => handleBubbleClick(m)}
+                  onWordClick={(word, anchor) => { void handleWordClick(m, word, anchor); }}
+                  audioUrl={m.audioUrl}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
-          <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
-        </>
+      {activeTab === 'ring' && (
+        <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
       )}
 
       <WordPreviewSheet
