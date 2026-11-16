@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
     device_id?: string;
     targetLang?: string;
     context_category?: string;
+    message_id?: string | null;
+    messageId?: string | null;
     payload?: { text?: string };
   };
 
@@ -111,9 +113,22 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-device-id') ||
       `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const ownerKeyHeader = request.headers.get('x-owner-key')?.trim() || null;
-    // owner_key 우선순위: x-owner-key → 없으면 deviceId 폴백(레거시 호환, 매핑 전까지)
-    // 단, payload.device_id는 항상 별도로 유지해 이름표 혼동을 막는다
+    // owner_key 우선순위: x-owner-key → 없으면 deviceId 폴백(레거시 호환)
+    // W-3: 폴백을 조용히 두지 않음 — payload + 로그로 추적 가능하게
+    const ownerKeySource = ownerKeyHeader ? 'header' : 'device_fallback';
     const ownerKey = ownerKeyHeader || deviceId;
+    if (ownerKeySource === 'device_fallback') {
+      console.warn(
+        `[brainpool] owner_key device_fallback deviceId=${deviceId} traceId=${traceId}`
+      );
+    }
+    // post 경로: 요청에 message_id 없으면 null (추측 생성 금지) + 로그
+    const postMessageId = body.message_id || body.messageId || null;
+    if (!postMessageId) {
+      console.log(
+        `[brainpool] message_id absent (post) — recording null logId=${p.logId || null}`
+      );
+    }
     Promise.resolve().then(async () => {
       await postFactToCoreHub({
         source: 'CoreRing',
@@ -123,6 +138,8 @@ export async function POST(request: NextRequest) {
           device_id: deviceId,
           direction: sourceLang === 'ko' ? 'KO_VI' : 'VI_KO',
           tb_trans_log_id: p.logId || null,
+          message_id: postMessageId,
+          owner_key_source: ownerKeySource,
           trace_id: traceId,
           // A-7: source_text / standard_vi 제거 (복제 위반 해소)
         },
@@ -213,8 +230,9 @@ export async function POST(request: NextRequest) {
               is_southern:      ap?.isSouthern ?? false,
               cultural_notes:   ap?.culturalNote ? { warning: ap.culturalNote } : null,
               is_cultural_adjusted: !!ap?.culturalNote,
-              // A-2: message_source 기록 (translator/post 경로)
+              // A-2 / W-2: post 경로 참조 기록 (message_id는 요청에 있을 때만)
               message_source: 'post',
+              message_id: postMessageId,
             }).eq('id', logId);
             if (error) console.warn('[brainpool] 분석값 UPDATE 실패:', error.message);
             else console.log(`[brainpool] 분석값 저장 완료 logId=${logId}`);
