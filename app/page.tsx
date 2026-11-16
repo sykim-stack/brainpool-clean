@@ -87,11 +87,15 @@ function authHeaders(deviceId: string, extra?: Record<string, string>): Record<s
   return headers;
 }
 
-/** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
+/**
+ * A-5 (2026-11-16): CoreRing이 자기 영역에서 붙이는 표시 라벨.
+ * CoreHub의 action_type(소비자 지정)은 폐지됐다 → 제안 "종류"로 매핑하고,
+ * Hub가 쓴 문구(payload.message)에 의존하지 않는다.
+ */
 const OPPORTUNITY_LABEL: Record<string, string> = {
-  'suggest.corering': '💬 번역 도움이 필요하신가요?',
-  'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
-  'trigger.hajunai.nudge': '🌱 씨앗이 기다리고 있어요',
+  'suggest.translation.help': '💬 번역 도움이 필요하신가요?',
+  'celebrate.achievement': '🍎 씨앗이 열매가 됐어요',
+  'nudge.seed.owner': '🌱 씨앗이 기다리고 있어요',
 };
 
 const COREHUB_OPP_URL = 'https://brainpool-corehub.vercel.app/api/corehub/opportunities';
@@ -100,10 +104,7 @@ function mapOpportunities(raw: any[]): OpportunityItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 3).map((item: any) => ({
     id: String(item.id),
-    label:
-      OPPORTUNITY_LABEL[item.action_type] ||
-      item.payload?.message ||
-      '발견',
+    label: OPPORTUNITY_LABEL[item.opportunity_type] || '발견',
   }));
 }
 
