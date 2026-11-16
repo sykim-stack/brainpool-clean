@@ -68,6 +68,7 @@ const subscribePush = async (deviceId: string) => {
 };
 
 const DEVICE_ID_KEY = 'corering_device_id';
+/** CoreNull lib/ownerKey.ts 와 동일 — Platform 통합 아이디 */
 const OWNER_KEY = 'corenull_owner_key';
 
 function readOwnerKey(): string {
@@ -75,6 +76,7 @@ function readOwnerKey(): string {
   return localStorage.getItem(OWNER_KEY)?.trim() || '';
 }
 
+/** device 필수 + owner_key 있으면 x-owner-key 부착 */
 function authHeaders(deviceId: string, extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
     'x-device-id': deviceId,
@@ -85,6 +87,7 @@ function authHeaders(deviceId: string, extra?: Record<string, string>): Record<s
   return headers;
 }
 
+/** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
 const OPPORTUNITY_LABEL: Record<string, string> = {
   'suggest.corering': '💬 번역 도움이 필요하신가요?',
   'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
@@ -97,7 +100,10 @@ function mapOpportunities(raw: any[]): OpportunityItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 3).map((item: any) => ({
     id: String(item.id),
-    label: OPPORTUNITY_LABEL[item.action_type] || item.payload?.message || '발견',
+    label:
+      OPPORTUNITY_LABEL[item.action_type] ||
+      item.payload?.message ||
+      '발견',
   }));
 }
 
@@ -476,7 +482,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         window.history.replaceState({}, '', window.location.pathname);
       })();
     }
-  }, [initialRoomId]);
+  }, [initialRoomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDeleteRoom = useCallback(
     async (roomId: string) => {
@@ -523,6 +529,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     setWordPreviewLoading(false);
   }, []);
 
+  // NOTE: remainder of handlers + JSX continued from main with ChatBubble/BrainHeader type-safe props
   const closeWordPreview = useCallback(() => {
     setWordPreviewOpen(false);
     setWordPreviewLoading(false);
@@ -539,10 +546,36 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   return (
     <div className={styles.page}>
       <BrainHeader
+        isRoomMode={isRoomMode || !!currentRoomId}
+        onRoomToggle={() => {
+          if (currentRoomId) handleExitRoom();
+          else setIsRoomMode((prev) => !prev);
+        }}
+        isTyping={isTyping}
+        onClear={async () => {
+          if (!currentRoomId) {
+            if (!window.confirm('번역 기록을 모두 지울까요?')) return;
+            setMessages([]);
+            localStorage.removeItem('recentTranslations');
+            return;
+          }
+          if (!window.confirm('이 방의 메시지를 모두 지울까요?')) return;
+          const res = await fetch(`/api/chat/rooms/${currentRoomId}`, {
+            method: 'PATCH',
+            headers: { 'x-device-id': deviceId },
+          }).catch(() => null);
+          const data = res ? await res.json().catch(() => null) : null;
+          if (data?.payload?.cleared) setMessages([]);
+          else if (String(data?._error || '').startsWith('FORBIDDEN')) alert('방장만 메시지를 초기화할 수 있어요.');
+        }}
+        onShare={async () => {
+          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() =>
+            navigator.clipboard.writeText(location.href),
+          );
+        }}
         onInstall={handleInstall}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
       />
+
       {opportunities.length > 0 && (
         <OpportunityBanner
           items={opportunities}
@@ -552,8 +585,10 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           }}
         />
       )}
+
       {activeTab === 'phrase' && <CorePhrase deviceId={deviceId} />}
       {activeTab === 'kiip' && <KiipPractice deviceId={deviceId} />}
+
       {activeTab === 'ring' && (
         <div className={styles.chatArea} ref={chatRef}>
           {!currentRoomId && showDaily && dailyWord.word && (
@@ -562,7 +597,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               {dailyWord.meaning && <span> — {dailyWord.meaning}</span>}
             </div>
           )}
-          {isRoomMode ? (
+          {isRoomMode && !currentRoomId ? (
             <RoomList
               rooms={rooms}
               myRooms={myRooms}
@@ -629,7 +664,9 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           )}
         </div>
       )}
+
       {activeTab === 'ring' && <ChatInput onSend={handleSend} disabled={isLoading} />}
+
       <WordPreviewSheet
         open={wordPreviewOpen}
         loading={wordPreviewLoading}
@@ -639,6 +676,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         onDetail={openWordModalFromPreview}
         onSpeak={handlePreviewSpeak}
       />
+
       <WordModal
         data={
           selectedMessage && !wordPreviewOpen
@@ -663,6 +701,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           setWordPreviewLoading(false);
         }}
       />
+
       {shareRoomCode && shareRoomId && (
         <ShareRoomModal
           roomId={shareRoomId}
@@ -673,10 +712,27 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
           }}
         />
       )}
+
       {showIOSGuide && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface)', padding: 16, borderRadius: 12, zIndex: 50 }}>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            padding: 16,
+            borderRadius: 12,
+            zIndex: 50,
+          }}
+        >
           <p>iOS: 공유 → 홈 화면에 추가</p>
-          <button onClick={() => setShowIOSGuide(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>닫기</button>
+          <button
+            onClick={() => setShowIOSGuide(false)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            닫기
+          </button>
         </div>
       )}
     </div>
