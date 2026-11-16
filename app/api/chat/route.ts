@@ -273,7 +273,8 @@ export async function POST(request: NextRequest) {
       });
       if (result._error) return NextResponse.json({ payload: null, _error: result._error, traceId }, { status: 500 });
 
-      const messageId = result.message?.id || result.message?.message_id || null;
+      // ChatMessageEngine returns message.messageId (not id / message_id)
+      const messageId = result.message?.messageId || result.message?.id || result.message?.message_id || null;
 
       // A-2: 메시지 생성 후 tb_trans_logs에 message_id 채우기
       if (messageId && translationMeta.tbTransLogId) {
@@ -282,15 +283,19 @@ export async function POST(request: NextRequest) {
             const { getStorage } = await import('@/brain-engine/connectors/storage.js');
             const db = await getStorage();
             if (db) {
-              await db.from('tb_trans_logs').update({
+              const { error } = await db.from('tb_trans_logs').update({
                 message_id: messageId,
                 message_source: 'chat',
               }).eq('id', translationMeta.tbTransLogId);
+              if (error) console.warn('[chat/send] message_id 백필 실패:', error.message);
+              else console.log(`[chat/send] message_id 백필 OK messageId=${messageId} logId=${translationMeta.tbTransLogId}`);
             }
           } catch (e: any) {
             console.warn('[chat/send] message_id 백필 실패:', e.message);
           }
         });
+      } else {
+        console.warn(`[chat/send] message_id 백필 스킵 messageId=${messageId} logId=${translationMeta.tbTransLogId}`);
       }
 
       // ── CoreHub: relation.chat.sent Fact (fire-and-forget) ──
