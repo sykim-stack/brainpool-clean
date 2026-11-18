@@ -218,6 +218,22 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     setDeviceId(readOrCreateDeviceId());
   }, []);
 
+  // A-1: CoreNull에서 전달된 owner_key를 URL 파라미터로 수신 → localStorage 저장
+  // (CoreNull과 CoreRing은 다른 origin → localStorage 공유 불가, URL 파라미터로 브릿지)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const ownerKey = params.get('corenull_owner_key')?.trim();
+    if (ownerKey) {
+      localStorage.setItem(OWNER_KEY, ownerKey);
+      // URL에서 파라미터 제거 (히스토리 정리)
+      params.delete('corenull_owner_key');
+      const clean = params.toString();
+      const newUrl = window.location.pathname + (clean ? `?${clean}` : '') + window.location.hash;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('recentTranslations');
