@@ -14,7 +14,7 @@
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch; /* messages full-width; daily uses align-self:center */
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   /* 하단 입력바·safe-area 여유 (ring 탭 ChatInput 높이 대략 반영) */
@@ -223,4 +223,17 @@
   background: var(--color-surface);
   color: var(--color-text);
   border-color: var(--color-accent);
+}
+
+/* ── 메시지 리스트 — 화면 가로 100% (좌우 끝 정렬) */
+.messages {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  align-self: stretch;
+  margin-inline: 0;
+  padding-inline: 0;
 }

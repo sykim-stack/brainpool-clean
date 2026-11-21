@@ -34,13 +34,13 @@ interface VocabItem {
 }
 
 interface CorePhraseProps {
-  userId: string;
+  userId?: string;
 }
 
 type ViewMode = 'list' | 'study';
 type ListPanel = 'vocab' | 'settings';
 
-export default function CorePhrase({ userId }: CorePhraseProps) {
+export default function CorePhrase({ userId = '' }: CorePhraseProps) {
   const [items, setItems] = useState<VocabItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<ViewMode>('list');

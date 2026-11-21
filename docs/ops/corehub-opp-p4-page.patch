@@ -1,0 +1,107 @@
+diff --git a/app/page.tsx b/app/page.tsx
+index 0668278..7eeb1ab 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -5,6 +5,11 @@ import BrainHeader from '@/components/BrainHeader';
+ import ChatBubble from '@/components/ChatBubble';
+ import ChatInput from '@/components/ChatInput';
+ import OpportunityBanner, { type OpportunityItem } from '@/components/OpportunityBanner';
++import {
++  fetchCoreHubOpportunities,
++  dismissCoreHubOpportunity,
++  mapCoreHubOpportunities,
++} from '@/lib/corehub';
+ import RoomList from '@/components/RoomList';
+ import RoomBar from '@/components/RoomBar';
+ import WordModal from '@/components/WordModal';
+@@ -85,25 +90,6 @@ function authHeaders(deviceId: string, extra?: Record<string, string>): Record<s
+   return headers;
+ }
+ 
+-const OPPORTUNITY_LABEL: Record<string, string> = {
+-  'suggest.corering': '💬 번역 도움이 필요하신가요?',
+-  'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
+-  'trigger.hajunai.nudge': '🌱 씨앗이 기다리고 있어요',
+-};
+-
+-const COREHUB_OPP_URL = 'https://brainpool-corehub.vercel.app/api/corehub/opportunities';
+-
+-function mapOpportunities(raw: any[]): OpportunityItem[] {
+-  if (!Array.isArray(raw)) return [];
+-  return raw.slice(0, 3).map((item: any) => ({
+-    id: String(item.id),
+-    label:
+-      OPPORTUNITY_LABEL[item.action_type] ||
+-      item.payload?.message ||
+-      '발견',
+-  }));
+-}
+-
+ const LEGACY_DEVICE_ID_KEY = 'deviceId';
+ 
+ function readOrCreateDeviceId(): string {
+@@ -259,19 +245,13 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
+     }
+   }, [deviceId]);
+ 
+-  const refreshOpportunities = useCallback(async (ownerKey: string) => {
+-    if (!ownerKey) return;
++  // CoreHub P4.3: no client owner fields; Bearer session scopes owner_keys server-side.
++  const refreshOpportunities = useCallback(async () => {
+     try {
+-      const res = await fetch(
+-        `${COREHUB_OPP_URL}?owner_key=${encodeURIComponent(ownerKey)}&status=open&limit=5`,
+-        { cache: 'no-store' }
+-      ).catch(() => null);
+-      if (!res || !res.ok) return;
+-      const data = await res.json().catch(() => null);
+-      const raw = Array.isArray(data?.data)
+-        ? data.data
+-        : data?.payload?.opportunities || data?.opportunities || [];
+-      const mapped = mapOpportunities(raw).filter((o) => !dismissedOppRef.current.has(o.id));
++      const raw = await fetchCoreHubOpportunities();
++      const mapped = mapCoreHubOpportunities(raw).filter(
++        (o) => !dismissedOppRef.current.has(o.id)
++      );
+       setOpportunities(mapped);
+     } catch (e) {
+       console.warn('[opp] refresh failed', e);
+@@ -280,7 +260,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
+ 
+   useEffect(() => {
+     if (!deviceId) return;
+-    refreshOpportunities(readOwnerKey() || deviceId);
++    refreshOpportunities();
+   }, [deviceId, refreshOpportunities]);
+ 
+   const handleExitRoom = useCallback(() => {
+@@ -417,14 +397,14 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
+               if (updated.includes('ko') && updated.includes('vi')) setShowRoomBanner(true);
+               return updated;
+             });
+-            window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
++            window.setTimeout(() => refreshOpportunities(), 1800);
+           }
+         } catch {}
+         setIsLoading(false);
+         return;
+       }
+       await sendMessageToRoom(currentRoomId, text);
+-      window.setTimeout(() => refreshOpportunities(readOwnerKey() || deviceId), 1800);
++      window.setTimeout(() => refreshOpportunities(), 1800);
+       setIsLoading(false);
+     },
+     [currentRoomId, deviceId, refreshOpportunities]
+@@ -546,11 +526,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
+     dismissedOppRef.current.add(id);
+     setOpportunities((prev) => prev.filter((o) => o.id !== id));
+     try {
+-      await fetch(`${COREHUB_OPP_URL}?id=${encodeURIComponent(id)}`, {
+-        method: 'PATCH',
+-        headers: { 'Content-Type': 'application/json' },
+-        body: JSON.stringify({ outcome: 'dismissed', opportunity_id: id }),
+-      });
++      await dismissCoreHubOpportunity(id, 'dismissed');
+     } catch {
+       /* fail-soft */
+     }

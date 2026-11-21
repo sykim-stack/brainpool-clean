@@ -660,7 +660,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
       <div className={styles.main} ref={chatRef}>
         {activeTab === 'phrase' ? (
-          <CorePhrase />
+          <CorePhrase userId={deviceId} />
         ) : activeTab === 'kiip' ? (
           <KiipPractice deviceId={deviceId} />
         ) : (

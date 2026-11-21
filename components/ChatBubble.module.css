@@ -1,15 +1,21 @@
 /* ChatBubble.module.css — 말풍선 정렬 최종 확정, 토큰 완전 적용 */
 
+/* row takes full width; bubble docks left or right */
+.wrapperMine,
+.wrapperOther {
+  width: 100%;
+  display: flex;
+  box-sizing: border-box;
+}
+
 .wrapperMine {
-  align-self: flex-start;
-  margin-right: var(--bubble-offset);
-  margin-left: 0;
+  justify-content: flex-start;
+  padding-right: var(--bubble-offset);
 }
 
 .wrapperOther {
-  align-self: flex-end;
-  margin-left: var(--bubble-offset);
-  margin-right: 0;
+  justify-content: flex-end;
+  padding-left: var(--bubble-offset);
 }
 
 .bubble {
@@ -20,6 +26,7 @@
   background: var(--color-bubble-bg);
   color: var(--color-text);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .meta {
