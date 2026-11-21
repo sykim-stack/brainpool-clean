@@ -225,17 +225,15 @@
   border-color: var(--color-accent);
 }
 
-/* ── 메시지 리스트
-   .main 의 align-items:center 때문에 width 없는 자식은 가운데로 수축 → 버블 쏠림.
-   ChatBubble 의 align-self(wrapperMine/Other) 가 동작하려면 전체 폭 flex column 필요. */
+/* ── 메시지 리스트 — 화면 가로 100% (좌우 끝 정렬) */
 .messages {
   width: 100%;
-  max-width: 720px;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   box-sizing: border-box;
   align-self: stretch;
-  margin-inline: auto;
+  margin-inline: 0;
   padding-inline: 0;
 }
