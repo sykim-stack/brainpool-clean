@@ -133,7 +133,8 @@ export default function ChatBubble({
   const learningTokens = tokens.filter((token) => token.clickable);
 
   return (
-    <div className={`${styles.bubble} ${alignClass}`} onClick={onClick}>
+    <div className={alignClass}>
+    <div className={styles.bubble} onClick={onClick}>
       <div className={styles.meta}>
         <span className={`${styles.langLabel} ${langLabelClass}`}>{langLabel}</span>
         {copied && <span className={styles.copied}>📋 복사됨</span>}
@@ -234,6 +235,7 @@ export default function ChatBubble({
         </button>
         <span>{new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
+    </div>
     </div>
   );
 }
