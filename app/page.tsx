@@ -68,7 +68,6 @@ const subscribePush = async (deviceId: string) => {
 };
 
 const DEVICE_ID_KEY = 'corering_device_id';
-/** CoreNull lib/ownerKey.ts 와 동일 — Platform 통합 아이디 */
 const OWNER_KEY = 'corenull_owner_key';
 
 function readOwnerKey(): string {
@@ -76,7 +75,6 @@ function readOwnerKey(): string {
   return localStorage.getItem(OWNER_KEY)?.trim() || '';
 }
 
-/** device 필수 + owner_key 있으면 x-owner-key 부착 */
 function authHeaders(deviceId: string, extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
     'x-device-id': deviceId,
@@ -87,7 +85,6 @@ function authHeaders(deviceId: string, extra?: Record<string, string>): Record<s
   return headers;
 }
 
-/** CoreNull Yard와 동일 톤 — CoreHub action_type → 표시 문구 */
 const OPPORTUNITY_LABEL: Record<string, string> = {
   'suggest.corering': '💬 번역 도움이 필요하신가요?',
   'trigger.hajunai.celebrate': '🍎 씨앗이 열매가 됐어요',
@@ -151,7 +148,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
   const [currentRoomCode, setCurrentRoomCode] = useState('------');
   const [isRoomMode, setIsRoomMode] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [nickname, setNickname] = useState('익명');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [selectedWord, setSelectedWord] = useState<any>(null);
   const [wordPreviewOpen, setWordPreviewOpen] = useState(false);
@@ -272,7 +268,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
       ).catch(() => null);
       if (!res || !res.ok) return;
       const data = await res.json().catch(() => null);
-      // CoreHub returns { data: Opportunity[] }; warehouse-style payload kept as fallback
       const raw = Array.isArray(data?.data)
         ? data.data
         : data?.payload?.opportunities || data?.opportunities || [];
@@ -285,7 +280,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
   useEffect(() => {
     if (!deviceId) return;
-    // Platform owner_key 우선, 없으면 deviceId (기존과 동일)
     refreshOpportunities(readOwnerKey() || deviceId);
   }, [deviceId, refreshOpportunities]);
 
@@ -527,16 +521,13 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     }).catch(() => null);
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.success && json.payload) setSelectedWord(json.payload);
-    else setSelectedWord({ word, source: 'not_found' });
+    else setSelectedWord({ word, meaning: '의미를 찾지 못했어요' });
     setWordPreviewLoading(false);
   }, []);
 
   const closeWordPreview = useCallback(() => {
     setWordPreviewOpen(false);
     setWordPreviewLoading(false);
-    setSelectedMessage(null);
-    setSelectedWord(null);
-    setWordPreviewAnchor({ x: 0, y: 0 });
   }, []);
 
   const openWordModalFromPreview = useCallback(() => {
@@ -565,8 +556,6 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
     }
   }, []);
 
-  // --- render: full UI restored from pre-identity main + authHeaders wiring ---
-  // (Content continued from original page.tsx structure)
   return (
     <div className="app-shell">
       <BrainHeader
@@ -584,25 +573,20 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
             return;
           }
           if (!window.confirm('이 방의 메시지를 모두 지울까요?')) return;
-          const res = await fetch(`/api/chat/rooms/${currentRoomId}`, {
-            method: 'PATCH',
-            headers: authHeaders(deviceId),
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: authHeaders(deviceId, { 'Content-Type': 'application/json; charset=utf-8' }),
+            body: JSON.stringify({ action: 'clear', roomId: currentRoomId }),
           }).catch(() => null);
-          const data = res ? await res.json().catch(() => null) : null;
-          if (data?.payload?.cleared) setMessages([]);
-          else if (String(data?._error || '').startsWith('FORBIDDEN'))
-            alert('방장만 메시지를 초기화할 수 있어요.');
-          else alert('메시지 초기화에 실패했어요.');
+          setMessages([]);
         }}
         onShare={async () => {
-          if (currentRoomId && currentRoomCode && currentRoomCode !== '------') {
+          if (currentRoomId) {
             setShareRoomCode(currentRoomCode);
             setShareRoomId(currentRoomId);
             return;
           }
-          await navigator
-            .share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href })
-            .catch(() => {});
+          await navigator.share?.({ title: 'BRAINPOOL', text: 'CORE-RING', url: location.href }).catch(() => {});
         }}
         onInstall={handleInstall}
       />
@@ -676,7 +660,7 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
 
       <div className={styles.main} ref={chatRef}>
         {activeTab === 'phrase' ? (
-          <CorePhrase userId={deviceId} />
+          <CorePhrase />
         ) : activeTab === 'kiip' ? (
           <KiipPractice deviceId={deviceId} />
         ) : (
@@ -715,10 +699,21 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
               {messages.map((m) => (
                 <ChatBubble
                   key={m.messageId}
-                  message={m}
-                  isMine={m.userId === deviceId}
+                  original={m.original}
+                  translated={m.translated}
+                  sourceLang={m.sourceLang}
+                  targetLang={m.targetLang}
+                  emotion={m.emotion}
+                  riskScore={m.riskScore}
+                  timestamp={m.timestamp}
+                  deviceId={deviceId}
+                  messageId={m.messageId}
+                  isFirstLang={!firstLanguage || m.sourceLang === firstLanguage}
+                  audioUrl={m.audioUrl}
                   onClick={() => handleBubbleClick(m)}
-                  onWordClick={handleWordClick}
+                  onWordClick={(word, anchor) => {
+                    void handleWordClick(m, word, anchor);
+                  }}
                 />
               ))}
             </div>
@@ -726,12 +721,17 @@ export default function Home({ initialRoomId }: { initialRoomId?: string } = {})
         )}
       </div>
 
-      {activeTab === 'ring' && <ChatInput onSend={handleSend} disabled={isLoading} />}
+      {activeTab === 'ring' && (
+        <ChatInput onSend={handleSend} onTypingChange={setIsTyping} />
+      )}
 
       <WordPreviewSheet
         open={wordPreviewOpen}
+        word={selectedWord?.word || selectedWord?.lemma || ''}
+        meaning={selectedWord?.meaning}
+        isUnknown={!wordPreviewLoading && !!selectedWord && !selectedWord?.meaning}
+        contextLine={selectedMessage?.original}
         loading={wordPreviewLoading}
-        data={selectedWord}
         anchor={wordPreviewAnchor}
         onClose={closeWordPreview}
         onDetail={openWordModalFromPreview}
